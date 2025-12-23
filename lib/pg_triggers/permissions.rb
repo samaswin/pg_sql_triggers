@@ -13,7 +13,6 @@ module PgTriggers
     ACTIONS = {
       view_triggers: VIEWER,
       view_diffs: VIEWER,
-      view_audit_logs: VIEWER,
       enable_trigger: OPERATOR,
       disable_trigger: OPERATOR,
       apply_trigger: OPERATOR,

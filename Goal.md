@@ -13,13 +13,11 @@ Rails teams use PostgreSQL triggers for:
 - data integrity
 - performance
 - billing logic
-- audit enforcement
 
 But triggers today are:
 - managed manually
 - invisible to Rails
 - unsafe to deploy
-- hard to audit
 - easy to drift
 
 This gem brings triggers into the Rails ecosystem with:
@@ -27,7 +25,6 @@ This gem brings triggers into the Rails ecosystem with:
 - safe deploys
 - versioning
 - UI control
-- auditability
 - emergency SQL escape hatches
 
 ---
@@ -37,7 +34,6 @@ This gem brings triggers into the Rails ecosystem with:
 - Rails-native
 - Explicit over magic
 - Safe by default
-- Auditable always
 - Power with guardrails
 
 This gem **manages lifecycle**, not business logic.
@@ -171,7 +167,6 @@ Free-form SQL is wrapped in **named SQL capsules**:
 - Must declare environment
 - Must declare purpose
 - Must be applied explicitly
-- Must be audited
 
 Rules:
 - Runs in a transaction
@@ -189,7 +184,6 @@ Three permission levels:
 - Read-only
 - View triggers
 - View diffs
-- View audit logs
 
 ### Operator
 - Enable / Disable triggers
@@ -210,30 +204,7 @@ Permissions enforced in:
 
 ---
 
-## 6. Audit System (MANDATORY)
-
-All mutations must be logged.
-
-Audit table must capture:
-- actor_type
-- actor_id
-- action
-- target_type
-- target_name
-- environment
-- source
-- checksum_before
-- checksum_after
-- reason (required for destructive actions)
-- executed_at
-- success
-- error_message
-
-Audit log is append-only.
-
----
-
-## 7. Kill Switch for Production SQL (MANDATORY)
+## 6. Kill Switch for Production SQL (MANDATORY)
 
 Production mutations must be gated.
 
@@ -269,7 +240,6 @@ UI is operational, not decorative.
 - Summary panel
 - SQL diff
 - Registry state
-- Audit history
 
 ### Actions (State-Based)
 - Enable
@@ -293,7 +263,6 @@ Re-execute must:
 3. Require typed confirmation
 4. Execute transactionally
 5. Update registry
-6. Write audit log
 
 No silent operations allowed.
 
@@ -312,7 +281,6 @@ No silent operations allowed.
 ## 11. Non-Negotiable Constraints
 
 - No silent prod changes
-- No unaudited mutations
 - No hidden state
 - No bypassing registry
 - No bypassing permissions

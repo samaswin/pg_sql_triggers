@@ -11,15 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial gem structure
 - PostgreSQL trigger DSL for defining triggers
 - Trigger registry system for tracking trigger metadata
-- Audit logging for all trigger mutations
 - Drift detection between DSL and database state
 - Permission system (Viewer, Operator, Admin)
 - Mountable Rails Engine with web UI
 - Production kill switch for safety
 - Console introspection APIs
-- Migration for registry and audit tables
+- Migration for registry table
 - Install generator
-- Basic controllers (Dashboard, Triggers, AuditLogs)
+- Basic controllers (Dashboard, Triggers)
 
 ### Changed
 - Nothing yet

@@ -28,15 +28,22 @@
 
     <div style="margin-bottom: 1rem;">
       <%= f.label :table_name, "Table Name *", style: "display: block; font-weight: 500; margin-bottom: 0.25rem;" %>
-      <%= f.select :table_name,
-          options_for_select(@available_tables.map { |t| [t, t] }, @form.table_name),
-          { include_blank: "Select a table..." },
-          {
-            required: true,
-            id: "table-name-select",
-            style: "width: 100%; padding: 0.5rem; border: 1px solid #ced4da; border-radius: 4px;"
-          } %>
+      <div style="display: flex; gap: 0.5rem; align-items: start;">
+        <%= f.select :table_name,
+            options_for_select(@available_tables.map { |t| [t, t] }, @form.table_name),
+            { include_blank: "Select a table..." },
+            {
+              required: true,
+              id: "table-name-select",
+              style: "flex: 1; padding: 0.5rem; border: 1px solid #ced4da; border-radius: 4px;"
+            } %>
+        <%= link_to "Browse Tables", tables_path, target: "_blank", class: "btn btn-primary", style: "padding: 0.5rem 1rem; white-space: nowrap; text-decoration: none;" %>
+      </div>
       <div id="table-validation-message" style="margin-top: 0.25rem;"></div>
+      <div id="table-triggers-info" style="margin-top: 0.5rem; padding: 0.75rem; background: #f8f9fa; border-radius: 4px; display: none;">
+        <strong style="color: #495057;">Existing Triggers:</strong>
+        <div id="table-triggers-list" style="margin-top: 0.5rem;"></div>
+      </div>
       <% if @form.errors[:table_name].any? %>
         <div style="color: #dc3545; margin-top: 0.25rem;"><%= @form.errors[:table_name].first %></div>
       <% end %>
@@ -147,9 +154,12 @@
 document.getElementById('table-name-select')?.addEventListener('change', function(e) {
   const tableName = e.target.value;
   const messageDiv = document.getElementById('table-validation-message');
+  const infoDiv = document.getElementById('table-triggers-info');
+  const triggersList = document.getElementById('table-triggers-list');
 
   if (!tableName) {
     messageDiv.innerHTML = '';
+    if (infoDiv) infoDiv.style.display = 'none';
     return;
   }
 
@@ -167,12 +177,51 @@ document.getElementById('table-name-select')?.addEventListener('change', functio
   .then(data => {
     if (data.valid) {
       messageDiv.innerHTML = '<span style="color: #28a745;">✓ Table exists (' + data.column_count + ' columns)</span>';
+      
+      // Try to fetch existing triggers for this table
+      if (infoDiv && triggersList) {
+        fetch('<%= tables_path %>/' + encodeURIComponent(tableName) + '.json', {
+          headers: {
+            'Accept': 'application/json',
+            'X-CSRF-Token': document.querySelector('[name="csrf-token"]').content
+          }
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (data.registry_triggers && data.registry_triggers.length > 0) {
+            let triggersHtml = '<div style="display: flex; flex-direction: column; gap: 0.5rem;">';
+            data.registry_triggers.forEach(trigger => {
+              triggersHtml += '<div style="padding: 0.5rem; background: white; border-radius: 4px; border-left: 3px solid #007bff;">';
+              triggersHtml += '<strong>' + trigger.trigger_name + '</strong> ';
+              triggersHtml += '<span class="badge ' + (trigger.enabled ? 'badge-success' : 'badge-danger') + '" style="font-size: 0.75rem;">' + (trigger.enabled ? 'Enabled' : 'Disabled') + '</span>';
+              if (trigger.function_name) {
+                triggersHtml += '<br><small style="color: #6c757d;">Function: <code>' + trigger.function_name + '</code></small>';
+              }
+              triggersHtml += '</div>';
+            });
+            triggersHtml += '</div>';
+            triggersHtml += '<div style="margin-top: 0.5rem;"><a href="<%= tables_path %>/' + encodeURIComponent(tableName) + '" target="_blank" style="color: #007bff; text-decoration: none; font-size: 0.875rem;">View all table details →</a></div>';
+            triggersList.innerHTML = triggersHtml;
+            infoDiv.style.display = 'block';
+          } else {
+            infoDiv.style.display = 'none';
+          }
+        })
+        .catch(error => {
+          console.error('Failed to fetch triggers:', error);
+          // Fallback: show link to view table details
+          triggersList.innerHTML = '<a href="<%= tables_path %>/' + encodeURIComponent(tableName) + '" target="_blank" style="color: #007bff; text-decoration: none;">View table details →</a>';
+          infoDiv.style.display = 'block';
+        });
+      }
     } else {
       messageDiv.innerHTML = '<span style="color: #dc3545;">✗ Table not found in database</span>';
+      if (infoDiv) infoDiv.style.display = 'none';
     }
   })
   .catch(error => {
     messageDiv.innerHTML = '<span style="color: #856404;">⚠ Validation unavailable</span>';
+    if (infoDiv) infoDiv.style.display = 'none';
   });
 });
 </script>

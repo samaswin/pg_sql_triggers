@@ -29,15 +29,5 @@ module PgTriggers
     def current_user_id
       "unknown"
     end
-
-    def audit_action(action, target_type, target_name, **options)
-      PgTriggers::Audit.log(
-        action: action,
-        target_type: target_type,
-        target_name: target_name,
-        actor: current_actor,
-        **options
-      )
-    end
   end
 end

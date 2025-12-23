@@ -6,12 +6,11 @@ Production-grade PostgreSQL trigger management for Rails with lifecycle manageme
 
 ## Why PgTriggers?
 
-Rails teams use PostgreSQL triggers for data integrity, performance, billing logic, and audit enforcement. But triggers today are:
+Rails teams use PostgreSQL triggers for data integrity, performance, and billing logic. But triggers today are:
 
 - Managed manually
 - Invisible to Rails
 - Unsafe to deploy
-- Hard to audit
 - Easy to drift
 
 **PgTriggers** brings triggers into the Rails ecosystem with:
@@ -20,7 +19,6 @@ Rails teams use PostgreSQL triggers for data integrity, performance, billing log
 - Safe deploys
 - Versioning
 - UI control
-- Auditability
 - Emergency SQL escape hatches
 
 ## Installation
@@ -46,7 +44,7 @@ $ rails db:migrate
 
 This will:
 1. Create an initializer at `config/initializers/pg_triggers.rb`
-2. Create migrations for registry and audit tables
+2. Create migrations for registry table
 3. Mount the engine at `/pg_triggers`
 
 ## Usage
@@ -69,7 +67,90 @@ PgTriggers::DSL.pg_trigger "rpm_device_readings_guard" do
 end
 ```
 
-### 2. Console Introspection
+### 2. Trigger Migrations
+
+Generate and run trigger migrations similar to Rails schema migrations:
+
+```bash
+# Generate a new trigger migration
+rails generate trigger:migration add_validation_trigger
+
+# Run pending trigger migrations
+rake trigger:migrate
+
+# Rollback last trigger migration
+rake trigger:rollback
+
+# Rollback multiple steps
+rake trigger:rollback STEP=3
+
+# Check migration status
+rake trigger:migrate:status
+
+# Run a specific migration up
+rake trigger:migrate:up VERSION=20231215120000
+
+# Run a specific migration down
+rake trigger:migrate:down VERSION=20231215120000
+
+# Redo last migration
+rake trigger:migrate:redo
+```
+
+Trigger migrations are stored in `db/triggers/` and follow the same naming convention as Rails migrations (`YYYYMMDDHHMMSS_name.rb`).
+
+Example trigger migration:
+
+```ruby
+# db/triggers/20231215120000_add_validation_trigger.rb
+class AddValidationTrigger < PgTriggers::Migration
+  def up
+    execute <<-SQL
+      CREATE OR REPLACE FUNCTION validate_user_email()
+      RETURNS TRIGGER AS $$
+      BEGIN
+        IF NEW.email !~ '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$' THEN
+          RAISE EXCEPTION 'Invalid email format';
+        END IF;
+        RETURN NEW;
+      END;
+      $$ LANGUAGE plpgsql;
+
+      CREATE TRIGGER user_email_validation
+      BEFORE INSERT OR UPDATE ON users
+      FOR EACH ROW
+      EXECUTE FUNCTION validate_user_email();
+    SQL
+  end
+
+  def down
+    execute <<-SQL
+      DROP TRIGGER IF EXISTS user_email_validation ON users;
+      DROP FUNCTION IF EXISTS validate_user_email();
+    SQL
+  end
+end
+```
+
+### 3. Combined Schema and Trigger Migrations
+
+Run both schema and trigger migrations together:
+
+```bash
+# Run both schema and trigger migrations
+rake db:migrate:with_triggers
+
+# Rollback both (rolls back the most recent migration)
+rake db:rollback:with_triggers
+
+# Check status of both
+rake db:migrate:status:with_triggers
+
+# Get versions of both
+rake db:version:with_triggers
+```
+
+### 4. Console Introspection
 
 Access trigger information from the Rails console:
 
@@ -93,7 +174,7 @@ PgTriggers::Registry.diff
 PgTriggers::Registry.validate!
 ```
 
-### 3. Web UI
+### 5. Web UI
 
 Access the web UI at `http://localhost:3000/pg_triggers` to:
 
@@ -101,14 +182,13 @@ Access the web UI at `http://localhost:3000/pg_triggers` to:
 - Enable/disable triggers
 - View drift states
 - Execute SQL capsules
-- Review audit logs
 - Manage trigger lifecycle
 
-### 4. Permissions
+### 6. Permissions
 
 PgTriggers supports three permission levels:
 
-- **Viewer**: Read-only access (view triggers, diffs, audit logs)
+- **Viewer**: Read-only access (view triggers, diffs)
 - **Operator**: Can enable/disable triggers, apply generated triggers
 - **Admin**: Full access including dropping triggers and executing SQL
 
@@ -125,7 +205,7 @@ PgTriggers.configure do |config|
 end
 ```
 
-### 5. Drift Detection
+### 7. Drift Detection
 
 PgTriggers automatically detects drift between your DSL definitions and the actual database state:
 
@@ -136,22 +216,7 @@ PgTriggers automatically detects drift between your DSL definitions and the actu
 - **Dropped**: Trigger was dropped but still in registry
 - **Unknown**: Trigger exists in DB but not in registry
 
-### 6. Audit Logging
-
-All trigger mutations are automatically logged:
-
-```ruby
-# View audit logs
-PgTriggers::AuditLog.recent
-
-# View logs for a specific trigger
-PgTriggers::AuditLog.for_target("rpm_device_readings_guard")
-
-# View failed operations
-PgTriggers::AuditLog.failed
-```
-
-### 7. Production Kill Switch
+### 8. Production Kill Switch
 
 By default, PgTriggers blocks destructive operations in production:
 
@@ -195,7 +260,6 @@ end
 - **Rails-native**: Works seamlessly with Rails conventions
 - **Explicit over magic**: No automatic execution
 - **Safe by default**: Requires explicit confirmation for destructive actions
-- **Auditable always**: Every mutation is logged
 - **Power with guardrails**: Emergency SQL escape hatches with safety checks
 
 ## Development

@@ -1,0 +1,161 @@
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+  <h2 style="margin: 0;">Database Tables & Triggers</h2>
+  <%= link_to "Generate New Trigger", new_generator_path, class: "btn btn-success" %>
+</div>
+
+<!-- Statistics -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
+  <div style="background: white; padding: 1.5rem; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+    <div style="font-size: 2rem; font-weight: 600; color: #007bff;"><%= @total_tables %></div>
+    <div style="color: #6c757d;">Total Tables</div>
+  </div>
+  <div style="background: white; padding: 1.5rem; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+    <div style="font-size: 2rem; font-weight: 600; color: #28a745;"><%= @tables_with_trigger_count %></div>
+    <div style="color: #6c757d;">Tables with Triggers</div>
+  </div>
+  <div style="background: white; padding: 1.5rem; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+    <div style="font-size: 2rem; font-weight: 600; color: #6c757d;"><%= @tables_without_triggers %></div>
+    <div style="color: #6c757d;">Tables without Triggers</div>
+  </div>
+</div>
+
+<!-- Filter Tabs -->
+<div style="border-bottom: 2px solid #dee2e6; margin-bottom: 2rem;">
+  <div style="display: flex; gap: 1rem;">
+    <button onclick="filterTables('all')" id="filter-all" class="filter-btn active"
+            style="padding: 0.75rem 1rem; border: none; background: #007bff; color: white; border-radius: 4px 4px 0 0; cursor: pointer; font-weight: 600;">
+      All Tables (<%= @total_tables %>)
+    </button>
+    <button onclick="filterTables('with-triggers')" id="filter-with-triggers" class="filter-btn"
+            style="padding: 0.75rem 1rem; border: none; background: #6c757d; color: white; border-radius: 4px 4px 0 0; cursor: pointer;">
+      With Triggers (<%= @tables_with_trigger_count %>)
+    </button>
+    <button onclick="filterTables('without-triggers')" id="filter-without-triggers" class="filter-btn"
+            style="padding: 0.75rem 1rem; border: none; background: #6c757d; color: white; border-radius: 4px 4px 0 0; cursor: pointer;">
+      Without Triggers (<%= @tables_without_triggers %>)
+    </button>
+  </div>
+</div>
+
+<!-- Tables List -->
+<% if @tables_with_triggers.any? %>
+  <div style="background: white; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); overflow: hidden;">
+    <table style="margin: 0;">
+      <thead>
+        <tr>
+          <th style="width: 25%;">Table Name</th>
+          <th style="width: 10%;">Triggers</th>
+          <th style="width: 40%;">Trigger Names & Functions</th>
+          <th style="width: 15%;">Status</th>
+          <th style="width: 10%;">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @tables_with_triggers.each do |table| %>
+          <tr class="table-row" 
+              data-has-triggers="<%= table[:trigger_count] > 0 ? 'true' : 'false' %>"
+              style="<%= 'background: #f8f9fa;' if table[:trigger_count] > 0 %>">
+            <td>
+              <strong style="font-size: 1.1rem;"><%= table[:table_name] %></strong>
+            </td>
+            <td>
+              <span class="badge <%= table[:trigger_count] > 0 ? 'badge-success' : 'badge-danger' %>">
+                <%= table[:trigger_count] %>
+              </span>
+            </td>
+            <td>
+              <% if table[:trigger_count] > 0 %>
+                <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                  <% table[:registry_triggers].each do |trigger| %>
+                    <div style="padding: 0.5rem; background: #f8f9fa; border-radius: 4px; border-left: 3px solid #007bff;">
+                      <div style="font-weight: 600; color: #007bff;">
+                        <%= trigger[:trigger_name] %>
+                        <% if trigger[:enabled] %>
+                          <span class="badge badge-success" style="font-size: 0.75rem; margin-left: 0.5rem;">Enabled</span>
+                        <% else %>
+                          <span class="badge badge-danger" style="font-size: 0.75rem; margin-left: 0.5rem;">Disabled</span>
+                        <% end %>
+                      </div>
+                      <div style="font-size: 0.875rem; color: #6c757d; margin-top: 0.25rem;">
+                        Function: <code style="background: #e9ecef; padding: 0.125rem 0.25rem; border-radius: 2px;"><%= trigger[:function_name] || 'N/A' %></code>
+                      </div>
+                    </div>
+                  <% end %>
+                  <% table[:database_triggers].each do |trigger| %>
+                    <div style="padding: 0.5rem; background: #fff3cd; border-radius: 4px; border-left: 3px solid #ffc107;">
+                      <div style="font-weight: 600; color: #856404;">
+                        <%= trigger[:trigger_name] %>
+                        <span class="badge badge-warning" style="font-size: 0.75rem; margin-left: 0.5rem;">DB Only</span>
+                      </div>
+                      <div style="font-size: 0.875rem; color: #6c757d; margin-top: 0.25rem;">
+                        Function: <code style="background: #e9ecef; padding: 0.125rem 0.25rem; border-radius: 2px;"><%= trigger[:function_name] %></code>
+                      </div>
+                    </div>
+                  <% end %>
+                </div>
+              <% else %>
+                <span style="color: #6c757d; font-style: italic;">No triggers</span>
+              <% end %>
+            </td>
+            <td>
+              <% if table[:trigger_count] > 0 %>
+                <% enabled_count = table[:registry_triggers].count { |t| t[:enabled] } %>
+                <% disabled_count = table[:registry_triggers].count - enabled_count %>
+                <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+                  <% if enabled_count > 0 %>
+                    <span class="badge badge-success" style="font-size: 0.75rem;"><%= enabled_count %> Enabled</span>
+                  <% end %>
+                  <% if disabled_count > 0 %>
+                    <span class="badge badge-danger" style="font-size: 0.75rem;"><%= disabled_count %> Disabled</span>
+                  <% end %>
+                </div>
+              <% else %>
+                <span style="color: #6c757d;">—</span>
+              <% end %>
+            </td>
+            <td>
+              <%= link_to "View Details", table_path(table[:table_name]), class: "btn btn-primary", style: "padding: 0.25rem 0.5rem; font-size: 0.875rem;" %>
+              <%= link_to "Create Trigger", new_generator_path(pg_triggers_generator_form: { table_name: table[:table_name] }), class: "btn btn-success", style: "padding: 0.25rem 0.5rem; font-size: 0.875rem; margin-top: 0.25rem; display: block;" %>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+<% else %>
+  <div style="background: #e7f3ff; border-left: 4px solid #007bff; padding: 1.5rem; border-radius: 4px;">
+    <h3 style="margin-top: 0;">No tables found</h3>
+    <p style="margin-bottom: 1rem;">No tables were found in the database.</p>
+  </div>
+<% end %>
+
+<script>
+function filterTables(filter) {
+  const rows = document.querySelectorAll('.table-row');
+  const buttons = document.querySelectorAll('.filter-btn');
+  
+  // Update button styles
+  buttons.forEach(btn => {
+    btn.style.background = '#6c757d';
+    btn.style.fontWeight = 'normal';
+  });
+  document.getElementById('filter-' + filter.replace('-', '-')).style.background = '#007bff';
+  document.getElementById('filter-' + filter.replace('-', '-')).style.fontWeight = '600';
+  
+  // Filter rows
+  rows.forEach(row => {
+    const hasTriggers = row.dataset.hasTriggers === 'true';
+    
+    if (filter === 'all') {
+      row.style.display = '';
+    } else if (filter === 'with-triggers' && hasTriggers) {
+      row.style.display = '';
+    } else if (filter === 'without-triggers' && !hasTriggers) {
+      row.style.display = '';
+    } else {
+      row.style.display = 'none';
+    }
+  });
+}
+</script>
+

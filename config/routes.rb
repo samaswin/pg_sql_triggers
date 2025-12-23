@@ -17,6 +17,8 @@ PgTriggers::Engine.routes.draw do
     end
   end
 
+  resources :tables, only: [:index, :show]
+
   resources :generator, only: [:new, :create] do
     collection do
       post :preview
@@ -30,6 +32,4 @@ PgTriggers::Engine.routes.draw do
       post :execute
     end
   end
-
-  resources :audit_logs, only: [:index, :show]
 end

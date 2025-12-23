@@ -1,8 +1,11 @@
 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
   <h2 style="margin: 0;">Trigger Dashboard</h2>
-  <%= link_to "Generate New Trigger", new_generator_path,
-      class: "btn btn-success",
-      style: "font-size: 1rem; padding: 0.75rem 1.5rem;" %>
+  <div style="display: flex; gap: 1rem;">
+    <%= link_to "View Tables", tables_path, class: "btn btn-primary", style: "font-size: 1rem; padding: 0.75rem 1.5rem; text-decoration: none;" %>
+    <%= link_to "Generate New Trigger", new_generator_path,
+        class: "btn btn-success",
+        style: "font-size: 1rem; padding: 0.75rem 1.5rem; text-decoration: none;" %>
+  </div>
 </div>
 
 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
@@ -72,3 +75,77 @@
     <%= link_to "Generate New Trigger", new_generator_path, class: "btn btn-primary" %>
   </div>
 <% end %>
+
+<!-- Migration Management Section -->
+<div style="margin-top: 3rem;">
+  <h3>Trigger Migrations</h3>
+  
+  <div style="background: white; padding: 1.5rem; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 2rem;">
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+      <div style="padding: 1rem; background: #f8f9fa; border-radius: 4px;">
+        <div style="font-size: 1.5rem; font-weight: 600; color: #007bff;"><%= @migration_status.count %></div>
+        <div style="color: #6c757d;">Total Migrations</div>
+      </div>
+      <div style="padding: 1rem; background: #f8f9fa; border-radius: 4px;">
+        <div style="font-size: 1.5rem; font-weight: 600; color: #28a745;"><%= @migration_status.count { |m| m[:status] == "up" } %></div>
+        <div style="color: #6c757d;">Applied</div>
+      </div>
+      <div style="padding: 1rem; background: #f8f9fa; border-radius: 4px;">
+        <div style="font-size: 1.5rem; font-weight: 600; color: #ffc107;"><%= @pending_migrations.count %></div>
+        <div style="color: #6c757d;">Pending</div>
+      </div>
+      <div style="padding: 1rem; background: #f8f9fa; border-radius: 4px;">
+        <div style="font-size: 1.5rem; font-weight: 600; color: #6c757d;"><%= @current_migration_version %></div>
+        <div style="color: #6c757d;">Current Version</div>
+      </div>
+    </div>
+
+    <% if @pending_migrations.any? %>
+      <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 1rem; border-radius: 4px; margin-bottom: 1.5rem;">
+        <strong style="color: #856404;">Pending Migrations:</strong>
+        <ul style="margin: 0.5rem 0 0 1.5rem; color: #856404;">
+          <% @pending_migrations.each do |migration| %>
+            <li><code><%= migration.filename %></code></li>
+          <% end %>
+        </ul>
+        <p style="margin: 0.5rem 0 0 0; color: #856404; font-size: 0.875rem;">
+          Run <code>rake pg_triggers:migrate</code> to apply pending migrations.
+        </p>
+      </div>
+    <% end %>
+
+    <% if @migration_status.any? %>
+      <h4 style="margin-top: 0;">Migration Status</h4>
+      <table>
+        <thead>
+          <tr>
+            <th>Version</th>
+            <th>Name</th>
+            <th>Status</th>
+            <th>Filename</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @migration_status.each do |migration| %>
+            <tr>
+              <td><strong><%= migration[:version] %></strong></td>
+              <td><%= migration[:name] %></td>
+              <td>
+                <% if migration[:status] == "up" %>
+                  <span class="badge badge-success">Applied</span>
+                <% else %>
+                  <span class="badge badge-warning">Pending</span>
+                <% end %>
+              </td>
+              <td><code style="font-size: 0.875rem;"><%= migration[:filename] %></code></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    <% else %>
+      <div style="background: #e7f3ff; border-left: 4px solid #007bff; padding: 1rem; border-radius: 4px;">
+        <p style="margin: 0; color: #0c5460;">No trigger migrations found. Migrations should be placed in <code>db/triggers/</code>.</p>
+      </div>
+    <% end %>
+  </div>
+</div>

@@ -18,10 +18,6 @@
        style="padding: 0.75rem 1rem; color: #6c757d; cursor: pointer; text-decoration: none;">
       Testing
     </a>
-    <a href="#audit" class="tab-link" data-tab="audit"
-       style="padding: 0.75rem 1rem; color: #6c757d; cursor: pointer; text-decoration: none;">
-      Audit History
-    </a>
   </div>
 </div>
 
@@ -130,42 +126,6 @@
 
     <div id="function-test-results" style="margin-top: 1rem;"></div>
   </div>
-</div>
-
-<!-- Tab Content: Audit -->
-<div id="tab-audit" class="tab-content" style="display: none;">
-  <h3>Audit History</h3>
-
-  <% if @audit_logs.any? %>
-    <table>
-      <thead>
-        <tr>
-          <th>Action</th>
-          <th>Actor</th>
-          <th>Success</th>
-          <th>Timestamp</th>
-        </tr>
-      </thead>
-      <tbody>
-        <% @audit_logs.each do |log| %>
-          <tr>
-            <td><%= log.action %></td>
-            <td><%= log.actor_type %> (<%= log.actor_id %>)</td>
-            <td>
-              <% if log.success %>
-                <span class="badge badge-success">Success</span>
-              <% else %>
-                <span class="badge badge-danger">Failed</span>
-              <% end %>
-            </td>
-            <td><%= log.executed_at&.strftime("%Y-%m-%d %H:%M:%S") %></td>
-          </tr>
-        <% end %>
-      </tbody>
-    </table>
-  <% else %>
-    <p style="color: #6c757d;">No audit logs yet.</p>
-  <% end %>
 </div>
 
 <script>

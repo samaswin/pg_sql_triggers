@@ -1,0 +1,32 @@
+# frozen_string_literal: true
+
+class <%= class_name %> < PgTriggers::Migration
+  def up
+    # Add your trigger migration code here
+    # Example:
+    # execute <<-SQL
+    #   CREATE OR REPLACE FUNCTION my_function()
+    #   RETURNS TRIGGER AS $$
+    #   BEGIN
+    #     -- Your trigger logic here
+    #     RETURN NEW;
+    #   END;
+    #   $$ LANGUAGE plpgsql;
+    #
+    #   CREATE TRIGGER my_trigger
+    #   BEFORE INSERT ON my_table
+    #   FOR EACH ROW
+    #   EXECUTE FUNCTION my_function();
+    # SQL
+  end
+
+  def down
+    # Add your rollback code here
+    # Example:
+    # execute <<-SQL
+    #   DROP TRIGGER IF EXISTS my_trigger ON my_table;
+    #   DROP FUNCTION IF EXISTS my_function();
+    # SQL
+  end
+end
+

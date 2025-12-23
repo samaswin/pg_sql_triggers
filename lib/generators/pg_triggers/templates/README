@@ -14,7 +14,7 @@ Next steps:
 
 4. Create your first trigger:
 
-   # In app/triggers/example_trigger.rb
+   Option A: Using DSL (app/triggers/example_trigger.rb):
    PgTriggers::DSL.pg_trigger "example_guard" do
      table :users
      on :insert, :update
@@ -23,6 +23,11 @@ Next steps:
      enabled false
      when_env :production
    end
+
+   Option B: Using trigger migrations:
+   rails generate trigger:migration add_example_trigger
+   # Edit db/triggers/YYYYMMDDHHMMSS_add_example_trigger.rb
+   rake trigger:migrate
 
 5. Visit http://localhost:3000/pg_triggers to access the UI
 

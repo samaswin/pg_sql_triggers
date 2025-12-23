@@ -18,4 +18,10 @@ PgTriggers.configure do |config|
   #   true
   # }
   config.permission_checker = nil
+
+  # Tables to exclude from listing in the UI
+  # Default excluded tables: ar_internal_metadata, schema_migrations, pg_triggers_registry, trigger_migrations
+  # Add additional tables you want to exclude:
+  # config.excluded_tables = %w[audit_logs temporary_data]
+  config.excluded_tables = []
 end
