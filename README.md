@@ -21,6 +21,10 @@ Rails teams use PostgreSQL triggers for data integrity, performance, and billing
 - UI control
 - Emergency SQL escape hatches
 
+## Examples
+
+For working examples and a complete demonstration of PgSqlTriggers in action, check out the [example repository](https://github.com/samaswin87/pg_triggers_example).
+
 ## Installation
 
 Add this line to your application's Gemfile:
