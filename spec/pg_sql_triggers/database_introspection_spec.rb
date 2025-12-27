@@ -3,7 +3,7 @@
 require "spec_helper"
 
 RSpec.describe PgSqlTriggers::DatabaseIntrospection do
-  let(:introspection) { PgSqlTriggers::DatabaseIntrospection.new }
+  let(:introspection) { described_class.new }
 
   before do
     # Create test tables
@@ -45,14 +45,14 @@ RSpec.describe PgSqlTriggers::DatabaseIntrospection do
 
     it "handles errors gracefully" do
       # Create a new introspection instance to avoid connection state issues
-      introspection_instance = PgSqlTriggers::DatabaseIntrospection.new
-      
+      introspection_instance = described_class.new
+
       # Mock execute to raise error only for the specific SQL query in list_tables
       connection = ActiveRecord::Base.connection
       allow(connection).to receive(:execute).and_call_original
       allow(connection).to receive(:execute).with(/FROM information_schema.tables/).and_raise(StandardError.new("Connection error"))
       allow(Rails.logger).to receive(:error)
-      
+
       tables = introspection_instance.list_tables
       expect(tables).to eq([])
     end
@@ -97,7 +97,7 @@ RSpec.describe PgSqlTriggers::DatabaseIntrospection do
     it "returns columns for a table" do
       columns = introspection.table_columns("test_users")
       expect(columns).to be_an(Array)
-      expect(columns.map { |c| c[:name] }).to include("id", "name", "email")
+      expect(columns.pluck(:name)).to include("id", "name", "email")
     end
 
     it "includes column data types" do
@@ -108,9 +108,7 @@ RSpec.describe PgSqlTriggers::DatabaseIntrospection do
 
     it "includes nullable information" do
       columns = introspection.table_columns("test_users")
-      columns.each do |col|
-        expect(col).to have_key(:nullable)
-      end
+      expect(columns).to all(have_key(:nullable))
     end
 
     it "returns columns in ordinal order" do
@@ -181,14 +179,14 @@ RSpec.describe PgSqlTriggers::DatabaseIntrospection do
       tables = introspection.tables_with_triggers
       users_table = tables.find { |t| t[:table_name] == "test_users" }
       expect(users_table).to be_present
-      expect(users_table[:registry_triggers].map { |t| t[:trigger_name] }).to include("registry_trigger")
+      expect(users_table[:registry_triggers].pluck(:trigger_name)).to include("registry_trigger")
     end
 
     it "includes database triggers" do
       tables = introspection.tables_with_triggers
       posts_table = tables.find { |t| t[:table_name] == "test_posts" }
       expect(posts_table).to be_present
-      expect(posts_table[:database_triggers].map { |t| t[:trigger_name] }).to include("db_trigger")
+      expect(posts_table[:database_triggers].pluck(:trigger_name)).to include("db_trigger")
     end
 
     it "calculates trigger_count" do
@@ -235,7 +233,7 @@ RSpec.describe PgSqlTriggers::DatabaseIntrospection do
 
     it "returns database triggers for table" do
       result = introspection.table_triggers("test_users")
-      expect(result[:database_triggers].map { |t| t[:trigger_name] }).to include("db_trigger")
+      expect(result[:database_triggers].pluck(:trigger_name)).to include("db_trigger")
     end
 
     it "handles errors when fetching database triggers" do
@@ -248,4 +246,3 @@ RSpec.describe PgSqlTriggers::DatabaseIntrospection do
     end
   end
 end
-

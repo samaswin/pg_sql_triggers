@@ -17,6 +17,7 @@ module PgSqlTriggers
         true
       end
 
+      # rubocop:disable Naming/PredicateMethod
       def self.check!(actor, action, environment: nil)
         unless can?(actor, action, environment: environment)
           action_sym = action.to_sym
@@ -26,7 +27,7 @@ module PgSqlTriggers
         end
         true
       end
+      # rubocop:enable Naming/PredicateMethod
     end
   end
 end
-

@@ -5,13 +5,13 @@ require "spec_helper"
 RSpec.describe PgSqlTriggers::Generator::Form do
   describe "validations" do
     it "requires trigger_name" do
-      form = PgSqlTriggers::Generator::Form.new
+      form = described_class.new
       expect(form).not_to be_valid
       expect(form.errors[:trigger_name]).to include("can't be blank")
     end
 
     it "validates trigger_name format" do
-      form = PgSqlTriggers::Generator::Form.new(trigger_name: "Invalid-Name!")
+      form = described_class.new(trigger_name: "Invalid-Name!")
       expect(form).not_to be_valid
       expect(form.errors[:trigger_name]).to include("must contain only lowercase letters, numbers, and underscores")
 
@@ -21,13 +21,13 @@ RSpec.describe PgSqlTriggers::Generator::Form do
     end
 
     it "requires table_name" do
-      form = PgSqlTriggers::Generator::Form.new(trigger_name: "test_trigger")
+      form = described_class.new(trigger_name: "test_trigger")
       expect(form).not_to be_valid
       expect(form.errors[:table_name]).to include("can't be blank")
     end
 
     it "requires function_name" do
-      form = PgSqlTriggers::Generator::Form.new(
+      form = described_class.new(
         trigger_name: "test_trigger",
         table_name: "users"
       )
@@ -36,7 +36,7 @@ RSpec.describe PgSqlTriggers::Generator::Form do
     end
 
     it "validates function_name format" do
-      form = PgSqlTriggers::Generator::Form.new(
+      form = described_class.new(
         trigger_name: "test_trigger",
         table_name: "users",
         function_name: "Invalid-Function!"
@@ -46,7 +46,7 @@ RSpec.describe PgSqlTriggers::Generator::Form do
     end
 
     it "requires version to be positive integer" do
-      form = PgSqlTriggers::Generator::Form.new(
+      form = described_class.new(
         trigger_name: "test_trigger",
         table_name: "users",
         function_name: "test_function",
@@ -64,7 +64,7 @@ RSpec.describe PgSqlTriggers::Generator::Form do
     end
 
     it "requires function_body" do
-      form = PgSqlTriggers::Generator::Form.new(
+      form = described_class.new(
         trigger_name: "test_trigger",
         table_name: "users",
         function_name: "test_function"
@@ -74,7 +74,7 @@ RSpec.describe PgSqlTriggers::Generator::Form do
     end
 
     it "requires at least one event" do
-      form = PgSqlTriggers::Generator::Form.new(
+      form = described_class.new(
         trigger_name: "test_trigger",
         table_name: "users",
         function_name: "test_function",
@@ -86,7 +86,7 @@ RSpec.describe PgSqlTriggers::Generator::Form do
     end
 
     it "validates that function_body contains function_name" do
-      form = PgSqlTriggers::Generator::Form.new(
+      form = described_class.new(
         trigger_name: "test_trigger",
         table_name: "users",
         function_name: "test_function",
@@ -98,7 +98,7 @@ RSpec.describe PgSqlTriggers::Generator::Form do
     end
 
     it "allows function_name with schema prefix" do
-      form = PgSqlTriggers::Generator::Form.new(
+      form = described_class.new(
         trigger_name: "test_trigger",
         table_name: "users",
         function_name: "test_function",
@@ -111,57 +111,57 @@ RSpec.describe PgSqlTriggers::Generator::Form do
 
   describe "initialization" do
     it "sets default version to 1" do
-      form = PgSqlTriggers::Generator::Form.new
+      form = described_class.new
       expect(form.version).to eq(1)
     end
 
     it "converts enabled to boolean" do
-      form = PgSqlTriggers::Generator::Form.new(enabled: "1")
+      form = described_class.new(enabled: "1")
       expect(form.enabled).to be true
 
-      form = PgSqlTriggers::Generator::Form.new(enabled: "0")
+      form = described_class.new(enabled: "0")
       expect(form.enabled).to be false
 
-      form = PgSqlTriggers::Generator::Form.new(enabled: 1)
+      form = described_class.new(enabled: 1)
       expect(form.enabled).to be true
 
-      form = PgSqlTriggers::Generator::Form.new(enabled: nil)
+      form = described_class.new(enabled: nil)
       expect(form.enabled).to be true
     end
 
     it "defaults enabled to true" do
-      form = PgSqlTriggers::Generator::Form.new
+      form = described_class.new
       expect(form.enabled).to be true
     end
 
     it "defaults generate_function_stub to true" do
-      form = PgSqlTriggers::Generator::Form.new
+      form = described_class.new
       expect(form.generate_function_stub).to be true
     end
 
     it "defaults events to empty array" do
-      form = PgSqlTriggers::Generator::Form.new
+      form = described_class.new
       expect(form.events).to eq([])
     end
 
     it "defaults environments to empty array" do
-      form = PgSqlTriggers::Generator::Form.new
+      form = described_class.new
       expect(form.environments).to eq([])
     end
   end
 
   describe "#default_function_body" do
     it "generates function body with function_name" do
-      form = PgSqlTriggers::Generator::Form.new(function_name: "my_function")
+      form = described_class.new(function_name: "my_function")
       body = form.default_function_body
-      
+
       expect(body).to include("CREATE OR REPLACE FUNCTION my_function()")
       expect(body).to include("RETURNS TRIGGER")
       expect(body).to include("LANGUAGE plpgsql")
     end
 
     it "uses placeholder when function_name is blank" do
-      form = PgSqlTriggers::Generator::Form.new
+      form = described_class.new
       body = form.default_function_body
       expect(body).to include("function_name")
     end
@@ -169,12 +169,12 @@ RSpec.describe PgSqlTriggers::Generator::Form do
 
   describe "valid form" do
     let(:valid_form) do
-      PgSqlTriggers::Generator::Form.new(
+      described_class.new(
         trigger_name: "test_trigger",
         table_name: "users",
         function_name: "test_function",
         function_body: "CREATE OR REPLACE FUNCTION test_function() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql;",
-        events: ["insert", "update"],
+        events: %w[insert update],
         version: 1,
         enabled: false,
         environments: ["production"],
@@ -189,7 +189,7 @@ RSpec.describe PgSqlTriggers::Generator::Form do
     it "rejects blank events" do
       valid_form.events = ["insert", "", "  "]
       expect(valid_form).to be_valid
-      expect(valid_form.events.reject(&:blank?)).to eq(["insert"])
+      expect(valid_form.events.compact_blank).to eq(["insert"])
     end
 
     it "rejects blank environments" do
@@ -198,4 +198,3 @@ RSpec.describe PgSqlTriggers::Generator::Form do
     end
   end
 end
-

@@ -27,7 +27,7 @@ module PgSqlTriggers
         trigger_timing = "BEFORE" # Could be configurable
         trigger_level = "ROW"     # Could be configurable
 
-        trigger_sql = <<~SQL
+        trigger_sql = <<~SQL.squish
           CREATE TRIGGER #{@trigger.trigger_name}
           #{trigger_timing} #{events} ON #{@trigger.table_name}
           FOR EACH #{trigger_level}
@@ -61,7 +61,7 @@ module PgSqlTriggers
 
       # Explain the execution plan (does not execute trigger)
       def explain
-        sql = generate_sql[:sql_parts].map { |p| p[:sql] }.join("\n\n")
+        sql = generate_sql[:sql_parts].pluck(:sql).join("\n\n")
 
         {
           success: true,

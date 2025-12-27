@@ -10,15 +10,19 @@ module PgSqlTriggers
       # Validate DSL structure
       def validate_dsl
         return { valid: false, errors: ["Missing definition"], definition: {} } if @trigger.definition.blank?
-        
-        definition = JSON.parse(@trigger.definition) rescue {}
+
+        definition = begin
+          JSON.parse(@trigger.definition)
+        rescue StandardError
+          {}
+        end
         errors = []
 
         errors << "Missing trigger name" if definition["name"].blank?
         errors << "Missing table name" if definition["table_name"].blank?
         errors << "Missing function name" if definition["function_name"].blank?
         errors << "Missing events" if definition["events"].blank?
-        errors << "Invalid version" unless definition["version"].to_i > 0
+        errors << "Invalid version" unless definition["version"].to_i.positive?
 
         {
           valid: errors.empty?,
@@ -39,7 +43,7 @@ module PgSqlTriggers
       rescue ActiveRecord::StatementInvalid => e
         begin
           ActiveRecord::Base.connection.execute("ROLLBACK")
-        rescue
+        rescue StandardError
           # Ignore rollback errors
         end
         { valid: false, error: e.message }
@@ -49,25 +53,33 @@ module PgSqlTriggers
       def validate_condition
         return { valid: true } if @trigger.condition.blank?
         return { valid: false, error: "Table name is required for condition validation" } if @trigger.table_name.blank?
-        return { valid: false, error: "Function name is required for condition validation" } unless @trigger.definition.present?
 
-        definition = JSON.parse(@trigger.definition) rescue {}
+        if @trigger.definition.blank?
+          return { valid: false,
+                   error: "Function name is required for condition validation" }
+        end
+
+        definition = begin
+          JSON.parse(@trigger.definition)
+        rescue StandardError
+          {}
+        end
         function_name = definition["function_name"] || "test_validation_function"
         sanitized_table = ActiveRecord::Base.connection.quote_string(@trigger.table_name)
         sanitized_function = ActiveRecord::Base.connection.quote_string(function_name)
         sanitized_condition = @trigger.condition
-        
+
         # Validate condition by creating a temporary trigger with the condition
         # This is the only way to validate WHEN conditions since they use NEW/OLD
-        test_function_sql = <<~SQL
+        test_function_sql = <<~SQL.squish
           CREATE OR REPLACE FUNCTION #{sanitized_function}() RETURNS TRIGGER AS $$
           BEGIN
             RETURN NEW;
           END;
           $$ LANGUAGE plpgsql;
         SQL
-        
-        test_trigger_sql = <<~SQL
+
+        test_trigger_sql = <<~SQL.squish
           CREATE TRIGGER test_validation_trigger
           BEFORE INSERT ON #{sanitized_table}
           FOR EACH ROW
@@ -86,7 +98,7 @@ module PgSqlTriggers
       rescue ActiveRecord::StatementInvalid => e
         begin
           ActiveRecord::Base.connection.execute("ROLLBACK")
-        rescue
+        rescue StandardError
           # Ignore rollback errors
         end
         { valid: false, error: e.message }
@@ -103,8 +115,8 @@ module PgSqlTriggers
           function: function_result,
           condition: condition_result,
           overall_valid: dsl_result[:valid] &&
-                        function_result[:valid] &&
-                        condition_result[:valid]
+            function_result[:valid] &&
+            condition_result[:valid]
         }
       end
     end

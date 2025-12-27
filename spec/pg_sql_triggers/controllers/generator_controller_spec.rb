@@ -12,7 +12,7 @@ RSpec.describe PgSqlTriggers::GeneratorController, type: :controller do
         table_name: "users",
         function_name: "test_function",
         function_body: "CREATE OR REPLACE FUNCTION test_function() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql;",
-        events: ["insert", "update"],
+        events: %w[insert update],
         version: 1,
         enabled: false,
         environments: ["production"]
@@ -24,14 +24,14 @@ RSpec.describe PgSqlTriggers::GeneratorController, type: :controller do
     # Configure view paths
     engine_view_path = PgSqlTriggers::Engine.root.join("app/views").to_s
     controller.prepend_view_path(engine_view_path) if controller.respond_to?(:prepend_view_path)
-    
+
     # Mock Rails.root
     allow(Rails).to receive(:root).and_return(Pathname.new(Dir.mktmpdir))
     allow(controller).to receive(:current_actor).and_return({ type: "User", id: 1 })
 
     # Create test table
     ActiveRecord::Base.connection.execute("CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, name VARCHAR)")
-    
+
     # Mock permissions
     allow(PgSqlTriggers::Permissions).to receive(:can?).and_return(true)
   end
@@ -42,7 +42,7 @@ RSpec.describe PgSqlTriggers::GeneratorController, type: :controller do
 
   describe "GET #new" do
     it "initializes a new form" do
-      allow(PgSqlTriggers::DatabaseIntrospection).to receive_message_chain(:new, :list_tables).and_return(["users", "posts"])
+      allow(PgSqlTriggers::DatabaseIntrospection).to receive_message_chain(:new, :list_tables).and_return(%w[users posts])
       get :new
       expect(assigns(:form)).to be_a(PgSqlTriggers::Generator::Form)
       expect(assigns(:available_tables)).to include("users")
@@ -75,7 +75,7 @@ RSpec.describe PgSqlTriggers::GeneratorController, type: :controller do
     it "renders new template when form is invalid" do
       invalid_params = valid_params.deep_dup
       invalid_params[:pg_sql_triggers_generator_form][:trigger_name] = ""
-      
+
       allow(PgSqlTriggers::DatabaseIntrospection).to receive_message_chain(:new, :list_tables).and_return(["users"])
       allow(controller).to receive(:render).and_return(nil)
       post :preview, params: invalid_params
@@ -88,10 +88,10 @@ RSpec.describe PgSqlTriggers::GeneratorController, type: :controller do
       allow(PgSqlTriggers::DatabaseIntrospection).to receive_message_chain(:new, :validate_table).and_return({ valid: true })
       allow(PgSqlTriggers::Testing::SyntaxValidator).to receive_message_chain(:new, :validate_function_syntax).and_return({ valid: true })
       allow(PgSqlTriggers::Generator::Service).to receive(:create_trigger).and_return({
-        success: true,
-        migration_path: "db/triggers/20231215120001_test_trigger.rb",
-        dsl_path: "app/triggers/test_trigger.rb"
-      })
+                                                                                        success: true,
+                                                                                        migration_path: "db/triggers/20231215120001_test_trigger.rb",
+                                                                                        dsl_path: "app/triggers/test_trigger.rb"
+                                                                                      })
 
       post :create, params: valid_params
       expect(response).to redirect_to(root_path)
@@ -102,9 +102,9 @@ RSpec.describe PgSqlTriggers::GeneratorController, type: :controller do
       allow(PgSqlTriggers::DatabaseIntrospection).to receive_message_chain(:new, :validate_table).and_return({ valid: true })
       allow(PgSqlTriggers::Testing::SyntaxValidator).to receive_message_chain(:new, :validate_function_syntax).and_return({ valid: true })
       allow(PgSqlTriggers::Generator::Service).to receive(:create_trigger).and_return({
-        success: false,
-        error: "Permission denied"
-      })
+                                                                                        success: false,
+                                                                                        error: "Permission denied"
+                                                                                      })
       allow(PgSqlTriggers::DatabaseIntrospection).to receive_message_chain(:new, :list_tables).and_return(["users"])
       allow(controller).to receive(:render).with(:new).and_return(nil)
 
@@ -131,10 +131,10 @@ RSpec.describe PgSqlTriggers::GeneratorController, type: :controller do
   describe "POST #validate_table" do
     it "returns validation result for valid table" do
       allow(PgSqlTriggers::DatabaseIntrospection).to receive_message_chain(:new, :validate_table).and_return({
-        valid: true,
-        table_name: "users",
-        column_count: 2
-      })
+                                                                                                               valid: true,
+                                                                                                               table_name: "users",
+                                                                                                               column_count: 2
+                                                                                                             })
 
       post :validate_table, params: { table_name: "users" }, format: :json
       expect(response).to have_http_status(:success)
@@ -144,9 +144,9 @@ RSpec.describe PgSqlTriggers::GeneratorController, type: :controller do
 
     it "returns error for invalid table" do
       allow(PgSqlTriggers::DatabaseIntrospection).to receive_message_chain(:new, :validate_table).and_return({
-        valid: false,
-        error: "Table not found"
-      })
+                                                                                                               valid: false,
+                                                                                                               error: "Table not found"
+                                                                                                             })
 
       post :validate_table, params: { table_name: "nonexistent" }, format: :json
       json = JSON.parse(response.body)
@@ -164,7 +164,7 @@ RSpec.describe PgSqlTriggers::GeneratorController, type: :controller do
 
   describe "GET #tables" do
     it "returns list of tables as JSON" do
-      allow(PgSqlTriggers::DatabaseIntrospection).to receive_message_chain(:new, :list_tables).and_return(["users", "posts"])
+      allow(PgSqlTriggers::DatabaseIntrospection).to receive_message_chain(:new, :list_tables).and_return(%w[users posts])
 
       get :tables, format: :json
       json = JSON.parse(response.body)
@@ -182,4 +182,3 @@ RSpec.describe PgSqlTriggers::GeneratorController, type: :controller do
     end
   end
 end
-

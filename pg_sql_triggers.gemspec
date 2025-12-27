@@ -9,7 +9,9 @@ Gem::Specification.new do |spec|
   spec.email = ["samaswin@gmail.com"]
 
   spec.summary = "A PostgreSQL Trigger Control Plane for Rails"
-  spec.description = "Production-grade PostgreSQL trigger management for Rails with lifecycle management, safe deploys, versioning, drift detection, and a mountable UI."
+  spec.description = "Production-grade PostgreSQL trigger management for Rails with " \
+                     "lifecycle management, safe deploys, versioning, drift detection, " \
+                     "and a mountable UI."
   spec.homepage = "https://github.com/samaswin87/pg_sql_triggers"
   spec.license = "MIT"
   spec.required_ruby_version = ">= 2.7.0"
@@ -18,6 +20,7 @@ Gem::Specification.new do |spec|
   spec.metadata["source_code_uri"] = "https://github.com/samaswin87/pg_sql_triggers"
   spec.metadata["changelog_uri"] = "https://github.com/samaswin87/pg_sql_triggers/blob/main/CHANGELOG.md"
   spec.metadata["github_repo"] = "ssh://github.com/samaswin87/pg_sql_triggers"
+  spec.metadata["rubygems_mfa_required"] = "true"
 
   # Specify which files should be added to the gem when it is released.
   # The `git ls-files -z` loads the files in the RubyGem that have been added into git.
@@ -32,17 +35,17 @@ Gem::Specification.new do |spec|
   spec.require_paths = ["lib"]
 
   # Runtime dependencies
-  spec.add_dependency "rails", ">= 6.0"
   spec.add_dependency "pg", ">= 1.0"
+  spec.add_dependency "rails", ">= 6.0"
 
   # Development dependencies
+  spec.add_development_dependency "database_cleaner-active_record", "~> 2.0"
+  spec.add_development_dependency "factory_bot_rails", "~> 6.0"
+  spec.add_development_dependency "rails-controller-testing", "~> 1.0"
   spec.add_development_dependency "rspec", "~> 3.0"
   spec.add_development_dependency "rspec-rails", "~> 6.0"
-  spec.add_development_dependency "rails-controller-testing", "~> 1.0"
-  spec.add_development_dependency "factory_bot_rails", "~> 6.0"
-  spec.add_development_dependency "database_cleaner-active_record", "~> 2.0"
-  spec.add_development_dependency "simplecov", "~> 0.21"
   spec.add_development_dependency "rubocop", "~> 1.50"
   spec.add_development_dependency "rubocop-rails", "~> 2.19"
   spec.add_development_dependency "rubocop-rspec", "~> 2.20"
+  spec.add_development_dependency "simplecov", "~> 0.21"
 end

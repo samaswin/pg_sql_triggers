@@ -22,7 +22,7 @@ RSpec.describe PgSqlTriggers::Testing::SyntaxValidator do
     )
   end
 
-  let(:validator) { PgSqlTriggers::Testing::SyntaxValidator.new(registry) }
+  let(:validator) { described_class.new(registry) }
 
   before do
     ActiveRecord::Base.connection.execute("CREATE TABLE IF NOT EXISTS test_users (id SERIAL PRIMARY KEY, name VARCHAR)")
@@ -162,7 +162,7 @@ RSpec.describe PgSqlTriggers::Testing::DryRun do
         name: "test_trigger",
         table_name: "test_users",
         function_name: "test_function",
-        events: ["insert", "update"],
+        events: %w[insert update],
         version: 1
       }.to_json,
       function_body: "CREATE OR REPLACE FUNCTION test_function() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql;",
@@ -170,7 +170,7 @@ RSpec.describe PgSqlTriggers::Testing::DryRun do
     )
   end
 
-  let(:dry_run) { PgSqlTriggers::Testing::DryRun.new(registry) }
+  let(:dry_run) { described_class.new(registry) }
 
   describe "#generate_sql" do
     it "generates function creation SQL" do
@@ -235,7 +235,7 @@ RSpec.describe PgSqlTriggers::Testing::SafeExecutor do
     )
   end
 
-  let(:executor) { PgSqlTriggers::Testing::SafeExecutor.new(registry) }
+  let(:executor) { described_class.new(registry) }
 
   before do
     ActiveRecord::Base.connection.execute("CREATE TABLE IF NOT EXISTS test_users (id SERIAL PRIMARY KEY, name VARCHAR)")
@@ -301,7 +301,7 @@ RSpec.describe PgSqlTriggers::Testing::FunctionTester do
     )
   end
 
-  let(:tester) { PgSqlTriggers::Testing::FunctionTester.new(registry) }
+  let(:tester) { described_class.new(registry) }
 
   describe "#test_function_only" do
     it "creates function in transaction" do
@@ -341,4 +341,3 @@ RSpec.describe PgSqlTriggers::Testing::FunctionTester do
     end
   end
 end
-

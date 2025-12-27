@@ -30,11 +30,11 @@ module PgSqlTriggers
       begin
         introspection = PgSqlTriggers::DatabaseIntrospection.new
         trigger_exists = introspection.trigger_exists?(trigger_name)
-      rescue => e
+      rescue StandardError => e
         # If checking fails, assume trigger doesn't exist and continue
         Rails.logger.warn("Could not check if trigger exists: #{e.message}") if defined?(Rails.logger)
       end
-      
+
       if trigger_exists
         begin
           # Enable the trigger in PostgreSQL
@@ -45,7 +45,7 @@ module PgSqlTriggers
           Rails.logger.warn("Could not enable trigger: #{e.message}") if defined?(Rails.logger)
         end
       end
-      
+
       # Update the registry record (always update, even if trigger doesn't exist)
       update!(enabled: true)
     end
@@ -56,11 +56,11 @@ module PgSqlTriggers
       begin
         introspection = PgSqlTriggers::DatabaseIntrospection.new
         trigger_exists = introspection.trigger_exists?(trigger_name)
-      rescue => e
+      rescue StandardError => e
         # If checking fails, assume trigger doesn't exist and continue
         Rails.logger.warn("Could not check if trigger exists: #{e.message}") if defined?(Rails.logger)
       end
-      
+
       if trigger_exists
         begin
           # Disable the trigger in PostgreSQL
@@ -71,7 +71,7 @@ module PgSqlTriggers
           Rails.logger.warn("Could not disable trigger: #{e.message}") if defined?(Rails.logger)
         end
       end
-      
+
       # Update the registry record (always update, even if trigger doesn't exist)
       update!(enabled: false)
     end

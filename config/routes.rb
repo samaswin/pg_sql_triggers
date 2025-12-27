@@ -2,8 +2,8 @@
 
 begin
   PgSqlTriggers::Engine.routes.draw do
-    root to: 'dashboard#index'
-    get 'dashboard', to: 'dashboard#index', as: 'dashboard'
+    root to: "dashboard#index"
+    get "dashboard", to: "dashboard#index", as: "dashboard"
 
     resources :tables, only: %i[index show]
 

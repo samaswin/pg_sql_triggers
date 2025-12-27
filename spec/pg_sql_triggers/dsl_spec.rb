@@ -5,7 +5,7 @@ require "spec_helper"
 RSpec.describe PgSqlTriggers::DSL do
   describe ".pg_sql_trigger" do
     it "creates a trigger definition and registers it" do
-      definition = PgSqlTriggers::DSL.pg_sql_trigger "test_trigger" do
+      definition = described_class.pg_sql_trigger "test_trigger" do
         table :users
         on :insert, :update
         function :test_function
@@ -16,15 +16,15 @@ RSpec.describe PgSqlTriggers::DSL do
       expect(definition).to be_a(PgSqlTriggers::DSL::TriggerDefinition)
       expect(definition.name).to eq("test_trigger")
       expect(definition.table_name).to eq(:users)
-      expect(definition.events).to eq(["insert", "update"])
+      expect(definition.events).to eq(%w[insert update])
       expect(definition.function_name).to eq(:test_function)
       expect(definition.version).to eq(1)
-      expect(definition.enabled).to eq(true)
+      expect(definition.enabled).to be(true)
     end
 
     it "registers the trigger in the registry" do
       expect(PgSqlTriggers::Registry::Manager).to receive(:register).and_call_original
-      PgSqlTriggers::DSL.pg_sql_trigger "test_trigger" do
+      described_class.pg_sql_trigger "test_trigger" do
         table :users
         on :insert
         function :test_function
@@ -34,14 +34,14 @@ RSpec.describe PgSqlTriggers::DSL do
 end
 
 RSpec.describe PgSqlTriggers::DSL::TriggerDefinition do
-  let(:definition) { PgSqlTriggers::DSL::TriggerDefinition.new("test_trigger") }
+  let(:definition) { described_class.new("test_trigger") }
 
   describe "#initialize" do
     it "sets default values" do
       expect(definition.name).to eq("test_trigger")
       expect(definition.events).to eq([])
       expect(definition.version).to eq(1)
-      expect(definition.enabled).to eq(false)
+      expect(definition.enabled).to be(false)
       expect(definition.environments).to eq([])
       expect(definition.condition).to be_nil
     end
@@ -57,7 +57,7 @@ RSpec.describe PgSqlTriggers::DSL::TriggerDefinition do
   describe "#on" do
     it "sets events as strings" do
       definition.on(:insert, :update, :delete)
-      expect(definition.events).to eq(["insert", "update", "delete"])
+      expect(definition.events).to eq(%w[insert update delete])
     end
 
     it "handles single event" do
@@ -83,17 +83,17 @@ RSpec.describe PgSqlTriggers::DSL::TriggerDefinition do
   describe "#enabled" do
     it "sets enabled status" do
       definition.enabled(true)
-      expect(definition.enabled).to eq(true)
+      expect(definition.enabled).to be(true)
 
       definition.enabled(false)
-      expect(definition.enabled).to eq(false)
+      expect(definition.enabled).to be(false)
     end
   end
 
   describe "#when_env" do
     it "sets environments as strings" do
       definition.when_env(:production, :staging)
-      expect(definition.environments).to eq(["production", "staging"])
+      expect(definition.environments).to eq(%w[production staging])
     end
 
     it "handles single environment" do
@@ -121,16 +121,15 @@ RSpec.describe PgSqlTriggers::DSL::TriggerDefinition do
 
       hash = definition.to_h
       expect(hash).to eq({
-        name: "test_trigger",
-        table_name: :users,
-        events: ["insert"],
-        function_name: :test_func,
-        version: 2,
-        enabled: true,
-        environments: ["production"],
-        condition: "NEW.id > 0"
-      })
+                           name: "test_trigger",
+                           table_name: :users,
+                           events: ["insert"],
+                           function_name: :test_func,
+                           version: 2,
+                           enabled: true,
+                           environments: ["production"],
+                           condition: "NEW.id > 0"
+                         })
     end
   end
 end
-

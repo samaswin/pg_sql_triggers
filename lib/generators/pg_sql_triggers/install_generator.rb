@@ -21,7 +21,7 @@ module PgSqlTriggers
 
       def copy_migrations
         migration_template "create_pg_sql_triggers_tables.rb",
-                          "db/migrate/create_pg_sql_triggers_tables.rb"
+                           "db/migrate/create_pg_sql_triggers_tables.rb"
       end
 
       def mount_engine

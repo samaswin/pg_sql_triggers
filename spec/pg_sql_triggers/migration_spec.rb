@@ -3,7 +3,7 @@
 require "spec_helper"
 
 RSpec.describe PgSqlTriggers::Migration do
-  let(:migration) { Class.new(PgSqlTriggers::Migration).new }
+  let(:migration) { Class.new(described_class).new }
 
   describe "#execute" do
     it "executes SQL through connection" do
@@ -13,12 +13,12 @@ RSpec.describe PgSqlTriggers::Migration do
   end
 
   it "inherits from ActiveRecord::Migration" do
-    expect(PgSqlTriggers::Migration.superclass).to eq(ActiveRecord::Migration[6.0])
+    expect(described_class.superclass).to eq(ActiveRecord::Migration[6.0])
   end
 end
 
 RSpec.describe PgSqlTriggers::ApplicationController, type: :controller do
-  controller(PgSqlTriggers::ApplicationController) do
+  controller(described_class) do
     def index
       render plain: "OK"
     end
@@ -26,7 +26,7 @@ RSpec.describe PgSqlTriggers::ApplicationController, type: :controller do
 
   before do
     routes.draw do
-      get 'test_index', to: 'pg_sql_triggers/application#index'
+      get "test_index", to: "pg_sql_triggers/application#index"
     end
   end
 
@@ -42,10 +42,9 @@ RSpec.describe PgSqlTriggers::ApplicationController, type: :controller do
       # current_actor is private, so we need to call it through send
       actor = controller.send(:current_actor)
       expect(actor).to eq({
-        type: "User",
-        id: "unknown"
-      })
+                            type: "User",
+                            id: "unknown"
+                          })
     end
   end
 end
-

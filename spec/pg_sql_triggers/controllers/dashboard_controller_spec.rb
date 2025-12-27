@@ -42,9 +42,7 @@ RSpec.describe PgSqlTriggers::DashboardController, type: :controller do
     end
 
     it "loads migration status" do
-      allow(PgSqlTriggers::Migrator).to receive(:status).and_return([])
-      allow(PgSqlTriggers::Migrator).to receive(:pending_migrations).and_return([])
-      allow(PgSqlTriggers::Migrator).to receive(:current_version).and_return(0)
+      allow(PgSqlTriggers::Migrator).to receive_messages(status: [], pending_migrations: [], current_version: 0)
 
       get :index
       expect(assigns(:migration_status)).to be_an(Array)
@@ -53,11 +51,7 @@ RSpec.describe PgSqlTriggers::DashboardController, type: :controller do
     end
 
     it "handles pagination" do
-      allow(PgSqlTriggers::Migrator).to receive(:status).and_return(
-        (1..25).map { |i| { version: i, name: "migration_#{i}", status: "up", filename: "#{i}_migration.rb" } }
-      )
-      allow(PgSqlTriggers::Migrator).to receive(:pending_migrations).and_return([])
-      allow(PgSqlTriggers::Migrator).to receive(:current_version).and_return(0)
+      allow(PgSqlTriggers::Migrator).to receive_messages(status: (1..25).map { |i| { version: i, name: "migration_#{i}", status: "up", filename: "#{i}_migration.rb" } }, pending_migrations: [], current_version: 0)
 
       get :index, params: { page: 1, per_page: 10 }
       expect(assigns(:migration_status).count).to eq(10)
@@ -65,9 +59,7 @@ RSpec.describe PgSqlTriggers::DashboardController, type: :controller do
     end
 
     it "caps per_page at 100" do
-      allow(PgSqlTriggers::Migrator).to receive(:status).and_return([])
-      allow(PgSqlTriggers::Migrator).to receive(:pending_migrations).and_return([])
-      allow(PgSqlTriggers::Migrator).to receive(:current_version).and_return(0)
+      allow(PgSqlTriggers::Migrator).to receive_messages(status: [], pending_migrations: [], current_version: 0)
 
       get :index, params: { per_page: 200 }
       expect(assigns(:per_page)).to eq(100)
@@ -83,4 +75,3 @@ RSpec.describe PgSqlTriggers::DashboardController, type: :controller do
     end
   end
 end
-

@@ -3,15 +3,15 @@
 module PgSqlTriggers
   class ApplicationController < ActionController::Base
     include PgSqlTriggers::Engine.routes.url_helpers
-    
+
     protect_from_forgery with: :exception
     layout "pg_sql_triggers/application"
 
-    before_action :check_permissions
+    before_action :check_permissions?
 
     private
 
-    def check_permissions
+    def check_permissions?
       # Override this method in host application to implement custom permission checks
       true
     end

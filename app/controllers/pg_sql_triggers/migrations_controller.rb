@@ -18,7 +18,7 @@ module PgSqlTriggers
           count = pending.count
           flash[:success] = "Applied #{count} pending migration(s) successfully."
         else
-          flash[:info] = 'No pending migrations to apply.'
+          flash[:info] = "No pending migrations to apply."
         end
       end
       redirect_to root_path
@@ -34,7 +34,7 @@ module PgSqlTriggers
 
       current_version = PgSqlTriggers::Migrator.current_version
       if current_version.zero?
-        flash[:warning] = 'No migrations to rollback.'
+        flash[:warning] = "No migrations to rollback."
         redirect_to root_path
         return
       end
@@ -45,7 +45,7 @@ module PgSqlTriggers
       else
         # Rollback one migration by default
         PgSqlTriggers::Migrator.run_down
-        flash[:success] = 'Rolled back last migration successfully.'
+        flash[:success] = "Rolled back last migration successfully."
       end
       redirect_to root_path
     rescue StandardError => e
@@ -65,14 +65,14 @@ module PgSqlTriggers
       else
         current_version = PgSqlTriggers::Migrator.current_version
         if current_version.zero?
-          flash[:warning] = 'No migrations to redo.'
+          flash[:warning] = "No migrations to redo."
           redirect_to root_path
           return
         end
 
         PgSqlTriggers::Migrator.run_down
         PgSqlTriggers::Migrator.run_up
-        flash[:success] = 'Last migration redone successfully.'
+        flash[:success] = "Last migration redone successfully."
       end
       redirect_to root_path
     rescue StandardError => e

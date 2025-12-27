@@ -10,7 +10,7 @@ RSpec.describe PgSqlTriggers::TablesController, type: :controller do
     engine_view_path = PgSqlTriggers::Engine.root.join("app/views").to_s
     controller.prepend_view_path(engine_view_path) if controller.respond_to?(:prepend_view_path)
     ActiveRecord::Base.connection.execute("CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, name VARCHAR)")
-    
+
     PgSqlTriggers::TriggerRegistry.create!(
       trigger_name: "user_trigger",
       table_name: "users",
@@ -28,8 +28,8 @@ RSpec.describe PgSqlTriggers::TablesController, type: :controller do
   describe "GET #index" do
     it "loads tables with triggers" do
       allow(PgSqlTriggers::DatabaseIntrospection).to receive_message_chain(:new, :tables_with_triggers).and_return([
-        { table_name: "users", trigger_count: 1, registry_triggers: [], database_triggers: [] }
-      ])
+                                                                                                                     { table_name: "users", trigger_count: 1, registry_triggers: [], database_triggers: [] }
+                                                                                                                   ])
 
       get :index
       expect(assigns(:tables_with_triggers)).to be_an(Array)
@@ -38,25 +38,25 @@ RSpec.describe PgSqlTriggers::TablesController, type: :controller do
 
     it "only shows tables with triggers" do
       allow(PgSqlTriggers::DatabaseIntrospection).to receive_message_chain(:new, :tables_with_triggers).and_return([
-        { table_name: "users", trigger_count: 1, registry_triggers: [], database_triggers: [] },
-        { table_name: "posts", trigger_count: 0, registry_triggers: [], database_triggers: [] }
-      ])
+                                                                                                                     { table_name: "users", trigger_count: 1, registry_triggers: [], database_triggers: [] },
+                                                                                                                     { table_name: "posts", trigger_count: 0, registry_triggers: [], database_triggers: [] }
+                                                                                                                   ])
 
       get :index
-      expect(assigns(:tables_with_triggers).map { |t| t[:table_name] }).not_to include("posts")
+      expect(assigns(:tables_with_triggers).pluck(:table_name)).not_to include("posts")
     end
   end
 
   describe "GET #show" do
     it "loads table triggers and columns" do
       allow(PgSqlTriggers::DatabaseIntrospection).to receive_message_chain(:new, :table_triggers).and_return({
-        table_name: "users",
-        registry_triggers: [],
-        database_triggers: []
-      })
+                                                                                                               table_name: "users",
+                                                                                                               registry_triggers: [],
+                                                                                                               database_triggers: []
+                                                                                                             })
       allow(PgSqlTriggers::DatabaseIntrospection).to receive_message_chain(:new, :table_columns).and_return([
-        { name: "id", type: "integer", nullable: false }
-      ])
+                                                                                                              { name: "id", type: "integer", nullable: false }
+                                                                                                            ])
 
       get :show, params: { id: "users" }
       expect(assigns(:table_info)).to be_present
@@ -65,12 +65,12 @@ RSpec.describe PgSqlTriggers::TablesController, type: :controller do
 
     it "responds with JSON format" do
       allow(PgSqlTriggers::DatabaseIntrospection).to receive_message_chain(:new, :table_triggers).and_return({
-        table_name: "users",
-        registry_triggers: [
-          double(id: 1, trigger_name: "user_trigger", definition: { function_name: "user_func" }.to_json, enabled: true, version: 1, source: "dsl")
-        ],
-        database_triggers: []
-      })
+                                                                                                               table_name: "users",
+                                                                                                               registry_triggers: [
+                                                                                                                 instance_double(PgSqlTriggers::TriggerRegistry, id: 1, trigger_name: "user_trigger", definition: { function_name: "user_func" }.to_json, enabled: true, version: 1, source: "dsl")
+                                                                                                               ],
+                                                                                                               database_triggers: []
+                                                                                                             })
       allow(PgSqlTriggers::DatabaseIntrospection).to receive_message_chain(:new, :table_columns).and_return([])
 
       get :show, params: { id: "users" }, format: :json
@@ -82,4 +82,3 @@ RSpec.describe PgSqlTriggers::TablesController, type: :controller do
     end
   end
 end
-

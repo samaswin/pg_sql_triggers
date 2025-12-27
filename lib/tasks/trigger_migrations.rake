@@ -5,7 +5,7 @@ namespace :trigger do
   task migrate: :environment do
     PgSqlTriggers::Migrator.ensure_migrations_table!
 
-    target_version = ENV["VERSION"] ? ENV["VERSION"].to_i : nil
+    target_version = ENV["VERSION"]&.to_i
     verbose = ENV["VERBOSE"] != "false"
 
     if verbose
@@ -15,9 +15,7 @@ namespace :trigger do
 
     PgSqlTriggers::Migrator.run_up(target_version)
 
-    if verbose
-      puts "Trigger migrations complete. Current version: #{PgSqlTriggers::Migrator.current_version}"
-    end
+    puts "Trigger migrations complete. Current version: #{PgSqlTriggers::Migrator.current_version}" if verbose
   end
 
   desc "Rollback trigger migrations (specify steps w/ STEP=n)"
@@ -50,14 +48,14 @@ namespace :trigger do
 
     puts "\nTrigger Migration Status"
     puts "=" * 80
-    printf "%-20s %-40s %-10s\n", "Version", "Name", "Status"
+    printf "%<version>-20s %<name>-40s %<status>-10s\n", version: "Version", name: "Name", status: "Status"
     puts "-" * 80
 
     statuses.each do |status|
-      printf "%-20s %-40s %-10s\n",
-        status[:version],
-        status[:name],
-        status[:status]
+      printf "%<version>-20s %<name>-40s %<status>-10s\n",
+             version: status[:version],
+             name: status[:name],
+             status: status[:status]
     end
 
     puts "=" * 80
@@ -66,7 +64,7 @@ namespace :trigger do
 
   desc "Runs the 'up' for a given migration VERSION"
   task "migrate:up" => :environment do
-    version = ENV["VERSION"]
+    version = ENV.fetch("VERSION", nil)
     raise "VERSION is required" unless version
 
     PgSqlTriggers::Migrator.ensure_migrations_table!
@@ -76,7 +74,7 @@ namespace :trigger do
 
   desc "Runs the 'down' for a given migration VERSION"
   task "migrate:down" => :environment do
-    version = ENV["VERSION"]
+    version = ENV.fetch("VERSION", nil)
     raise "VERSION is required" unless version
 
     PgSqlTriggers::Migrator.ensure_migrations_table!
@@ -131,9 +129,7 @@ namespace :db do
   task "migrate:with_triggers" => :environment do
     verbose = ENV["VERBOSE"] != "false"
 
-    if verbose
-      puts "Running schema and trigger migrations..."
-    end
+    puts "Running schema and trigger migrations..." if verbose
 
     # Run schema migrations first
     Rake::Task["db:migrate"].invoke
@@ -144,7 +140,7 @@ namespace :db do
 
   desc "Rollback schema and trigger migrations (specify steps w/ STEP=n)"
   task "rollback:with_triggers" => :environment do
-    steps = ENV["STEP"] ? ENV["STEP"].to_i : 1
+    ENV["STEP"] ? ENV["STEP"].to_i : 1
 
     # Determine which type of migration was last run
     schema_version = ActiveRecord::Base.connection.schema_migration_context.current_version || 0
@@ -164,7 +160,7 @@ namespace :db do
     puts "=" * 80
     begin
       Rake::Task["db:migrate:status"].invoke
-    rescue => e
+    rescue StandardError => e
       puts "Error displaying schema migration status: #{e.message}"
     end
 
@@ -175,7 +171,7 @@ namespace :db do
 
   desc "Runs the 'up' for a given migration VERSION (schema or trigger)"
   task "migrate:up:with_triggers" => :environment do
-    version = ENV["VERSION"]
+    version = ENV.fetch("VERSION", nil)
     raise "VERSION is required" unless version
 
     version_int = version.to_i
@@ -198,14 +194,14 @@ namespace :db do
     else
       raise "No migration found with version #{version}"
     end
-  rescue => e
+  rescue StandardError => e
     puts "Error: #{e.message}"
     raise
   end
 
   desc "Runs the 'down' for a given migration VERSION (schema or trigger)"
   task "migrate:down:with_triggers" => :environment do
-    version = ENV["VERSION"]
+    version = ENV.fetch("VERSION", nil)
     raise "VERSION is required" unless version
 
     version_int = version.to_i
@@ -256,4 +252,3 @@ namespace :db do
     Rake::Task["trigger:abort_if_pending_migrations"].invoke
   end
 end
-

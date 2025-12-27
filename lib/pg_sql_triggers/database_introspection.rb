@@ -17,7 +17,7 @@ module PgSqlTriggers
 
     # Get list of all user tables in the database
     def list_tables
-      sql = <<~SQL
+      sql = <<~SQL.squish
         SELECT table_name
         FROM information_schema.tables
         WHERE table_schema = 'public'
@@ -26,7 +26,7 @@ module PgSqlTriggers
       SQL
 
       result = ActiveRecord::Base.connection.execute(sql)
-      tables = result.map { |row| row["table_name"] }
+      tables = result.pluck("table_name")
       tables.reject { |table| excluded_tables.include?(table) }
     rescue StandardError => e
       Rails.logger.error("Failed to fetch tables: #{e.message}") if defined?(Rails.logger)
@@ -39,9 +39,9 @@ module PgSqlTriggers
 
       # Use case-insensitive comparison and sanitize input
       sanitized_name = sanitize(table_name)
-      
+
       # First, check if table exists and get column count
-      column_count_sql = <<~SQL
+      column_count_sql = <<~SQL.squish
         SELECT COUNT(*) as column_count
         FROM information_schema.columns
         WHERE table_schema = 'public'
@@ -51,9 +51,9 @@ module PgSqlTriggers
       column_result = ActiveRecord::Base.connection.execute(column_count_sql).first
       column_count = column_result ? column_result["column_count"].to_i : 0
 
-      if column_count > 0
+      if column_count.positive?
         # Get table comment separately
-        comment_sql = <<~SQL
+        comment_sql = <<~SQL.squish
           SELECT obj_description(c.oid, 'pg_class') as comment
           FROM pg_class c
           JOIN pg_namespace n ON n.oid = c.relnamespace
@@ -77,7 +77,7 @@ module PgSqlTriggers
           error: "Table '#{table_name}' not found in database"
         }
       end
-    rescue => e
+    rescue StandardError => e
       Rails.logger.error("Table validation error for '#{table_name}': #{e.message}")
       {
         valid: false,
@@ -87,7 +87,7 @@ module PgSqlTriggers
 
     # Get table columns
     def table_columns(table_name)
-      sql = <<~SQL
+      sql = <<~SQL.squish
         SELECT column_name, data_type, is_nullable
         FROM information_schema.columns
         WHERE table_schema = 'public'
@@ -107,19 +107,19 @@ module PgSqlTriggers
 
     # Check if function exists
     def function_exists?(function_name)
-      sql = <<~SQL
+      sql = <<~SQL.squish
         SELECT COUNT(*) as count
         FROM pg_proc
         WHERE proname = '#{sanitize(function_name)}'
       SQL
 
       result = ActiveRecord::Base.connection.execute(sql).first
-      result["count"].to_i > 0
+      result["count"].to_i.positive?
     end
 
     # Check if trigger exists
     def trigger_exists?(trigger_name)
-      sql = <<~SQL
+      sql = <<~SQL.squish
         SELECT COUNT(*) as count
         FROM pg_trigger t
         JOIN pg_class c ON t.tgrelid = c.oid
@@ -130,8 +130,8 @@ module PgSqlTriggers
       SQL
 
       result = ActiveRecord::Base.connection.execute(sql).first
-      result["count"].to_i > 0
-    rescue => e
+      result["count"].to_i.positive?
+    rescue StandardError => e
       Rails.logger.error("Failed to check if trigger exists: #{e.message}") if defined?(Rails.logger)
       false
     end
@@ -140,13 +140,13 @@ module PgSqlTriggers
     def tables_with_triggers
       # Get all tables
       tables = list_tables
-      
+
       # Get all triggers from registry
       triggers_by_table = PgSqlTriggers::TriggerRegistry.all.group_by(&:table_name)
-      
+
       # Get actual database triggers
-      db_triggers_sql = <<~SQL
-        SELECT 
+      db_triggers_sql = <<~SQL.squish
+        SELECT#{' '}
           t.tgname as trigger_name,
           c.relname as table_name,
           p.proname as function_name,
@@ -159,7 +159,7 @@ module PgSqlTriggers
         AND n.nspname = 'public'
         ORDER BY c.relname, t.tgname
       SQL
-      
+
       db_triggers = {}
       begin
         result = ActiveRecord::Base.connection.execute(db_triggers_sql)
@@ -172,15 +172,15 @@ module PgSqlTriggers
             definition: row["trigger_definition"]
           }
         end
-      rescue => e
+      rescue StandardError => e
         Rails.logger.error("Failed to fetch database triggers: #{e.message}")
       end
-      
+
       # Combine registry and database triggers
       tables.map do |table_name|
         registry_triggers = triggers_by_table[table_name] || []
         db_table_triggers = db_triggers[table_name] || []
-        
+
         {
           table_name: table_name,
           registry_triggers: registry_triggers.map do |t|
@@ -204,10 +204,10 @@ module PgSqlTriggers
     def table_triggers(table_name)
       # From registry
       registry_triggers = PgSqlTriggers::TriggerRegistry.for_table(table_name)
-      
+
       # From database
-      db_triggers_sql = <<~SQL
-        SELECT 
+      db_triggers_sql = <<~SQL.squish
+        SELECT#{' '}
           t.tgname as trigger_name,
           p.proname as function_name,
           pg_get_triggerdef(t.oid) as trigger_definition
@@ -220,7 +220,7 @@ module PgSqlTriggers
         AND n.nspname = 'public'
         ORDER BY t.tgname
       SQL
-      
+
       db_triggers = []
       begin
         result = ActiveRecord::Base.connection.execute(db_triggers_sql)
@@ -231,10 +231,10 @@ module PgSqlTriggers
             definition: row["trigger_definition"]
           }
         end
-      rescue => e
+      rescue StandardError => e
         Rails.logger.error("Failed to fetch database triggers: #{e.message}")
       end
-      
+
       {
         table_name: table_name,
         registry_triggers: registry_triggers,

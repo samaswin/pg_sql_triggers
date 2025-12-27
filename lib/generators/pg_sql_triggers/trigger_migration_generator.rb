@@ -13,16 +13,16 @@ module PgSqlTriggers
 
       argument :name, type: :string, desc: "Name of the trigger migration"
 
-      def self.next_migration_number(dirname)
+      def self.next_migration_number(_dirname)
         # Get the highest migration number from existing migrations
-        if Dir.exist?(Rails.root.join("db", "triggers"))
-          existing = Dir.glob(Rails.root.join("db", "triggers", "*.rb"))
-            .map { |f| File.basename(f, ".rb").split("_").first.to_i }
-            .reject(&:zero?)
-            .max || 0
-        else
-          existing = 0
-        end
+        existing = if Rails.root.join("db/triggers").exist?
+                     Rails.root.glob("db/triggers/*.rb")
+                          .map { |f| File.basename(f, ".rb").split("_").first.to_i }
+                          .reject(&:zero?)
+                          .max || 0
+                   else
+                     0
+                   end
 
         # Generate next timestamp-based version
         # Format: YYYYMMDDHHMMSS
@@ -30,9 +30,7 @@ module PgSqlTriggers
         base = now.strftime("%Y%m%d%H%M%S").to_i
 
         # If we have existing migrations, ensure we're incrementing
-        if existing > 0 && base <= existing
-          base = existing + 1
-        end
+        base = existing + 1 if existing.positive? && base <= existing
 
         base
       end
@@ -60,4 +58,3 @@ module PgSqlTriggers
     end
   end
 end
-

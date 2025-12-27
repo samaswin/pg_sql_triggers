@@ -18,38 +18,35 @@ module PgSqlTriggers
         }
 
         ActiveRecord::Base.transaction do
-          begin
-            # Step 1: Create function
-            if @trigger.function_body.present?
-              ActiveRecord::Base.connection.execute(@trigger.function_body)
-              results[:function_created] = true
-              results[:output] << "✓ Function created successfully"
-            end
-
-            # Step 2: Create trigger
-            trigger_sql = DryRun.new(@trigger).generate_sql[:sql_parts]
-                                .find { |p| p[:type] == "CREATE TRIGGER" }[:sql]
-            ActiveRecord::Base.connection.execute(trigger_sql)
-            results[:trigger_created] = true
-            results[:output] << "✓ Trigger created successfully"
-
-            # Step 3: Test with sample data (if provided)
-            if test_data
-              test_sql = build_test_insert(test_data)
-              ActiveRecord::Base.connection.execute(test_sql)
-              results[:test_insert_executed] = true
-              results[:output] << "✓ Test insert executed successfully"
-            end
-
-            results[:success] = true
-
-          rescue ActiveRecord::StatementInvalid => e
-            results[:success] = false
-            results[:errors] << e.message
-          ensure
-            # ALWAYS ROLLBACK - this is a test!
-            raise ActiveRecord::Rollback
+          # Step 1: Create function
+          if @trigger.function_body.present?
+            ActiveRecord::Base.connection.execute(@trigger.function_body)
+            results[:function_created] = true
+            results[:output] << "✓ Function created successfully"
           end
+
+          # Step 2: Create trigger
+          trigger_sql = DryRun.new(@trigger).generate_sql[:sql_parts]
+                              .find { |p| p[:type] == "CREATE TRIGGER" }[:sql]
+          ActiveRecord::Base.connection.execute(trigger_sql)
+          results[:trigger_created] = true
+          results[:output] << "✓ Trigger created successfully"
+
+          # Step 3: Test with sample data (if provided)
+          if test_data
+            test_sql = build_test_insert(test_data)
+            ActiveRecord::Base.connection.execute(test_sql)
+            results[:test_insert_executed] = true
+            results[:output] << "✓ Test insert executed successfully"
+          end
+
+          results[:success] = true
+        rescue ActiveRecord::StatementInvalid => e
+          results[:success] = false
+          results[:errors] << e.message
+        ensure
+          # ALWAYS ROLLBACK - this is a test!
+          raise ActiveRecord::Rollback
         end
 
         results[:output] << "\n⚠ All changes rolled back (test mode)"

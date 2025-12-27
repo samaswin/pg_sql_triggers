@@ -18,7 +18,7 @@ RSpec.describe PgSqlTriggers::Permissions do
     context "when custom permission checker is configured" do
       before do
         @original_checker = PgSqlTriggers.permission_checker
-        PgSqlTriggers.permission_checker = ->(actor, action, environment) { action == :view_triggers }
+        PgSqlTriggers.permission_checker = ->(_actor, action, _environment) { action == :view_triggers }
       end
 
       after do
@@ -26,15 +26,15 @@ RSpec.describe PgSqlTriggers::Permissions do
       end
 
       it "uses custom checker" do
-        expect(PgSqlTriggers::Permissions.can?(actor, :view_triggers)).to be true
-        expect(PgSqlTriggers::Permissions.can?(actor, :drop_trigger)).to be false
+        expect(described_class.can?(actor, :view_triggers)).to be true
+        expect(described_class.can?(actor, :drop_trigger)).to be false
       end
 
       it "passes environment to checker" do
-        checker = ->(actor, action, environment) { environment == "production" }
+        checker = ->(_actor, _action, environment) { environment == "production" }
         PgSqlTriggers.permission_checker = checker
-        expect(PgSqlTriggers::Permissions.can?(actor, :view_triggers, environment: "production")).to be true
-        expect(PgSqlTriggers::Permissions.can?(actor, :view_triggers, environment: "development")).to be false
+        expect(described_class.can?(actor, :view_triggers, environment: "production")).to be true
+        expect(described_class.can?(actor, :view_triggers, environment: "development")).to be false
         PgSqlTriggers.permission_checker = @original_checker
       end
     end
@@ -50,8 +50,8 @@ RSpec.describe PgSqlTriggers::Permissions do
       end
 
       it "allows all permissions by default" do
-        expect(PgSqlTriggers::Permissions.can?(actor, :view_triggers)).to be true
-        expect(PgSqlTriggers::Permissions.can?(actor, :drop_trigger)).to be true
+        expect(described_class.can?(actor, :view_triggers)).to be true
+        expect(described_class.can?(actor, :drop_trigger)).to be true
       end
     end
   end
@@ -62,7 +62,7 @@ RSpec.describe PgSqlTriggers::Permissions do
     context "when permission is granted" do
       before do
         @original_checker = PgSqlTriggers.permission_checker
-        PgSqlTriggers.permission_checker = ->(actor, action, environment) { true }
+        PgSqlTriggers.permission_checker = ->(_actor, _action, _environment) { true }
       end
 
       after do
@@ -70,14 +70,14 @@ RSpec.describe PgSqlTriggers::Permissions do
       end
 
       it "returns true" do
-        expect(PgSqlTriggers::Permissions.check!(actor, :view_triggers)).to be true
+        expect(described_class.check!(actor, :view_triggers)).to be true
       end
     end
 
     context "when permission is denied" do
       before do
         @original_checker = PgSqlTriggers.permission_checker
-        PgSqlTriggers.permission_checker = ->(actor, action, environment) { false }
+        PgSqlTriggers.permission_checker = ->(_actor, _action, _environment) { false }
       end
 
       after do
@@ -85,22 +85,22 @@ RSpec.describe PgSqlTriggers::Permissions do
       end
 
       it "raises PermissionError" do
-        expect {
-          PgSqlTriggers::Permissions.check!(actor, :drop_trigger)
-        }.to raise_error(PgSqlTriggers::PermissionError, /Permission denied/)
+        expect do
+          described_class.check!(actor, :drop_trigger)
+        end.to raise_error(PgSqlTriggers::PermissionError, /Permission denied/)
       end
 
       it "includes required permission level in error" do
-        expect {
-          PgSqlTriggers::Permissions.check!(actor, :drop_trigger)
-        }.to raise_error(PgSqlTriggers::PermissionError, /admin/)
+        expect do
+          described_class.check!(actor, :drop_trigger)
+        end.to raise_error(PgSqlTriggers::PermissionError, /admin/)
       end
     end
 
     context "when action is unknown" do
       before do
         @original_checker = PgSqlTriggers.permission_checker
-        PgSqlTriggers.permission_checker = ->(actor, action, environment) { false }
+        PgSqlTriggers.permission_checker = ->(_actor, _action, _environment) { false }
       end
 
       after do
@@ -108,9 +108,9 @@ RSpec.describe PgSqlTriggers::Permissions do
       end
 
       it "includes unknown in error message" do
-        expect {
-          PgSqlTriggers::Permissions.check!(actor, :unknown_action)
-        }.to raise_error(PgSqlTriggers::PermissionError, /unknown/)
+        expect do
+          described_class.check!(actor, :unknown_action)
+        end.to raise_error(PgSqlTriggers::PermissionError, /unknown/)
       end
     end
   end
@@ -119,13 +119,13 @@ end
 RSpec.describe PgSqlTriggers::Permissions::Checker do
   describe ".can?" do
     it "delegates to PgSqlTriggers.permission_checker when configured" do
-      custom_checker = ->(actor, action, env) { action == :allowed_action }
+      custom_checker = ->(_actor, action, _env) { action == :allowed_action }
       original = PgSqlTriggers.permission_checker
       PgSqlTriggers.permission_checker = custom_checker
 
       actor = { type: "User", id: 1 }
-      expect(PgSqlTriggers::Permissions::Checker.can?(actor, :allowed_action)).to be true
-      expect(PgSqlTriggers::Permissions::Checker.can?(actor, :denied_action)).to be false
+      expect(described_class.can?(actor, :allowed_action)).to be true
+      expect(described_class.can?(actor, :denied_action)).to be false
 
       PgSqlTriggers.permission_checker = original
     end
@@ -135,7 +135,7 @@ RSpec.describe PgSqlTriggers::Permissions::Checker do
       PgSqlTriggers.permission_checker = nil
 
       actor = { type: "User", id: 1 }
-      expect(PgSqlTriggers::Permissions::Checker.can?(actor, :any_action)).to be true
+      expect(described_class.can?(actor, :any_action)).to be true
 
       PgSqlTriggers.permission_checker = original
     end
@@ -144,25 +144,24 @@ RSpec.describe PgSqlTriggers::Permissions::Checker do
   describe ".check!" do
     it "calls can? and raises error if false" do
       original = PgSqlTriggers.permission_checker
-      PgSqlTriggers.permission_checker = ->(actor, action, env) { false }
+      PgSqlTriggers.permission_checker = ->(_actor, _action, _env) { false }
 
       actor = { type: "User", id: 1 }
-      expect {
-        PgSqlTriggers::Permissions::Checker.check!(actor, :drop_trigger)
-      }.to raise_error(PgSqlTriggers::PermissionError)
+      expect do
+        described_class.check!(actor, :drop_trigger)
+      end.to raise_error(PgSqlTriggers::PermissionError)
 
       PgSqlTriggers.permission_checker = original
     end
 
     it "returns true if can? returns true" do
       original = PgSqlTriggers.permission_checker
-      PgSqlTriggers.permission_checker = ->(actor, action, env) { true }
+      PgSqlTriggers.permission_checker = ->(_actor, _action, _env) { true }
 
       actor = { type: "User", id: 1 }
-      expect(PgSqlTriggers::Permissions::Checker.check!(actor, :view_triggers)).to be true
+      expect(described_class.check!(actor, :view_triggers)).to be true
 
       PgSqlTriggers.permission_checker = original
     end
   end
 end
-

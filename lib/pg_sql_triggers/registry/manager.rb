@@ -30,17 +30,11 @@ module PgSqlTriggers
           TriggerRegistry.all
         end
 
-        def enabled
-          TriggerRegistry.enabled
-        end
+        delegate :enabled, to: :TriggerRegistry
 
-        def disabled
-          TriggerRegistry.disabled
-        end
+        delegate :disabled, to: :TriggerRegistry
 
-        def for_table(table_name)
-          TriggerRegistry.for_table(table_name)
-        end
+        delegate :for_table, to: :TriggerRegistry
 
         def diff
           # Compare DSL definitions with actual database state

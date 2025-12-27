@@ -42,7 +42,7 @@ module PgSqlTriggers
         # Validate SQL function body (required field)
         sql_validation = validate_function_sql(@form)
         unless sql_validation[:valid]
-          flash[:alert] = "Cannot create trigger: SQL validation failed - #{sql_validation[:error]}"
+          flash.now[:alert] = "Cannot create trigger: SQL validation failed - #{sql_validation[:error]}"
           @available_tables = fetch_available_tables
           @dsl_content = PgSqlTriggers::Generator::Service.generate_dsl(@form)
           @function_content = @form.function_body
@@ -75,7 +75,7 @@ module PgSqlTriggers
       # Extract table_name from JSON request body
       # Rails should parse JSON automatically, but handle both cases
       table_name = extract_table_name_from_request
-      
+
       if table_name.blank?
         render json: { valid: false, error: "Table name is required" }, status: :bad_request
         return
@@ -96,22 +96,22 @@ module PgSqlTriggers
     private
 
     def generator_params
-      params.require(:pg_sql_triggers_generator_form).permit(
-        :trigger_name, :table_name, :function_name, :version,
-        :enabled, :condition, :generate_function_stub, :function_body,
-        events: [], environments: []
+      params.expect(
+        pg_sql_triggers_generator_form: [:trigger_name, :table_name, :function_name, :version,
+                                         :enabled, :condition, :generate_function_stub, :function_body,
+                                         { events: [], environments: [] }]
       )
     end
 
     def check_operator_permission
-      unless PgSqlTriggers::Permissions.can?(current_actor, :apply_trigger)
-        redirect_to root_path, alert: "Insufficient permissions. Operator role required."
-      end
+      return if PgSqlTriggers::Permissions.can?(current_actor, :apply_trigger)
+
+      redirect_to root_path, alert: "Insufficient permissions. Operator role required."
     end
 
     def fetch_available_tables
       PgSqlTriggers::DatabaseIntrospection.new.list_tables
-    rescue => e
+    rescue StandardError => e
       Rails.logger.error("Failed to fetch tables: #{e.message}")
       []
     end
@@ -120,10 +120,10 @@ module PgSqlTriggers
       # Rails automatically parses JSON request bodies when Content-Type is application/json
       # The parameters are available directly in params
       table_name = params[:table_name]
-      
+
       # If not found, try accessing as string key (some Rails versions use string keys for JSON)
-      table_name ||= params['table_name'] if params.key?('table_name')
-      
+      table_name ||= params["table_name"] if params.key?("table_name")
+
       table_name
     end
 
@@ -138,7 +138,7 @@ module PgSqlTriggers
 
       validator = PgSqlTriggers::Testing::SyntaxValidator.new(temp_registry)
       validator.validate_function_syntax
-    rescue => e
+    rescue StandardError => e
       { valid: false, error: "Validation error: #{e.message}" }
     end
   end

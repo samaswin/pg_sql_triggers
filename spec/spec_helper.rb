@@ -30,21 +30,21 @@ unless Rails.application
       config.eager_load = false
       config.active_support.deprecation = :stderr
       config.secret_key_base = "test_secret_key_base"
-      config.logger = Logger.new(STDOUT)
+      config.logger = Logger.new($stdout)
       config.log_level = :error
-      
+
       # Add engine view paths
       config.paths["app/views"] << PgSqlTriggers::Engine.root.join("app/views").to_s
     end
   end
-  
+
   TestApp::Application.initialize!
 end
 
 # Manually load app files since we're not in a full Rails environment
 engine_root = Pathname.new(File.expand_path("..", __dir__))
-Dir[engine_root.join("app/models/**/*.rb")].each { |f| require f }
-Dir[engine_root.join("app/controllers/**/*.rb")].each { |f| require f }
+Dir[engine_root.join("app/models/**/*.rb")].sort.each { |f| require f }
+Dir[engine_root.join("app/controllers/**/*.rb")].sort.each { |f| require f }
 
 # Configure database
 test_db_config = {
@@ -61,26 +61,24 @@ begin
   admin_config = test_db_config.merge(database: "postgres")
   ActiveRecord::Base.establish_connection(admin_config)
   conn = ActiveRecord::Base.connection
-  
+
   # Check if database exists
   db_exists = conn.execute("SELECT 1 FROM pg_database WHERE datname = '#{test_db_config[:database]}'").any?
-  
-  unless db_exists
-    conn.create_database(test_db_config[:database])
-  end
-  
+
+  conn.create_database(test_db_config[:database]) unless db_exists
+
   # Now connect to the test database
   ActiveRecord::Base.establish_connection(test_db_config)
   ActiveRecord::Base.connection
-rescue => e
+rescue StandardError
   # If we can't connect to postgres, try direct connection (database might already exist)
   begin
     ActiveRecord::Base.establish_connection(test_db_config)
     ActiveRecord::Base.connection
-  rescue => e2
-        puts "Warning: Could not create test database. Please create it manually:"
-        puts "  createdb #{test_db_config[:database]}"
-        raise e2
+  rescue StandardError => e2
+    puts "Warning: Could not create test database. Please create it manually:"
+    puts "  createdb #{test_db_config[:database]}"
+    raise e2
   end
 end
 
@@ -97,28 +95,22 @@ RSpec.configure do |config|
 
   # Include Rails helpers
   config.include ActiveSupport::Testing::TimeHelpers
-  if defined?(ActionController::TestCase)
-    config.include ActionController::TestCase::Behavior, type: :controller
-  end
+  config.include ActionController::TestCase::Behavior, type: :controller if defined?(ActionController::TestCase)
 
   # Configure view paths for controller specs - ensure engine views are found
-  config.before(:each, type: :controller) do
+  config.before(type: :controller) do
     engine_view_path = PgSqlTriggers::Engine.root.join("app/views").to_s
-    if controller.respond_to?(:prepend_view_path)
-      controller.prepend_view_path(engine_view_path)
-    end
+    controller.prepend_view_path(engine_view_path) if controller.respond_to?(:prepend_view_path)
   end
 
   # Use database transactions for tests (only if rspec-rails is available)
-  if config.respond_to?(:use_transactional_fixtures=)
-    config.use_transactional_fixtures = true
-  end
+  config.use_transactional_fixtures = true if config.respond_to?(:use_transactional_fixtures=)
 
   # Clean database before each test
   config.before(:suite) do
     # Ensure connection is established
     ActiveRecord::Base.connection
-    
+
     # Create tables if they don't exist
     unless ActiveRecord::Base.connection.table_exists?("pg_sql_triggers_registry")
       ActiveRecord::Base.connection.create_table "pg_sql_triggers_registry" do |t|
@@ -149,9 +141,13 @@ RSpec.configure do |config|
     end
   end
 
-  config.before(:each) do
+  config.before do
     # Clean tables before each test
-    ActiveRecord::Base.connection.execute("TRUNCATE TABLE pg_sql_triggers_registry CASCADE") if ActiveRecord::Base.connection.table_exists?("pg_sql_triggers_registry")
-    ActiveRecord::Base.connection.execute("TRUNCATE TABLE trigger_migrations CASCADE") if ActiveRecord::Base.connection.table_exists?("trigger_migrations")
+    if ActiveRecord::Base.connection.table_exists?("pg_sql_triggers_registry")
+      ActiveRecord::Base.connection.execute("TRUNCATE TABLE pg_sql_triggers_registry CASCADE")
+    end
+    if ActiveRecord::Base.connection.table_exists?("trigger_migrations")
+      ActiveRecord::Base.connection.execute("TRUNCATE TABLE trigger_migrations CASCADE")
+    end
   end
 end
