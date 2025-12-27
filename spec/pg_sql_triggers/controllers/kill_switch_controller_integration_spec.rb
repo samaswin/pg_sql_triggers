@@ -26,8 +26,8 @@ RSpec.describe "Kill Switch Controller Integration", type: :controller do
         allow(PgSqlTriggers::Migrator).to receive(:run_up)
       end
 
-      # rubocop:disable RSpec/NestedGroups, RSpec/ContextWording
-      context "in production environment" do
+      # rubocop:disable RSpec/NestedGroups
+      context "when in production environment" do
         before do
           allow(Rails).to receive(:env).and_return(ActiveSupport::StringInquirer.new("production"))
         end
@@ -55,9 +55,10 @@ RSpec.describe "Kill Switch Controller Integration", type: :controller do
           post :up, params: { confirmation_text: "EXECUTE UI_MIGRATION_UP" }
         end
       end
-      # rubocop:enable RSpec/NestedGroups, RSpec/ContextWording
+      # rubocop:enable RSpec/NestedGroups
 
-      context "in development environment" do
+      # rubocop:disable RSpec/NestedGroups
+      context "when in development environment" do
         before do
           allow(Rails).to receive(:env).and_return(ActiveSupport::StringInquirer.new("development"))
         end
@@ -68,6 +69,7 @@ RSpec.describe "Kill Switch Controller Integration", type: :controller do
           expect(flash[:error]).to be_nil
         end
       end
+      # rubocop:enable RSpec/NestedGroups
     end
 
     describe "POST #down" do
@@ -77,7 +79,8 @@ RSpec.describe "Kill Switch Controller Integration", type: :controller do
         allow(PgSqlTriggers::Migrator).to receive(:run_down)
       end
 
-      context "in production environment" do
+      # rubocop:disable RSpec/NestedGroups
+      context "when in production environment" do
         before do
           allow(Rails).to receive(:env).and_return(ActiveSupport::StringInquirer.new("production"))
         end
@@ -99,8 +102,10 @@ RSpec.describe "Kill Switch Controller Integration", type: :controller do
           post :down
         end
       end
+      # rubocop:enable RSpec/NestedGroups
 
-      context "in development environment" do
+      # rubocop:disable RSpec/NestedGroups
+      context "when in development environment" do
         before do
           allow(Rails).to receive(:env).and_return(ActiveSupport::StringInquirer.new("development"))
         end
@@ -111,6 +116,7 @@ RSpec.describe "Kill Switch Controller Integration", type: :controller do
           expect(flash[:error]).to be_nil
         end
       end
+      # rubocop:enable RSpec/NestedGroups
     end
 
     describe "POST #redo" do
@@ -121,7 +127,8 @@ RSpec.describe "Kill Switch Controller Integration", type: :controller do
         allow(PgSqlTriggers::Migrator).to receive(:run_up)
       end
 
-      context "in production environment" do
+      # rubocop:disable RSpec/NestedGroups
+      context "when in production environment" do
         before do
           allow(Rails).to receive(:env).and_return(ActiveSupport::StringInquirer.new("production"))
         end
@@ -138,8 +145,10 @@ RSpec.describe "Kill Switch Controller Integration", type: :controller do
           expect(flash[:success]).to match(/redone/) # or similar success message
         end
       end
+      # rubocop:enable RSpec/NestedGroups
 
-      context "in development environment" do
+      # rubocop:disable RSpec/NestedGroups
+      context "when in development environment" do
         before do
           allow(Rails).to receive(:env).and_return(ActiveSupport::StringInquirer.new("development"))
         end
@@ -150,6 +159,7 @@ RSpec.describe "Kill Switch Controller Integration", type: :controller do
           expect(flash[:error]).to be_nil
         end
       end
+      # rubocop:enable RSpec/NestedGroups
     end
   end
 
@@ -185,7 +195,8 @@ RSpec.describe "Kill Switch Controller Integration", type: :controller do
         )
       end
 
-      context "in production environment" do
+      # rubocop:disable RSpec/NestedGroups
+      context "when in production environment" do
         before do
           allow(Rails).to receive(:env).and_return(ActiveSupport::StringInquirer.new("production"))
         end
@@ -207,8 +218,10 @@ RSpec.describe "Kill Switch Controller Integration", type: :controller do
           post :create, params: valid_params.merge(confirmation_text: "EXECUTE UI_TRIGGER_GENERATE")
         end
       end
+      # rubocop:enable RSpec/NestedGroups
 
-      context "in development environment" do
+      # rubocop:disable RSpec/NestedGroups
+      context "when in development environment" do
         before do
           allow(Rails).to receive(:env).and_return(ActiveSupport::StringInquirer.new("development"))
         end
@@ -219,6 +232,7 @@ RSpec.describe "Kill Switch Controller Integration", type: :controller do
           expect(flash[:error]).to be_nil
         end
       end
+      # rubocop:enable RSpec/NestedGroups
     end
   end
 

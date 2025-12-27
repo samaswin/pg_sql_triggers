@@ -46,7 +46,8 @@ RSpec.describe "Kill Switch Integration", type: :integration do
         )
       end
 
-      context "in production environment" do
+      # rubocop:disable RSpec/NestedGroups
+      context "when in production environment" do
         before do
           allow(Rails).to receive(:env).and_return(ActiveSupport::StringInquirer.new("production"))
         end
@@ -80,9 +81,10 @@ RSpec.describe "Kill Switch Integration", type: :integration do
           trigger.enable!(confirmation: "EXECUTE TRIGGER_ENABLE")
         end
       end
+      # rubocop:enable RSpec/NestedGroups
 
-      # rubocop:disable RSpec/NestedGroups, RSpec/ContextWording
-      context "in development environment" do
+      # rubocop:disable RSpec/NestedGroups
+      context "when in development environment" do
         before do
           allow(Rails).to receive(:env).and_return(ActiveSupport::StringInquirer.new("development"))
         end
@@ -99,7 +101,9 @@ RSpec.describe "Kill Switch Integration", type: :integration do
           end.not_to raise_error
         end
       end
+      # rubocop:enable RSpec/NestedGroups
 
+      # rubocop:disable RSpec/NestedGroups
       context "with override block" do
         before do
           allow(Rails).to receive(:env).and_return(ActiveSupport::StringInquirer.new("production"))
@@ -120,6 +124,7 @@ RSpec.describe "Kill Switch Integration", type: :integration do
           expect(Thread.current[PgSqlTriggers::SQL::KillSwitch::OVERRIDE_KEY]).to be_nil
         end
       end
+      # rubocop:enable RSpec/NestedGroups
     end
 
     describe "Migrator" do
@@ -128,7 +133,8 @@ RSpec.describe "Kill Switch Integration", type: :integration do
         allow(PgSqlTriggers::Migrator).to receive_messages(current_version: 0, pending_migrations: [], migrations: [])
       end
 
-      context "in production environment" do
+      # rubocop:disable RSpec/NestedGroups
+      context "when in production environment" do
         before do
           allow(Rails).to receive(:env).and_return(ActiveSupport::StringInquirer.new("production"))
         end
@@ -159,10 +165,8 @@ RSpec.describe "Kill Switch Integration", type: :integration do
           end.not_to raise_error
         end
       end
-      # rubocop:enable RSpec/NestedGroups, RSpec/ContextWording
 
-      # rubocop:disable RSpec/NestedGroups, RSpec/ContextWording
-      context "in development environment" do
+      context "when in development environment" do
         before do
           allow(Rails).to receive(:env).and_return(ActiveSupport::StringInquirer.new("development"))
         end
@@ -180,7 +184,7 @@ RSpec.describe "Kill Switch Integration", type: :integration do
           end.not_to raise_error
         end
       end
-      # rubocop:enable RSpec/NestedGroups, RSpec/ContextWording
+      # rubocop:enable RSpec/NestedGroups
 
       # rubocop:disable RSpec/NestedGroups
       context "with ENV override" do
@@ -272,8 +276,7 @@ RSpec.describe "Kill Switch Integration", type: :integration do
     end
     # rubocop:enable RSpec/ContextWording
 
-    # rubocop:disable RSpec/ContextWording
-    context "logging and audit trail" do
+    context "when logging and audit trail" do
       before do
         allow(Rails).to receive(:env).and_return(ActiveSupport::StringInquirer.new("production"))
       end
@@ -307,7 +310,7 @@ RSpec.describe "Kill Switch Integration", type: :integration do
       end
     end
 
-    context "custom confirmation patterns" do
+    context "when using custom confirmation patterns" do
       before do
         allow(Rails).to receive(:env).and_return(ActiveSupport::StringInquirer.new("production"))
         allow(PgSqlTriggers).to receive(:kill_switch_confirmation_pattern).and_return(

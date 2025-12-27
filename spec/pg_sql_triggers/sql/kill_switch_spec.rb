@@ -92,8 +92,7 @@ RSpec.describe PgSqlTriggers::SQL::KillSwitch do
     let(:environment) { "production" }
     let(:actor) { { type: "CLI", id: "user@example.com" } }
 
-    # rubocop:disable RSpec/ContextWording
-    context "in non-protected environment" do
+    context "when in non-protected environment" do
       let(:environment) { "development" }
 
       it "does not raise error" do
@@ -107,10 +106,8 @@ RSpec.describe PgSqlTriggers::SQL::KillSwitch do
         described_class.check!(operation: operation, environment: environment)
       end
     end
-    # rubocop:enable RSpec/ContextWording
 
-    # rubocop:disable RSpec/ContextWording
-    context "in protected environment without override" do
+    context "when in protected environment without override" do
       it "raises KillSwitchError" do
         expect do
           described_class.check!(operation: operation, environment: environment)
