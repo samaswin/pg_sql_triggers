@@ -3,7 +3,7 @@
 module PgTriggers
   module DSL
     class TriggerDefinition
-      attr_accessor :name, :table_name, :events, :function_name, :version, :enabled, :environments, :condition
+      attr_accessor :name, :table_name, :events, :function_name, :environments, :condition
 
       def initialize(name)
         @name = name
@@ -26,12 +26,20 @@ module PgTriggers
         @function_name = function_name
       end
 
-      def version(version)
-        @version = version
+      def version(version = nil)
+        if version.nil?
+          @version
+        else
+          @version = version
+        end
       end
 
-      def enabled(enabled)
-        @enabled = enabled
+      def enabled(enabled = nil)
+        if enabled.nil?
+          @enabled
+        else
+          @enabled = enabled
+        end
       end
 
       def when_env(*environments)

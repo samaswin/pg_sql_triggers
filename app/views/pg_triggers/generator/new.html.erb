@@ -2,13 +2,13 @@
 
 <p style="color: #6c757d; margin-bottom: 2rem;">
   Create a new PostgreSQL trigger using the form-based wizard.
-  Generated triggers are <strong>disabled by default</strong> and must be explicitly enabled.
+  Generated triggers are <strong>enabled by default</strong>.
 </p>
 
 <%= form_with model: @form, url: preview_generator_index_path, method: :post,
               scope: :pg_triggers_generator_form,
               id: "trigger-generator-form",
-              html: { style: "background: white; padding: 2rem; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" } do |f| %>
+              html: { style: "background: white; padding: 2rem; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);", onsubmit: "return validateForm();" } do |f| %>
 
   <!-- Section 1: Basic Information -->
   <fieldset style="border: 1px solid #dee2e6; padding: 1rem; margin-bottom: 2rem; border-radius: 4px;">
@@ -90,7 +90,7 @@
     <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
       <% %w[insert update delete truncate].each do |event| %>
         <label style="display: flex; align-items: center; cursor: pointer;">
-          <%= f.check_box :events, { multiple: true }, event, nil %>
+          <%= check_box_tag "pg_triggers_generator_form[events][]", event, Array(@form.events).include?(event), id: "events_#{event}" %>
           <span style="margin-left: 0.25rem; text-transform: uppercase;"><%= event %></span>
         </label>
       <% end %>
@@ -121,7 +121,7 @@
       <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
         <% %w[development test staging production].each do |env| %>
           <label style="display: flex; align-items: center; cursor: pointer;">
-            <%= f.check_box :environments, { multiple: true }, env, nil %>
+            <%= check_box_tag "pg_triggers_generator_form[environments][]", env, Array(@form.environments).include?(env), id: "environments_#{env}" %>
             <span style="margin-left: 0.25rem;"><%= env.titleize %></span>
           </label>
         <% end %>
@@ -144,11 +144,11 @@
 
     <div style="margin-bottom: 1rem;">
       <label style="display: flex; align-items: center; cursor: pointer;">
-        <%= f.check_box :enabled %>
+        <%= f.check_box :enabled, checked: @form.enabled %>
         <span style="margin-left: 0.25rem; font-weight: 500;">Enable trigger after creation</span>
       </label>
       <small style="color: #6c757d; display: block; margin-left: 1.5rem;">
-        Recommended: Leave disabled for testing
+        Trigger will be enabled by default. Uncheck to create disabled.
       </small>
     </div>
 
@@ -171,6 +171,92 @@
 <% end %>
 
 <script>
+// Client-side form validation
+function validateForm() {
+  const form = document.getElementById('trigger-generator-form');
+  if (!form) return true;
+
+  let isValid = true;
+  const errors = [];
+
+  // Validate trigger name
+  const triggerName = form.querySelector('[name="pg_triggers_generator_form[trigger_name]"]')?.value?.trim();
+  if (!triggerName) {
+    errors.push('Trigger name is required');
+    isValid = false;
+  } else if (!/^[a-z0-9_]+$/.test(triggerName)) {
+    errors.push('Trigger name must contain only lowercase letters, numbers, and underscores');
+    isValid = false;
+  }
+
+  // Validate table name
+  const tableName = form.querySelector('[name="pg_triggers_generator_form[table_name]"]')?.value?.trim();
+  if (!tableName) {
+    errors.push('Table name is required');
+    isValid = false;
+  }
+
+  // Validate function name
+  const functionName = form.querySelector('[name="pg_triggers_generator_form[function_name]"]')?.value?.trim();
+  if (!functionName) {
+    errors.push('Function name is required');
+    isValid = false;
+  } else if (!/^[a-z0-9_]+$/.test(functionName)) {
+    errors.push('Function name must contain only lowercase letters, numbers, and underscores');
+    isValid = false;
+  }
+
+  // Validate function body
+  const functionBody = form.querySelector('[name="pg_triggers_generator_form[function_body]"]')?.value?.trim();
+  if (!functionBody) {
+    errors.push('Function body is required');
+    isValid = false;
+  } else if (functionName && !functionBody.match(new RegExp('CREATE\\s+(?:OR\\s+REPLACE\\s+)?FUNCTION\\s+(?:[^\\s(]+\\.)?' + functionName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*\\(', 'i'))) {
+    errors.push('Function body should define function \'' + functionName + '\'');
+    isValid = false;
+  }
+
+  // Validate at least one event is selected
+  const eventCheckboxes = form.querySelectorAll('[name="pg_triggers_generator_form[events][]"]:checked');
+  if (eventCheckboxes.length === 0) {
+    errors.push('At least one event must be selected');
+    isValid = false;
+  }
+
+  // Validate version
+  const version = form.querySelector('[name="pg_triggers_generator_form[version]"]')?.value?.trim();
+  if (!version) {
+    errors.push('Version is required');
+    isValid = false;
+  } else {
+    const versionNum = parseInt(version, 10);
+    if (isNaN(versionNum) || versionNum < 1) {
+      errors.push('Version must be a positive integer');
+      isValid = false;
+    }
+  }
+
+  // Display errors
+  let errorDiv = document.getElementById('form-validation-errors');
+  if (!errorDiv) {
+    errorDiv = document.createElement('div');
+    errorDiv.id = 'form-validation-errors';
+    errorDiv.style.cssText = 'margin-bottom: 1rem; padding: 1rem; background: #f8d7da; border-left: 4px solid #dc3545; border-radius: 4px;';
+    form.insertBefore(errorDiv, form.firstChild);
+  }
+
+  if (!isValid) {
+    errorDiv.innerHTML = '<strong style="color: #721c24;">Please fix the following errors:</strong><ul style="margin: 0.5rem 0 0 1.5rem; padding: 0; color: #721c24;"><li>' + errors.join('</li><li>') + '</li></ul>';
+    errorDiv.style.display = 'block';
+    // Scroll to top of form
+    errorDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  } else {
+    errorDiv.style.display = 'none';
+  }
+
+  return isValid;
+}
+
 // Generate function body template
 function generateFunctionBody(functionName) {
   return 'CREATE OR REPLACE FUNCTION ' + (functionName || 'function_name') + '()\n' +

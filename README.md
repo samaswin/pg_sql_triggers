@@ -97,6 +97,17 @@ rake trigger:migrate:down VERSION=20231215120000
 rake trigger:migrate:redo
 ```
 
+**Web UI Migration Management:**
+
+You can also manage migrations directly from the web dashboard:
+
+- **Apply All Pending Migrations**: Click the "Apply All Pending Migrations" button to run all pending migrations at once
+- **Rollback Last Migration**: Use the "Rollback Last Migration" button to undo the most recent migration
+- **Redo Last Migration**: Click "Redo Last Migration" to rollback and re-apply the last migration
+- **Individual Migration Actions**: Each migration in the status table has individual "Up", "Down", or "Redo" buttons for granular control
+
+All migration actions include confirmation dialogs and provide feedback via flash messages.
+
 Trigger migrations are stored in `db/triggers/` and follow the same naming convention as Rails migrations (`YYYYMMDDHHMMSS_name.rb`).
 
 Example trigger migration:
@@ -183,6 +194,11 @@ Access the web UI at `http://localhost:3000/pg_triggers` to:
 - View drift states
 - Execute SQL capsules
 - Manage trigger lifecycle
+- **Run trigger migrations** (up/down/redo) directly from the dashboard
+  - Apply all pending migrations with a single click
+  - Rollback the last migration
+  - Redo the last migration
+  - Individual migration controls for each migration in the status table
 
 ### 6. Permissions
 

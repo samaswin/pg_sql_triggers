@@ -13,6 +13,7 @@ class CreatePgTriggersTables < ActiveRecord::Migration[6.0]
       t.string :environment
       t.text :definition # Stored DSL or SQL definition
       t.text :function_body # The actual function body
+      t.text :condition # Optional WHEN clause condition
       t.datetime :installed_at
       t.datetime :last_verified_at
 

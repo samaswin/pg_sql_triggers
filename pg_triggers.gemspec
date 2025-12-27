@@ -17,6 +17,7 @@ Gem::Specification.new do |spec|
   spec.metadata["homepage_uri"] = spec.homepage
   spec.metadata["source_code_uri"] = "https://github.com/samaswin87/pg_triggers"
   spec.metadata["changelog_uri"] = "https://github.com/samaswin87/pg_triggers/blob/main/CHANGELOG.md"
+  spec.metadata["github_repo"] = "ssh://github.com/samaswin87/pg_triggers"
 
   # Specify which files should be added to the gem when it is released.
   # The `git ls-files -z` loads the files in the RubyGem that have been added into git.
@@ -37,6 +38,8 @@ Gem::Specification.new do |spec|
   # Development dependencies
   spec.add_development_dependency "rspec", "~> 3.0"
   spec.add_development_dependency "rspec-rails", "~> 6.0"
+  spec.add_development_dependency "rails-controller-testing", "~> 1.0"
   spec.add_development_dependency "factory_bot_rails", "~> 6.0"
   spec.add_development_dependency "database_cleaner-active_record", "~> 2.0"
+  spec.add_development_dependency "simplecov", "~> 0.21"
 end

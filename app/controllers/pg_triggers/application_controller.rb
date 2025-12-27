@@ -2,6 +2,8 @@
 
 module PgTriggers
   class ApplicationController < ActionController::Base
+    include PgTriggers::Engine.routes.url_helpers
+    
     protect_from_forgery with: :exception
     layout "pg_triggers/application"
 

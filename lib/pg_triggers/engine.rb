@@ -14,9 +14,11 @@ module PgTriggers
     initializer "pg_triggers.assets" do |app|
       # Rails engines automatically add app/assets to paths, but we explicitly add
       # the stylesheets and javascripts directories to ensure they're found
-      app.config.assets.paths << root.join("app/assets/stylesheets").to_s
-      app.config.assets.paths << root.join("app/assets/javascripts").to_s
-      app.config.assets.precompile += %w[pg_triggers/application.css pg_triggers/application.js]
+      if app.config.respond_to?(:assets)
+        app.config.assets.paths << root.join("app/assets/stylesheets").to_s
+        app.config.assets.paths << root.join("app/assets/javascripts").to_s
+        app.config.assets.precompile += %w[pg_triggers/application.css pg_triggers/application.js]
+      end
     end
 
     # Load rake tasks

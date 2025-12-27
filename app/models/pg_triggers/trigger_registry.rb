@@ -25,15 +25,18 @@ module PgTriggers
     end
 
     def enable!
-      # Enable the trigger in PostgreSQL
-      sql = "ALTER TABLE #{quote_identifier(table_name)} ENABLE TRIGGER #{quote_identifier(trigger_name)};"
-      ActiveRecord::Base.connection.execute(sql)
+      # Check if trigger exists in database before trying to enable it
+      introspection = PgTriggers::DatabaseIntrospection.new
+      if introspection.trigger_exists?(trigger_name)
+        # Enable the trigger in PostgreSQL
+        sql = "ALTER TABLE #{quote_identifier(table_name)} ENABLE TRIGGER #{quote_identifier(trigger_name)};"
+        ActiveRecord::Base.connection.execute(sql)
+      end
       
-      # Update the registry record
+      # Update the registry record (always update, even if trigger doesn't exist)
       update!(enabled: true)
     rescue ActiveRecord::StatementInvalid => e
-      # If trigger doesn't exist in database, just update registry
-      # This allows enabling triggers that haven't been installed yet
+      # If something else goes wrong, still try to update registry
       if e.message.include?("does not exist")
         update!(enabled: true)
       else
@@ -42,15 +45,18 @@ module PgTriggers
     end
 
     def disable!
-      # Disable the trigger in PostgreSQL
-      sql = "ALTER TABLE #{quote_identifier(table_name)} DISABLE TRIGGER #{quote_identifier(trigger_name)};"
-      ActiveRecord::Base.connection.execute(sql)
+      # Check if trigger exists in database before trying to disable it
+      introspection = PgTriggers::DatabaseIntrospection.new
+      if introspection.trigger_exists?(trigger_name)
+        # Disable the trigger in PostgreSQL
+        sql = "ALTER TABLE #{quote_identifier(table_name)} DISABLE TRIGGER #{quote_identifier(trigger_name)};"
+        ActiveRecord::Base.connection.execute(sql)
+      end
       
-      # Update the registry record
+      # Update the registry record (always update, even if trigger doesn't exist)
       update!(enabled: false)
     rescue ActiveRecord::StatementInvalid => e
-      # If trigger doesn't exist in database, just update registry
-      # This allows disabling triggers that haven't been installed yet
+      # If something else goes wrong, still try to update registry
       if e.message.include?("does not exist")
         update!(enabled: false)
       else

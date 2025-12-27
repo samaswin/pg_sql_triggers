@@ -55,8 +55,9 @@ module PgTriggers
         result = PgTriggers::Generator::Service.create_trigger(@form, actor: current_actor)
 
         if result[:success]
+          files_msg = "Migration: #{result[:migration_path]}, DSL: #{result[:dsl_path]}"
           redirect_to root_path,
-                      notice: "Trigger generated successfully. Files created at #{result[:dsl_path]}"
+                      notice: "Trigger generated successfully. Files created: #{files_msg}"
         else
           flash[:alert] = "Generation failed: #{result[:error]}"
           @available_tables = fetch_available_tables

@@ -21,7 +21,13 @@ module PgTriggers
       def initialize(attributes = {})
         super
         @version ||= 1
-        @enabled ||= false
+        # Convert enabled to boolean (Rails checkboxes send "0" or "1" as strings)
+        # Default to true for UI-generated triggers
+        @enabled = case @enabled
+                   when false, "0", 0 then false
+                   when true, "1", 1 then true
+                   else true  # Default to true (including nil case)
+                   end
         @generate_function_stub = true if @generate_function_stub.nil?
         @events ||= []
         @environments ||= []

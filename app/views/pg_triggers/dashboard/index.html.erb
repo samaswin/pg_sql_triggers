@@ -94,6 +94,31 @@
       </div>
     </div>
 
+    <!-- Migration Action Buttons -->
+    <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap;">
+      <% if @pending_migrations.any? %>
+        <%= form_with url: up_migrations_path, method: :post, local: true, style: "margin: 0;" do |f| %>
+          <%= f.submit "Apply All Pending Migrations", 
+              style: "padding: 0.75rem 1.5rem; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.875rem; font-weight: 600;",
+              data: { confirm: "Are you sure you want to apply #{@pending_migrations.count} pending migration(s)?" } %>
+        <% end %>
+      <% end %>
+      
+      <% if @current_migration_version > 0 %>
+        <%= form_with url: down_migrations_path, method: :post, local: true, style: "margin: 0;" do |f| %>
+          <%= f.submit "Rollback Last Migration", 
+              style: "padding: 0.75rem 1.5rem; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.875rem; font-weight: 600;",
+              data: { confirm: "Are you sure you want to rollback the last migration?" } %>
+        <% end %>
+        
+        <%= form_with url: redo_migrations_path, method: :post, local: true, style: "margin: 0;" do |f| %>
+          <%= f.submit "Redo Last Migration", 
+              style: "padding: 0.75rem 1.5rem; background: #ffc107; color: #212529; border: none; border-radius: 4px; cursor: pointer; font-size: 0.875rem; font-weight: 600;",
+              data: { confirm: "Are you sure you want to redo the last migration?" } %>
+        <% end %>
+      <% end %>
+    </div>
+
     <% if @pending_migrations.any? %>
       <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 1rem; border-radius: 4px; margin-bottom: 1.5rem;">
         <strong style="color: #856404;">Pending Migrations:</strong>
@@ -102,9 +127,6 @@
             <li><code><%= migration.filename %></code></li>
           <% end %>
         </ul>
-        <p style="margin: 0.5rem 0 0 0; color: #856404; font-size: 0.875rem;">
-          Run <code>rake pg_triggers:migrate</code> to apply pending migrations.
-        </p>
       </div>
     <% end %>
 
@@ -120,6 +142,7 @@
             <th>Name</th>
             <th>Status</th>
             <th>Filename</th>
+            <th>Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -135,6 +158,31 @@
                 <% end %>
               </td>
               <td><code style="font-size: 0.875rem;"><%= migration[:filename] %></code></td>
+              <td>
+                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                  <% if migration[:status] == "down" %>
+                    <%= form_with url: up_migrations_path, method: :post, local: true, style: "margin: 0;" do |f| %>
+                      <%= f.hidden_field :version, value: migration[:version] %>
+                      <%= f.submit "Up", 
+                          style: "padding: 0.25rem 0.75rem; background: #28a745; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 0.75rem;",
+                          data: { confirm: "Apply migration #{migration[:version]}?" } %>
+                    <% end %>
+                  <% else %>
+                    <%= form_with url: down_migrations_path, method: :post, local: true, style: "margin: 0;" do |f| %>
+                      <%= f.hidden_field :version, value: migration[:version] %>
+                      <%= f.submit "Down", 
+                          style: "padding: 0.25rem 0.75rem; background: #dc3545; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 0.75rem;",
+                          data: { confirm: "Rollback to version #{migration[:version]}?" } %>
+                    <% end %>
+                    <%= form_with url: redo_migrations_path, method: :post, local: true, style: "margin: 0;" do |f| %>
+                      <%= f.hidden_field :version, value: migration[:version] %>
+                      <%= f.submit "Redo", 
+                          style: "padding: 0.25rem 0.75rem; background: #ffc107; color: #212529; border: none; border-radius: 3px; cursor: pointer; font-size: 0.75rem;",
+                          data: { confirm: "Redo migration #{migration[:version]}?" } %>
+                    <% end %>
+                  <% end %>
+                </div>
+              </td>
             </tr>
           <% end %>
         </tbody>

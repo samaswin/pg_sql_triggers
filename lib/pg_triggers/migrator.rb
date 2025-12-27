@@ -79,26 +79,66 @@ module PgTriggers
       end
 
       def run_up(target_version = nil)
-        pending = pending_migrations
-        pending = pending.select { |m| m.version <= target_version } if target_version
-
-        pending.each do |migration|
-          run_migration(migration, :up)
+        if target_version
+          # Apply a specific migration version
+          migration_to_apply = migrations.find { |m| m.version == target_version }
+          if migration_to_apply.nil?
+            raise StandardError, "Migration version #{target_version} not found"
+          end
+          
+          # Check if it's already applied
+          version_exists = ActiveRecord::Base.connection.select_value(
+            "SELECT 1 FROM #{MIGRATIONS_TABLE_NAME} WHERE version = #{ActiveRecord::Base.connection.quote(target_version.to_s)} LIMIT 1"
+          )
+          
+          if version_exists.present?
+            raise StandardError, "Migration version #{target_version} is already applied"
+          end
+          
+          run_migration(migration_to_apply, :up)
+        else
+          # Apply all pending migrations
+          pending = pending_migrations
+          pending.each do |migration|
+            run_migration(migration, :up)
+          end
         end
       end
 
-      def run_down(target_version)
+      def run_down(target_version = nil)
         current_ver = current_version
         return if current_ver == 0
 
-        target_ver = target_version || (current_ver - 1)
-        migrations_to_rollback = migrations
-          .select { |m| m.version <= current_ver && m.version > target_ver }
-          .sort_by(&:version)
-          .reverse
+        if target_version
+          # Rollback to the specified version (rollback all migrations with version > target_version)
+          target_migration = migrations.find { |m| m.version == target_version }
+          
+          if target_migration.nil?
+            raise StandardError, "Migration version #{target_version} not found or not applied"
+          end
+          
+          if current_ver <= target_version
+            raise StandardError, "Migration version #{target_version} not found or not applied"
+          end
+          
+          migrations_to_rollback = migrations
+            .select { |m| m.version > target_version && m.version <= current_ver }
+            .sort_by(&:version)
+            .reverse
+          
+          migrations_to_rollback.each do |migration|
+            run_migration(migration, :down)
+          end
+        else
+          # Rollback the last migration by default
+          migrations_to_rollback = migrations
+            .select { |m| m.version == current_ver }
+            .sort_by(&:version)
+            .reverse
 
-        migrations_to_rollback.each do |migration|
-          run_migration(migration, :down)
+          migrations_to_rollback.each do |migration|
+            run_migration(migration, :down)
+          end
         end
       end
 
@@ -106,29 +146,47 @@ module PgTriggers
         require migration.path
 
         # Extract class name from migration name
-        # e.g., "add_validation_trigger" -> "AddValidationTrigger"
-        class_name = migration.name.camelize
+        # e.g., "posts_comment_count_validation" -> "PostsCommentCountValidation"
+        base_class_name = migration.name.camelize
         
-        # Try to find the class in the main namespace first
+        # Try to find the class, trying multiple patterns:
+        # 1. Direct name (for backwards compatibility)
+        # 2. With "Add" prefix (for new migrations following Rails conventions)
+        # 3. With PgTriggers namespace
         migration_class = begin
-          class_name.constantize
+          base_class_name.constantize
         rescue NameError
-          # If not found, try with PgTriggers namespace
-          "PgTriggers::#{class_name}".constantize
+          begin
+            # Try with "Add" prefix (Rails migration naming convention)
+            "Add#{base_class_name}".constantize
+          rescue NameError
+            begin
+              # Try with PgTriggers namespace
+              "PgTriggers::#{base_class_name}".constantize
+            rescue NameError
+              # Try with both Add prefix and PgTriggers namespace
+              "PgTriggers::Add#{base_class_name}".constantize
+            end
+          end
         end
 
         ActiveRecord::Base.transaction do
           migration_instance = migration_class.new
           migration_instance.public_send(direction)
 
+          connection = ActiveRecord::Base.connection
+          version_str = connection.quote(migration.version.to_s)
+          
           if direction == :up
-            ActiveRecord::Base.connection.execute(
-              "INSERT INTO #{MIGRATIONS_TABLE_NAME} (version) VALUES (#{migration.version})"
+            connection.execute(
+              "INSERT INTO #{MIGRATIONS_TABLE_NAME} (version) VALUES (#{version_str})"
             )
           else
-            ActiveRecord::Base.connection.execute(
-              "DELETE FROM #{MIGRATIONS_TABLE_NAME} WHERE version = #{migration.version}"
+            connection.execute(
+              "DELETE FROM #{MIGRATIONS_TABLE_NAME} WHERE version = #{version_str}"
             )
+            # Clean up registry entries for triggers that no longer exist in database
+            cleanup_orphaned_registry_entries
           end
         end
       rescue LoadError => e
@@ -142,7 +200,13 @@ module PgTriggers
         current_ver = current_version
 
         migrations.map do |migration|
-          ran = migration.version <= current_ver
+          # Check if this specific migration version exists in the migrations table
+          # This is more reliable than just comparing versions
+          version_exists = ActiveRecord::Base.connection.select_value(
+            "SELECT 1 FROM #{MIGRATIONS_TABLE_NAME} WHERE version = #{ActiveRecord::Base.connection.quote(migration.version.to_s)} LIMIT 1"
+          )
+          ran = version_exists.present?
+          
           {
             version: migration.version,
             name: migration.name,
@@ -154,6 +218,25 @@ module PgTriggers
 
       def version
         current_version
+      end
+
+      # Clean up registry entries for triggers that no longer exist in the database
+      # This is called after rolling back migrations to keep the registry in sync
+      def cleanup_orphaned_registry_entries
+        return unless ActiveRecord::Base.connection.table_exists?("pg_triggers_registry")
+
+        introspection = PgTriggers::DatabaseIntrospection.new
+        
+        # Get all triggers from registry
+        registry_triggers = PgTriggers::TriggerRegistry.all
+        
+        # Remove registry entries for triggers that don't exist in database
+        registry_triggers.each do |registry_trigger|
+          unless introspection.trigger_exists?(registry_trigger.trigger_name)
+            Rails.logger.info("Removing orphaned registry entry for trigger: #{registry_trigger.trigger_name}")
+            registry_trigger.destroy
+          end
+        end
       end
     end
   end

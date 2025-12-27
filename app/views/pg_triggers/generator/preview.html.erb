@@ -3,11 +3,9 @@
 <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 1rem; margin-bottom: 2rem;">
   <strong>Review before generating:</strong>
   <ul style="margin: 0.5rem 0 0 1rem; padding: 0;">
+    <li>Migration file will be created at: <code><%= @file_paths[:migration] %></code></li>
     <li>DSL file will be created at: <code><%= @file_paths[:dsl] %></code></li>
-    <% if @file_paths[:function] %>
-      <li>Function stub will be created at: <code><%= @file_paths[:function] %></code></li>
-    <% end %>
-    <li>Trigger will be registered with source: <strong>generated</strong></li>
+    <li>Trigger will be registered with source: <strong>dsl</strong></li>
   </ul>
 </div>
 
@@ -63,11 +61,11 @@
   <%= f.hidden_field :enabled, value: @form.enabled %>
   <%= f.hidden_field :condition, value: @form.condition %>
   <%= f.hidden_field :generate_function_stub, value: @form.generate_function_stub %>
-  <% @form.events.each do |event| %>
-    <%= f.hidden_field "events[]", value: event %>
+  <% Array(@form.events).reject(&:blank?).each do |event| %>
+    <%= hidden_field_tag "pg_triggers_generator_form[events][]", event %>
   <% end %>
-  <% @form.environments.each do |env| %>
-    <%= f.hidden_field "environments[]", value: env %>
+  <% Array(@form.environments).reject(&:blank?).each do |env| %>
+    <%= hidden_field_tag "pg_triggers_generator_form[environments][]", env %>
   <% end %>
 
   <div style="display: flex; gap: 1rem;">
