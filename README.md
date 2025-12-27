@@ -26,7 +26,7 @@ Rails teams use PostgreSQL triggers for data integrity, performance, and billing
 Add this line to your application's Gemfile:
 
 ```ruby
-gem 'pg_triggers'
+gem 'pg_sql_triggers'
 ```
 
 And then execute:
@@ -38,14 +38,14 @@ $ bundle install
 Run the installer:
 
 ```bash
-$ rails generate pg_triggers:install
+$ rails generate pg_sql_triggers:install
 $ rails db:migrate
 ```
 
 This will:
-1. Create an initializer at `config/initializers/pg_triggers.rb`
+1. Create an initializer at `config/initializers/pg_sql_triggers.rb`
 2. Create migrations for registry table
-3. Mount the engine at `/pg_triggers`
+3. Mount the engine at `/pg_sql_triggers`
 
 ## Usage
 
@@ -187,7 +187,7 @@ PgTriggers::Registry.validate!
 
 ### 5. Web UI
 
-Access the web UI at `http://localhost:3000/pg_triggers` to:
+Access the web UI at `http://localhost:3000/pg_sql_triggers` to:
 
 - View all triggers and their status
 - Enable/disable triggers
@@ -216,7 +216,7 @@ PgTriggers supports three permission levels:
 Configure custom permission checking:
 
 ```ruby
-# config/initializers/pg_triggers.rb
+# config/initializers/pg_sql_triggers.rb
 PgTriggers.configure do |config|
   config.permission_checker = ->(actor, action, environment) {
     # Your custom permission logic
@@ -242,7 +242,7 @@ PgTriggers automatically detects drift between your DSL definitions and the actu
 By default, PgTriggers blocks destructive operations in production:
 
 ```ruby
-# config/initializers/pg_triggers.rb
+# config/initializers/pg_sql_triggers.rb
 PgTriggers.configure do |config|
   # Enable production kill switch (default: true)
   config.kill_switch_enabled = true
@@ -260,7 +260,7 @@ end
 ## Configuration
 
 ```ruby
-# config/initializers/pg_triggers.rb
+# config/initializers/pg_sql_triggers.rb
 PgTriggers.configure do |config|
   # Kill switch for production (default: true)
   config.kill_switch_enabled = true
@@ -291,4 +291,4 @@ To install this gem onto your local machine, run `bundle exec rake install`. To 
 
 ## Contributing
 
-Bug reports and pull requests are welcome on GitHub at https://github.com/samaswin87/pg_triggers.
+Bug reports and pull requests are welcome on GitHub at https://github.com/samaswin87/pg_sql_triggers.

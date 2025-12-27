@@ -19,7 +19,7 @@ require "rspec/rails"
 require "rails-controller-testing"
 
 # Load the engine first
-require "pg_triggers"
+require "pg_sql_triggers"
 
 # Initialize a minimal Rails application for engine testing
 unless Rails.application
@@ -46,7 +46,7 @@ Dir[engine_root.join("app/controllers/**/*.rb")].each { |f| require f }
 # Configure database
 test_db_config = {
   adapter: "postgresql",
-  database: ENV["TEST_DATABASE"] || "pg_triggers_test",
+  database: ENV["TEST_DATABASE"] || "pg_sql_triggers_test",
   username: ENV["TEST_DB_USER"] || "postgres",
   password: ENV["TEST_DB_PASSWORD"] || "",
   host: ENV["TEST_DB_HOST"] || "localhost"
@@ -109,8 +109,8 @@ RSpec.configure do |config|
     ActiveRecord::Base.connection
     
     # Create tables if they don't exist
-    unless ActiveRecord::Base.connection.table_exists?("pg_triggers_registry")
-      ActiveRecord::Base.connection.create_table "pg_triggers_registry" do |t|
+    unless ActiveRecord::Base.connection.table_exists?("pg_sql_triggers_registry")
+      ActiveRecord::Base.connection.create_table "pg_sql_triggers_registry" do |t|
         t.string :trigger_name, null: false
         t.string :table_name, null: false
         t.integer :version, null: false, default: 1
@@ -126,8 +126,8 @@ RSpec.configure do |config|
         t.timestamps
       end
 
-      ActiveRecord::Base.connection.add_index "pg_triggers_registry", :trigger_name, unique: true
-      ActiveRecord::Base.connection.add_index "pg_triggers_registry", :table_name
+      ActiveRecord::Base.connection.add_index "pg_sql_triggers_registry", :trigger_name, unique: true
+      ActiveRecord::Base.connection.add_index "pg_sql_triggers_registry", :table_name
     end
 
     unless ActiveRecord::Base.connection.table_exists?("trigger_migrations")
@@ -140,7 +140,7 @@ RSpec.configure do |config|
 
   config.before(:each) do
     # Clean tables before each test
-    ActiveRecord::Base.connection.execute("TRUNCATE TABLE pg_triggers_registry CASCADE") if ActiveRecord::Base.connection.table_exists?("pg_triggers_registry")
+    ActiveRecord::Base.connection.execute("TRUNCATE TABLE pg_sql_triggers_registry CASCADE") if ActiveRecord::Base.connection.table_exists?("pg_sql_triggers_registry")
     ActiveRecord::Base.connection.execute("TRUNCATE TABLE trigger_migrations CASCADE") if ActiveRecord::Base.connection.table_exists?("trigger_migrations")
   end
 end

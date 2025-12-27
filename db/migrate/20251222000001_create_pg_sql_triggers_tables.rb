@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-class CreatePgTriggersTables < ActiveRecord::Migration[6.0]
+class CreatePgSqlTriggersTables < ActiveRecord::Migration[6.0]
   def change
     # Registry table - source of truth for all triggers
     create_table :pg_sql_triggers_registry do |t|
@@ -25,12 +25,5 @@ class CreatePgTriggersTables < ActiveRecord::Migration[6.0]
     add_index :pg_sql_triggers_registry, :enabled
     add_index :pg_sql_triggers_registry, :source
     add_index :pg_sql_triggers_registry, :environment
-
-    # Trigger migrations table - tracks which trigger migrations have been run
-    create_table :trigger_migrations do |t|
-      t.string :version, null: false
-    end
-
-    add_index :trigger_migrations, :version, unique: true
   end
 end

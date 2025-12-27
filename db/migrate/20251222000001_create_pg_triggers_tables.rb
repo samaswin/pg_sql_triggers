@@ -3,7 +3,7 @@
 class CreatePgTriggersTables < ActiveRecord::Migration[6.0]
   def change
     # Registry table - source of truth for all triggers
-    create_table :pg_triggers_registry do |t|
+    create_table :pg_sql_triggers_registry do |t|
       t.string :trigger_name, null: false
       t.string :table_name, null: false
       t.integer :version, null: false, default: 1
@@ -20,10 +20,10 @@ class CreatePgTriggersTables < ActiveRecord::Migration[6.0]
       t.timestamps
     end
 
-    add_index :pg_triggers_registry, :trigger_name, unique: true
-    add_index :pg_triggers_registry, :table_name
-    add_index :pg_triggers_registry, :enabled
-    add_index :pg_triggers_registry, :source
-    add_index :pg_triggers_registry, :environment
+    add_index :pg_sql_triggers_registry, :trigger_name, unique: true
+    add_index :pg_sql_triggers_registry, :table_name
+    add_index :pg_sql_triggers_registry, :enabled
+    add_index :pg_sql_triggers_registry, :source
+    add_index :pg_sql_triggers_registry, :environment
   end
 end

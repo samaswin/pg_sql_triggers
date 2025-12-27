@@ -9,7 +9,7 @@ module Trigger
     class MigrationGenerator < Rails::Generators::Base
       include Rails::Generators::Migration
 
-      source_root File.expand_path("../../pg_triggers/templates", __dir__)
+      source_root File.expand_path("../../pg_sql_triggers/templates", __dir__)
 
       argument :name, type: :string, desc: "Name of the trigger migration"
 

@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Production kill switch for safety (blocks destructive operations in production by default)
 - Console introspection APIs (list, enabled, disabled, for_table, diff, validate!)
 - Migration system for registry table
-- Install generator (`rails generate pg_triggers:install`)
+- Install generator (`rails generate pg_sql_triggers:install`)
 - Trigger migration system similar to Rails schema migrations
   - Generate trigger migrations
   - Run pending migrations (`rake trigger:migrate`)

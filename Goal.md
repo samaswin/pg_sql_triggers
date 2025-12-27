@@ -1,4 +1,4 @@
-You are building a **production-grade Ruby on Rails gem** named **pg_triggers**.
+You are building a **production-grade Ruby on Rails gem** named **pg_sql_triggers**.
 
 This gem is **not a toy generator**.
 It is a **PostgreSQL Trigger Control Plane for Rails**, designed for real teams running production systems.
