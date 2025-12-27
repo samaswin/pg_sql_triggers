@@ -2,6 +2,10 @@
 # Enable all linters by default
 EnableDefaultLinters: true
 
+# Exclude vendor files from linting
+exclude:
+  - 'vendor/**/*'
+
 linters:
   # Syntax and parsing
   ParserErrors:
