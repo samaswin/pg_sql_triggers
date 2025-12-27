@@ -64,7 +64,7 @@
 
     <div style="margin-bottom: 1rem;">
       <%= f.label :function_body, "Function Body *", style: "display: block; font-weight: 500; margin-bottom: 0.25rem;" %>
-      <% 
+      <%
         default_function_body = @form.function_body.presence || @form.default_function_body
       %>
       <%= f.text_area :function_body,
@@ -282,10 +282,10 @@ document.getElementById('function-name-input')?.addEventListener('input', functi
   const functionBodyTextarea = document.getElementById('function-body-textarea');
   if (functionBodyTextarea) {
     const newTemplate = generateFunctionBody(functionName);
-    
+
     // Update placeholder
     functionBodyTextarea.placeholder = newTemplate;
-    
+
     // Update value only if textarea is empty or matches template pattern
     if (!functionBodyTextarea.value || isTemplateValue(functionBodyTextarea.value)) {
       functionBodyTextarea.value = newTemplate;
@@ -320,7 +320,7 @@ document.getElementById('table-name-select')?.addEventListener('change', functio
   .then(data => {
     if (data.valid) {
       messageDiv.innerHTML = '<span style="color: #28a745;">✓ Table exists (' + data.column_count + ' columns)</span>';
-      
+
       // Try to fetch existing triggers for this table
       if (infoDiv && triggersList) {
         fetch('<%= tables_path %>/' + encodeURIComponent(tableName) + '.json', {
