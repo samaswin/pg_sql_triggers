@@ -39,6 +39,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency "rails", ">= 6.1"
 
   # Development dependencies
+  spec.add_development_dependency "bigdecimal", ">= 3.0" # Required for Ruby 3.4+ (removed from stdlib)
   spec.add_development_dependency "database_cleaner-active_record", "~> 2.0"
   spec.add_development_dependency "erb_lint", "~> 0.9"
   spec.add_development_dependency "factory_bot_rails", "~> 6.0"
