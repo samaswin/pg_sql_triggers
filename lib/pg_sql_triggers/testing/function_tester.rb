@@ -40,9 +40,15 @@ module PgSqlTriggers
 
         ActiveRecord::Base.transaction do
           # Create function in transaction
-          ActiveRecord::Base.connection.execute(@trigger.function_body)
-          results[:function_created] = true
-          results[:output] << "✓ Function created in test transaction"
+          begin
+            ActiveRecord::Base.connection.execute(@trigger.function_body)
+            results[:function_created] = true
+            results[:output] << "✓ Function created in test transaction"
+          rescue ActiveRecord::StatementInvalid, StandardError => e
+            results[:success] = false
+            results[:errors] << "Error during function creation: #{e.message}"
+            # Don't raise here, let it fall through to ensure block for rollback
+          end
 
           # Try to invoke function directly (if test context provided)
           # Note: Empty hash {} is not "present" in Rails, so check if it's not nil
@@ -73,22 +79,23 @@ module PgSqlTriggers
             end
 
             # Verify function exists in database by checking pg_proc
-            # Since the function was created successfully (function_created is true),
-            # it exists and is executable
-            results[:function_executed] = true
-
             # Try to verify via query if function_name is available
             if function_name.present?
-              sanitized_name = ActiveRecord::Base.connection.quote_string(function_name)
-              check_sql = <<~SQL.squish
-                SELECT COUNT(*) as count
-                FROM pg_proc p
-                JOIN pg_namespace n ON p.pronamespace = n.oid
-                WHERE p.proname = '#{sanitized_name}'
-                AND n.nspname = 'public'
-              SQL
-
               begin
+                sanitized_name = begin
+                  ActiveRecord::Base.connection.quote_string(function_name)
+                rescue StandardError
+                  # If quote_string fails, use the function name as-is (less safe but allows test to continue)
+                  function_name
+                end
+                check_sql = <<~SQL.squish
+                  SELECT COUNT(*) as count
+                  FROM pg_proc p
+                  JOIN pg_namespace n ON p.pronamespace = n.oid
+                  WHERE p.proname = '#{sanitized_name}'
+                  AND n.nspname = 'public'
+                SQL
+
                 result = ActiveRecord::Base.connection.execute(check_sql).first
                 results[:function_executed] = result && result["count"].to_i.positive?
                 results[:output] << if results[:function_executed]
@@ -96,19 +103,25 @@ module PgSqlTriggers
                                     else
                                       "✓ Function created (verified via successful creation)"
                                     end
-              rescue StandardError => e
+              rescue ActiveRecord::StatementInvalid, StandardError => e
+                results[:function_executed] = false
+                results[:success] = false
                 results[:errors] << "Error during function verification: #{e.message}"
-                results[:output] << "✓ Function created (verified via successful creation)"
+                results[:output] << "✓ Function created (verification failed)"
               end
             else
+              # If we can't extract function name, assume it was created successfully
+              # since function_created is true
+              results[:function_executed] = true
               results[:output] << "✓ Function created (execution verified via successful creation)"
             end
           end
 
-          results[:success] = true
+          # Set success to true only if no errors occurred and function was created
+          results[:success] = results[:errors].empty? && results[:function_created]
         rescue ActiveRecord::StatementInvalid, StandardError => e
           results[:success] = false
-          results[:errors] << e.message
+          results[:errors] << e.message unless results[:errors].include?(e.message)
         ensure
           raise ActiveRecord::Rollback
         end

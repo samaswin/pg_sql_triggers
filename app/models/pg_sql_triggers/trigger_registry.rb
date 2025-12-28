@@ -65,7 +65,7 @@ module PgSqlTriggers
           # Enable the trigger in PostgreSQL
           sql = "ALTER TABLE #{quote_identifier(table_name)} ENABLE TRIGGER #{quote_identifier(trigger_name)};"
           ActiveRecord::Base.connection.execute(sql)
-        rescue ActiveRecord::StatementInvalid => e
+        rescue ActiveRecord::StatementInvalid, StandardError => e
           # If trigger doesn't exist or can't be enabled, continue to update registry
           Rails.logger.warn("Could not enable trigger: #{e.message}") if defined?(Rails.logger)
         end
@@ -100,7 +100,7 @@ module PgSqlTriggers
           # Disable the trigger in PostgreSQL
           sql = "ALTER TABLE #{quote_identifier(table_name)} DISABLE TRIGGER #{quote_identifier(trigger_name)};"
           ActiveRecord::Base.connection.execute(sql)
-        rescue ActiveRecord::StatementInvalid => e
+        rescue ActiveRecord::StatementInvalid, StandardError => e
           # If trigger doesn't exist or can't be disabled, continue to update registry
           Rails.logger.warn("Could not disable trigger: #{e.message}") if defined?(Rails.logger)
         end
