@@ -83,7 +83,7 @@ Registry tracks:
 - ~~table_name~~
 - ~~version~~
 - ~~enabled~~
-- ~~checksum~~ (⚠️ partially - uses placeholder in registry manager)
+- ~~checksum~~ (✅ fully implemented - consistent field-concatenation algorithm)
 - ~~source (dsl / generated / manual_sql)~~
 - ~~environment~~
 - ~~installed_at~~
@@ -92,37 +92,39 @@ Registry tracks:
 Rails must always know:
 - ~~what exists~~
 - ~~how it was created~~
-- ⚠️ whether it drifted (drift detection not fully implemented)
+- ✅ whether it drifted (drift detection fully implemented)
 
 ---
 
-### D. Safe Apply & Deploy ❌ (not implemented)
+### D. Safe Apply & Deploy ⚠️ (partially implemented via migrations)
 
 Applying triggers must:
-- ⚠️ Run in a transaction (migrations use transactions, but no explicit "apply" method)
-- ❌ Diff expected vs actual (not implemented)
-- ⚠️ Never blindly DROP + CREATE (migrations handle this, but no explicit safety checks)
-- ⚠️ Support rollback on failure (migration rollback exists, but not explicit apply rollback)
-- ⚠️ Update registry atomically (registry updated but not in explicit apply method)
+- ✅ Run in a transaction (migrations run in transactions)
+- ❌ Diff expected vs actual (not implemented - no pre-apply comparison)
+- ⚠️ Never blindly DROP + CREATE (migrations handle this, but no explicit safety validation)
+- ✅ Support rollback on failure (migration rollback exists)
+- ✅ Update registry atomically (registry updated during migration execution)
+
+**Status:** Core functionality works through migration system, but lacks explicit "safe apply" method with pre-flight checks and diff validation.
 
 ---
 
-### E. Drift Detection ⚠️ (autoloaded but implementation missing)
+### E. Drift Detection ✅ (fully implemented)
 
 System must detect:
-- ❌ Missing triggers (not implemented)
-- ❌ Version mismatch (not implemented)
-- ❌ Function body drift (not implemented)
-- ❌ Manual SQL overrides (not implemented)
-- ❌ Unknown external triggers (not implemented)
+- ✅ Missing triggers (implemented via DROPPED state)
+- ✅ Version mismatch (implemented via checksum comparison)
+- ✅ Function body drift (implemented via checksum comparison)
+- ✅ Manual SQL overrides (implemented via MANUAL_OVERRIDE state)
+- ✅ Unknown external triggers (implemented via UNKNOWN state)
 
 Drift states:
-1. ❌ Managed & In Sync (constants defined, logic missing)
-2. ❌ Managed & Drifted (constants defined, logic missing)
-3. ❌ Manual Override (constants defined, logic missing)
-4. ❌ Disabled (constants defined, logic missing)
-5. ❌ Dropped (Recorded) (constants defined, logic missing)
-6. ❌ Unknown (External) (constants defined, logic missing)
+1. ✅ Managed & In Sync (fully implemented)
+2. ✅ Managed & Drifted (fully implemented)
+3. ✅ Manual Override (fully implemented)
+4. ✅ Disabled (fully implemented)
+5. ✅ Dropped (Recorded) (fully implemented)
+6. ✅ Unknown (External) (fully implemented)
 
 ---
 
@@ -134,14 +136,14 @@ Provide console APIs:
 ~~PgSqlTriggers::Registry.enabled~~
 ~~PgSqlTriggers::Registry.disabled~~
 ~~PgSqlTriggers::Registry.for_table(:users)~~
-~~PgSqlTriggers::Registry.diff~~ (⚠️ calls drift detection which is not fully implemented)
+~~PgSqlTriggers::Registry.diff~~ (✅ fully working with drift detection)
 ~~PgSqlTriggers::Registry.validate!~~
 
 ~~No raw SQL required by users.~~
 
 ---
 
-## 4. Free-Form SQL Execution (MANDATORY) ❌ (routes exist but implementation missing)
+## 4. Free-Form SQL Execution (MANDATORY) ❌ (routes defined but no implementation)
 
 The gem MUST support free-form SQL execution.
 
@@ -154,7 +156,7 @@ This is required for:
 
 Free-form SQL is wrapped in **named SQL capsules**:
 
-- ❌ Must be named (routes exist, implementation missing)
+- ❌ Must be named (routes defined in `config/routes.rb`, no controller exists)
 - ❌ Must declare environment (not implemented)
 - ❌ Must declare purpose (not implemented)
 - ❌ Must be applied explicitly (not implemented)
@@ -164,6 +166,8 @@ Rules:
 - ❌ Checksum verified (not implemented)
 - ❌ Registry updated (not implemented)
 - ❌ Marked as `source = manual_sql` (not implemented)
+
+**Status:** Routes exist for `sql_capsules#new`, `sql_capsules#create`, `sql_capsules#show`, and `sql_capsules#execute`, but no controller, views, or logic implemented. Autoload reference exists in `lib/pg_sql_triggers/sql.rb` but file does not exist.
 
 ---
 
@@ -264,27 +268,27 @@ trigger.enable!(confirmation: "EXECUTE TRIGGER_ENABLE")
 
 UI is operational, not decorative.
 
-### Dashboard ✅ (partial)
-- ~~Trigger name~~
-- ~~Table~~
-- ~~Version~~
-- ~~Status~~
-- ~~Source~~
-- ⚠️ Drift state (displayed but drift detection not fully implemented)
-- ~~Environment~~
-- ⚠️ Last applied (installed_at exists but not displayed)
+### Dashboard ✅ (implemented, drift display pending)
+- ✅ Trigger name
+- ✅ Table
+- ✅ Version
+- ✅ Status (enabled/disabled)
+- ✅ Source
+- ⚠️ Drift state (UI shows drift count but drift detection logic not implemented)
+- ✅ Environment
+- ❌ Last applied (installed_at exists in registry but not displayed in dashboard)
 
-### Trigger Detail Page ❌ (not implemented)
-- ❌ Summary panel (trigger info shown in tables/show but no dedicated page)
-- ❌ SQL diff
-- ❌ Registry state
+### Trigger Detail Page ⚠️ (partial - shown in tables/show but not dedicated)
+- ⚠️ Summary panel (trigger info shown in tables/show view but no dedicated detail route/page)
+- ❌ SQL diff (expected vs actual comparison)
+- ⚠️ Registry state (basic info shown, but not comprehensive state display)
 
-### Actions (State-Based) ⚠️ (structure exists, not fully implemented)
-- ⚠️ Enable (method exists but no UI buttons/flow)
-- ⚠️ Disable (method exists but no UI buttons/flow)
-- ❌ Drop (not implemented)
-- ❌ Re-execute (not implemented)
-- ❌ Execute SQL capsule (not implemented)
+### Actions (State-Based) ⚠️ (backend methods exist, UI actions missing)
+- ⚠️ Enable (console method `TriggerRegistry#enable!` exists with kill switch protection, but no UI buttons)
+- ⚠️ Disable (console method `TriggerRegistry#disable!` exists with kill switch protection, but no UI buttons)
+- ❌ Drop (not implemented - no method or UI)
+- ❌ Re-execute (not implemented - no method or UI)
+- ❌ Execute SQL capsule (not implemented - SQL capsules not implemented)
 
 Buttons must:
 - ❌ Be permission-aware (permissions defined but not enforced in UI)
@@ -335,6 +339,26 @@ This gem must be described as:
 
 ## 13. Implementation Status & Improvements Needed
 
+### 📊 Quick Status Summary
+
+**Fully Implemented:**
+- ✅ Trigger Declaration DSL (Section 3.A)
+- ✅ Trigger Generation (Section 3.B)
+- ✅ Trigger Registry (Section 3.C) - with consistent field-concatenation checksum algorithm
+- ✅ Drift Detection (Section 3.E) - fully implemented with all 6 drift states
+- ✅ Rails Console Introspection (Section 3.F) - including working diff method
+- ✅ Kill Switch for Production Safety (Section 6) - fully implemented
+- ✅ Basic UI Dashboard (Section 8) - migration management, tables view, generator
+
+**Partially Implemented:**
+- ⚠️ Safe Apply & Deploy (Section 3.D) - works via migrations but lacks explicit safe apply method with pre-flight checks
+- ⚠️ UI (Section 8) - dashboard and tables view exist, but no dedicated trigger detail page, no enable/disable buttons
+- ⚠️ Permissions Model (Section 5) - structure exists but not enforced
+
+**Not Implemented (Critical):**
+- ❌ SQL Capsules (Section 4) - MANDATORY feature, routes exist but no implementation
+- ❌ Drop & Re-Execute Flow (Section 9) - CRITICAL operational requirement
+
 ### ✅ Achieved Features
 
 **Core Infrastructure:**
@@ -343,6 +367,7 @@ This gem must be described as:
 - ✅ Trigger Generation (form-based wizard, DSL + migration files) - Section 3.B
 - ✅ Database Introspection (tables, triggers, columns) - Supporting infrastructure
 - ✅ Trigger Migrations system (rake tasks + UI) - Supporting infrastructure
+- ✅ Drift Detection (all 6 states, detector, reporter, console APIs) - Section 3.E
 - ✅ Rails Console Introspection APIs (`PgSqlTriggers::Registry.*`) - Section 3.F
 - ✅ Enable/Disable trigger methods on TriggerRegistry model - Basic functionality
 - ✅ Kill Switch for Production Safety (fully implemented) - Section 6
@@ -363,8 +388,22 @@ This gem must be described as:
 
 **From Section 3.C (Trigger Registry):**
 - ✅ Registry tracks: trigger_name, table_name, version, enabled, source, environment, installed_at, last_verified_at
-- ✅ Registry tracks checksum (⚠️ partially - uses placeholder in registry manager)
+- ✅ Registry tracks checksum (✅ consistent field-concatenation algorithm across all creation paths)
 - ✅ Rails knows what exists and how it was created
+
+**From Section 3.E (Drift Detection):**
+- ✅ Drift::Detector class with all 6 drift states
+- ✅ Drift::Reporter class for formatting drift reports
+- ✅ Drift::DbQueries helper for PostgreSQL system catalog queries
+- ✅ Detection of missing triggers (DROPPED state)
+- ✅ Detection of version/function body drift (DRIFTED state via checksum)
+- ✅ Detection of manual SQL overrides (MANUAL_OVERRIDE state)
+- ✅ Detection of unknown external triggers (UNKNOWN state)
+- ✅ Detection of disabled triggers (DISABLED state)
+- ✅ Detection of in-sync triggers (IN_SYNC state)
+- ✅ Registry convenience methods (drifted, in_sync, unknown_triggers, dropped)
+- ✅ TriggerRegistry instance methods (drift_state, drift_result, drifted?, in_sync?, dropped?)
+- ✅ Comprehensive test coverage for Detector and Reporter
 
 **From Section 3.F (Rails Console Introspection):**
 - ✅ `PgSqlTriggers::Registry.list` (note: namespace differs slightly from goal)
@@ -372,7 +411,12 @@ This gem must be described as:
 - ✅ `PgSqlTriggers::Registry.disabled`
 - ✅ `PgSqlTriggers::Registry.for_table(:users)`
 - ✅ `PgSqlTriggers::Registry.validate!`
-- ✅ No raw SQL required by users for basic operations
+- ✅ `PgSqlTriggers::Registry.diff` (fully working with drift detection)
+- ✅ `PgSqlTriggers::Registry.drifted` (returns all drifted triggers)
+- ✅ `PgSqlTriggers::Registry.in_sync` (returns all in-sync triggers)
+- ✅ `PgSqlTriggers::Registry.unknown_triggers` (returns all external triggers)
+- ✅ `PgSqlTriggers::Registry.dropped` (returns all dropped triggers)
+- ✅ No raw SQL required by users for basic operations (enable/disable via console methods)
 
 **From Section 5 (Permissions Model):**
 - ✅ Permission structure exists (Viewer, Operator, Admin roles defined)
@@ -388,44 +432,43 @@ This gem must be described as:
 - ✅ Thread-safe override mechanism
 
 **From Section 8 (UI):**
-- ✅ Dashboard with: Trigger name, Table, Version, Status, Source, Environment
-- ✅ Dashboard displays drift state (⚠️ drift detection not fully implemented)
+- ✅ Dashboard with: Trigger name, Table, Version, Status (enabled/disabled), Source, Environment
+- ⚠️ Dashboard displays drift count (UI shows drifted stat, but drift detection logic not implemented, so will be 0 or error)
+- ✅ Tables view with table listing and trigger details
+- ✅ Tables/show view shows trigger info for a specific table (not a dedicated trigger detail page)
+- ✅ Generator UI (form-based wizard for creating triggers)
+- ✅ Migration management UI (up/down/redo with kill switch protection)
+- ❌ Trigger detail page (no dedicated route/page, only shown in tables/show)
 
 ---
 
 ### 🔴 HIGH PRIORITY - Critical Missing Features
 
-#### 1. Drift Detection (Section 3.E)
-**Priority:** HIGH - Core functionality
+**Note:** Priorities have been adjusted based on actual implementation status. SQL Capsules (marked MANDATORY in Section 4) moved from MEDIUM to HIGH priority as it's a critical missing feature.
 
-**Status:** Autoloaded but implementation files missing
+#### 1. SQL Capsules (MANDATORY - Section 4) - CRITICAL
+**Priority:** HIGH - Mandatory feature for emergency operations
+
+**Status:** Routes defined, but no implementation
 
 **Missing Files:**
-- ❌ `lib/pg_sql_triggers/drift/detector.rb` - Drift detection logic
-- ❌ `lib/pg_sql_triggers/drift/reporter.rb` - Drift reporting
+- ❌ `lib/pg_sql_triggers/sql/capsule.rb` - SQL capsule definition class (autoloaded but file doesn't exist)
+- ❌ `lib/pg_sql_triggers/sql/executor.rb` - SQL execution with transaction, checksum, registry update
+- ❌ `app/controllers/pg_sql_triggers/sql_capsules_controller.rb` - UI controller (routes reference it but it doesn't exist)
+- ❌ SQL capsule views (new, show, create, execute)
+- ❌ SQL capsule storage mechanism (could use registry table with `source = manual_sql`)
 
 **Missing Functionality:**
-- ❌ Detection of missing triggers
-- ❌ Version mismatch detection
-- ❌ Function body drift detection
-- ❌ Manual SQL override detection
-- ❌ Unknown external trigger detection
-- ❌ All 6 drift states properly implemented (Managed & In Sync, Managed & Drifted, Manual Override, Disabled, Dropped (Recorded), Unknown (External))
+- ❌ Named SQL capsules with environment and purpose declaration
+- ❌ Explicit application workflow with confirmation
+- ❌ Transactional execution
+- ❌ Checksum verification
+- ❌ Registry update with `source = manual_sql`
+- ❌ Kill switch protection (should block in production)
 
-#### 2. Safe Apply & Deploy (Section 3.D)
-**Priority:** HIGH - Deployment safety
+**Impact:** Critical feature marked as MANDATORY in goal but completely missing. Emergency SQL execution not possible.
 
-**Status:** Not implemented
-
-**Missing:**
-- ❌ Safe apply method that runs in a transaction
-- ❌ Diff expected vs actual state before applying
-- ❌ Explicit safety checks (never blindly DROP + CREATE)
-- ❌ Rollback on failure with registry rollback
-- ❌ Atomic registry update
-- ❌ Integration with migrations and generator service
-
-#### 3. Drop & Re-Execute Flow (CRITICAL - Section 9)
+#### 2. Drop & Re-Execute Flow (Section 9) - CRITICAL
 **Priority:** HIGH - Operational requirements
 
 **Status:** Not implemented
@@ -437,30 +480,31 @@ This gem must be described as:
 - ❌ Confirmation dialogs with typed confirmation text
 - ❌ Transactional execution and registry update
 
+**Impact:** Cannot safely drop or re-execute triggers. Operational workflows blocked.
+
+#### 3. Safe Apply & Deploy (Section 3.D) - IMPORTANT
+**Priority:** MEDIUM-HIGH - Deployment safety enhancement
+
+**Status:** Partially implemented via migrations, but lacks explicit safe apply method
+
+**What Works:**
+- ✅ Migrations run in transactions
+- ✅ Migration rollback supported
+- ✅ Registry updated during migrations
+
+**Missing:**
+- ❌ Explicit "safe apply" method with pre-flight validation
+- ❌ Diff expected vs actual state before applying (prevent accidental overwrites)
+- ❌ Explicit safety checks (never blindly DROP + CREATE without validation)
+- ❌ Pre-apply registry state comparison
+
+**Impact:** Migrations work but lack safety validation before applying. Risk of accidental overwrites.
+
 ---
 
 ### 🟡 MEDIUM PRIORITY - User-Facing Features
 
-#### 4. SQL Capsules (MANDATORY - Section 4)
-**Priority:** MEDIUM - Emergency operations
-
-**Status:** Routes exist but implementation missing
-
-**Missing Files:**
-- ❌ `lib/pg_sql_triggers/sql/capsule.rb` - SQL capsule definition class
-- ❌ `lib/pg_sql_triggers/sql/executor.rb` - SQL execution with transaction, checksum, registry update
-- ❌ `app/controllers/pg_sql_triggers/sql_capsules_controller.rb` - UI controller
-- ❌ SQL capsule views (new, show, create)
-- ❌ SQL capsule storage mechanism
-
-**Requirements to implement:**
-- Named SQL capsules with environment and purpose declaration
-- Explicit application workflow
-- Transactional execution
-- Checksum verification
-- Registry update with `source = manual_sql`
-
-#### 5. Trigger Detail Page (Section 8 - UI)
+#### 4. Trigger Detail Page (Section 8 - UI)
 **Priority:** MEDIUM - Usability
 
 **Status:** Partial (shown in tables/show but not dedicated page)
@@ -473,51 +517,43 @@ This gem must be described as:
 - ❌ Action buttons (Enable/Disable/Drop/Re-execute/Execute SQL capsule)
 - ❌ Permission-aware, environment-aware, kill switch-aware button visibility
 
-#### 6. UI Actions & Permissions Enforcement (Section 8)
-**Priority:** MEDIUM - Usability & security
+#### 5. UI Actions (Section 8)
+**Priority:** MEDIUM - Usability
 
-**Status:** Structure exists but not fully enforced
+**Status:** Backend methods exist, UI buttons missing
 
 **Missing:**
-- ❌ Enable/Disable buttons in dashboard and detail pages
-- ❌ Drop button (Admin only)
-- ❌ Re-execute button with flow
-- ❌ Execute SQL capsule button (Admin only)
-- ❌ Permission checking in controllers
-- ❌ Permission checking in UI (hide/disable buttons)
+- ❌ Enable/Disable buttons in dashboard and tables/show pages (methods exist: `TriggerRegistry#enable!` and `#disable!`)
+- ❌ Drop button (requires drop functionality from Section 9)
+- ❌ Re-execute button (requires re-execute functionality from Section 9)
+- ❌ Execute SQL capsule button (requires SQL capsules from Section 4)
+
+**What Works:**
 - ✅ Kill switch enforcement in UI (fully implemented - see Section 6)
-- ❌ Environment awareness in UI actions
+- ✅ Migration actions (up/down/redo) with kill switch protection
+
+#### 6. Permissions Enforcement (Section 5)
+**Priority:** MEDIUM - Security
+
+**Status:** Permission structure exists but not enforced
+
+**Missing:**
+- ❌ Permission checking in controllers (UI actions should check permissions)
+- ❌ Permission checking in UI (hide/disable buttons based on role)
+- ❌ Permission checks in `TriggerRegistry#enable!` and `disable!` (currently only kill switch checked)
+- ❌ Permission checks in rake tasks
+- ❌ Permission checks in console APIs
+- ❌ Actor context passing through all operations
+
+**What Exists:**
+- ✅ Permission structure (Viewer, Operator, Admin roles defined)
+- ✅ Permission model classes (`PgSqlTriggers::Permissions::Checker`)
 
 ---
 
 ### 🟢 LOW PRIORITY - Polish & Improvements
 
-#### 8. Console/CLI Permission Enforcement (Section 5)
-**Priority:** LOW - Security polish
-
-**Status:** Not enforced
-
-**Missing:**
-- ❌ Permission checks in `TriggerRegistry#enable!` and `disable!`
-- ❌ Permission checks in rake tasks
-- ❌ Permission checks in console APIs
-- ❌ Actor context passing through all operations
-
-#### 9. Checksum Implementation Consistency
-**Priority:** LOW - Technical debt
-
-**Status:** Partially implemented
-
-**Issues:**
-- ⚠️ Registry manager uses "placeholder" checksum instead of calculating real checksum
-- ✅ Generator service calculates checksum correctly
-- ⚠️ Need consistent checksum calculation across all creation paths
-
-**Fix Required:**
-- Replace "placeholder" in `Registry::Manager.register` with actual checksum calculation
-- Ensure checksum is calculated consistently (same algorithm as generator)
-
-#### 10. Enhanced Logging & Audit Trail
+#### 7. Enhanced Logging & Audit Trail
 **Priority:** LOW - Operational polish
 
 **Status:** Kill switch logging is comprehensive; audit trail could be enhanced
@@ -527,7 +563,7 @@ This gem must be described as:
 - ✅ Kill switch overrides logging (fully implemented)
 - ⚠️ Comprehensive audit trail table for production operation attempts (optional enhancement - logging exists but structured audit table would be better)
 
-#### 11. Error Handling Consistency
+#### 8. Error Handling Consistency
 **Priority:** LOW - Code quality
 
 **Status:** Kill switch errors are properly implemented; other error types need consistency
@@ -535,10 +571,10 @@ This gem must be described as:
 **Missing:**
 - ✅ Kill switch violations raise `KillSwitchError` (fully implemented)
 - ❌ Permission violations should raise `PermissionError`
-- ❌ Drift issues should raise `DriftError`
+- ✅ Drift detection implemented (can be used for error handling)
 - ❌ Consistent error handling across all operations
 
-#### 12. Testing Coverage
+#### 9. Testing Coverage
 **Priority:** LOW - Quality assurance
 
 **Status:** Kill switch has comprehensive tests; other areas need coverage
@@ -546,11 +582,11 @@ This gem must be described as:
 **Missing:**
 - ❌ SQL capsules need tests
 - ✅ Kill switch has comprehensive tests (fully tested)
-- ❌ Drift detection needs tests
+- ✅ Drift detection has comprehensive tests (fully tested)
 - ❌ Permission enforcement needs tests
 - ❌ Drop/re-execute flow needs tests
 
-#### 13. Documentation Updates
+#### 10. Documentation Updates
 **Priority:** LOW - User experience
 
 **Status:** Kill switch is well documented; other areas need documentation
@@ -560,17 +596,20 @@ This gem must be described as:
 - ✅ README includes kill switch documentation with enforcement details (fully documented)
 - ❌ Need examples for SQL capsules
 - ❌ Need examples for permission configuration
+- ✅ Drift detection fully documented in implementation plan
 
-#### 14. Partial Implementation Notes
-**Priority:** LOW - Known issues
+#### 11. Partial Implementation Notes
+**Priority:** LOW - Known issues and technical debt
 
-- ⚠️ Permissions Model - Structure exists but not enforced in UI/CLI/console
-- ✅ Kill Switch - Fully implemented (see Section 6 for details)
-- ⚠️ Checksum - Implemented in generator service correctly, but Registry::Manager.register uses "placeholder" (needs fix for DSL-registered triggers)
-- ⚠️ Drift Detection - Constants defined, Detector and Reporter classes missing
-- ⚠️ Dashboard - Drift state displayed but drift detection not fully implemented (will work once drift detection is implemented)
-- ⚠️ Dashboard - Last applied (installed_at exists in registry but not displayed in UI)
-- ⚠️ `PgSqlTriggers::Registry.diff` - Calls drift detection which is not fully implemented
+**Known Issues:**
+- ⚠️ **Permissions Model** - Structure exists but not enforced in UI/CLI/console
+- ✅ **Kill Switch** - Fully implemented (see Section 6 for details)
+- ✅ **Checksum** - Fully implemented with consistent field-concatenation algorithm across all creation paths
+- ✅ **Drift Detection** - Fully implemented with all 6 drift states, comprehensive tests, and console APIs
+- ⚠️ **Dashboard** - `installed_at` exists in registry table but not displayed in UI
+- ⚠️ **Trigger Detail Page** - No dedicated route/page, info shown in tables/show view only
+- ⚠️ **Enable/Disable UI** - Console methods exist with kill switch protection, but no UI buttons
+- ⚠️ **Safe Apply** - Works through migrations but lacks explicit safe apply method with pre-flight checks
 
 ---
 

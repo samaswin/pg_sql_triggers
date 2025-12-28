@@ -172,7 +172,8 @@ module PgSqlTriggers
             version: form.version,
             enabled: form.enabled,
             environments: form.environments.compact_blank,
-            condition: form.condition
+            condition: form.condition,
+            function_body: function_content
           }
 
           attributes = {
@@ -243,7 +244,14 @@ module PgSqlTriggers
         end
 
         def calculate_checksum(definition)
-          Digest::SHA256.hexdigest(definition.to_json)
+          # Use field-concatenation algorithm (consistent with TriggerRegistry#calculate_checksum)
+          Digest::SHA256.hexdigest([
+            definition[:name],
+            definition[:table_name],
+            definition[:version],
+            definition[:function_body] || "",
+            definition[:condition] || ""
+          ].join)
         end
       end
     end

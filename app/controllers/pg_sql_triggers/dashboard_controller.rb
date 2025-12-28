@@ -4,11 +4,14 @@ module PgSqlTriggers
   class DashboardController < ApplicationController
     def index
       @triggers = PgSqlTriggers::TriggerRegistry.order(created_at: :desc)
+
+      # Get drift summary
+      drift_summary = PgSqlTriggers::Drift::Reporter.summary
       @stats = {
         total: @triggers.count,
         enabled: @triggers.enabled.count,
         disabled: @triggers.disabled.count,
-        drifted: 0 # Will be calculated by Drift::Detector
+        drifted: drift_summary[:drifted]
       }
 
       # Migration status with pagination

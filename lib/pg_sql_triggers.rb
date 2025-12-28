@@ -35,6 +35,14 @@ module PgSqlTriggers
   mattr_accessor :excluded_tables
   self.excluded_tables = []
 
+  # Drift states
+  DRIFT_STATE_IN_SYNC = "in_sync"
+  DRIFT_STATE_DRIFTED = "drifted"
+  DRIFT_STATE_MANUAL_OVERRIDE = "manual_override"
+  DRIFT_STATE_DISABLED = "disabled"
+  DRIFT_STATE_DROPPED = "dropped"
+  DRIFT_STATE_UNKNOWN = "unknown"
+
   def self.configure
     yield self
   end

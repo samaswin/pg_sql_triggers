@@ -18,10 +18,26 @@ module PgSqlTriggers
     scope :for_environment, ->(env) { where(environment: [env, nil]) }
     scope :by_source, ->(source) { where(source: source) }
 
-    # Drift states
+    # Drift detection methods
     def drift_state
-      # This will be implemented by the Drift::Detector
-      PgSqlTriggers::Drift.detect(trigger_name)
+      result = PgSqlTriggers::Drift::Detector.detect(trigger_name)
+      result[:state]
+    end
+
+    def drift_result
+      PgSqlTriggers::Drift::Detector.detect(trigger_name)
+    end
+
+    def drifted?
+      drift_state == PgSqlTriggers::DRIFT_STATE_DRIFTED
+    end
+
+    def in_sync?
+      drift_state == PgSqlTriggers::DRIFT_STATE_IN_SYNC
+    end
+
+    def dropped?
+      drift_state == PgSqlTriggers::DRIFT_STATE_DROPPED
     end
 
     def enable!(confirmation: nil)

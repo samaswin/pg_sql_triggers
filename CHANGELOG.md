@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- Complete drift detection system implementation
+  - `Drift::Detector` class with all 6 drift states (IN_SYNC, DRIFTED, DISABLED, DROPPED, UNKNOWN, MANUAL_OVERRIDE)
+  - `Drift::Reporter` class for formatting drift reports and summaries
+  - `Drift::DbQueries` helper module for PostgreSQL system catalog queries
+  - Dashboard integration: drift count now calculated from actual detection results
+  - Console API: `PgSqlTriggers::Registry.diff` now fully functional with drift detection
+  - Comprehensive test coverage for all drift detection components (>90% coverage)
+
+### Fixed
+- Fixed checksum calculation consistency across all code paths (field-concatenation algorithm)
+- Fixed `Registry::Manager.diff` method to use drift detection
+- Fixed dashboard controller to display actual drifted trigger count
+- Fixed SQL parameter handling in `DbQueries.execute_query` method
+
 ## [1.0.1] - 2025-12-28
 
 - Production kill switch for safety (blocks destructive operations in production by default)
