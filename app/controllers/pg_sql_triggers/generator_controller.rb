@@ -36,6 +36,9 @@ module PgSqlTriggers
     # POST /generator/create
     # Actually create the files and register in TriggerRegistry
     def create
+      # Check kill switch before generating trigger
+      check_kill_switch(operation: :ui_trigger_generate, confirmation: params[:confirmation_text])
+
       @form = PgSqlTriggers::Generator::Form.new(generator_params)
 
       if @form.valid?
@@ -67,6 +70,9 @@ module PgSqlTriggers
         @available_tables = fetch_available_tables
         render :new
       end
+    rescue PgSqlTriggers::KillSwitchError => e
+      flash[:error] = e.message
+      redirect_to root_path
     end
 
     # POST /generator/validate_table (AJAX)
@@ -96,10 +102,10 @@ module PgSqlTriggers
     private
 
     def generator_params
-      params.expect(
-        pg_sql_triggers_generator_form: [:trigger_name, :table_name, :function_name, :version,
-                                         :enabled, :condition, :generate_function_stub, :function_body,
-                                         { events: [], environments: [] }]
+      params.require(:pg_sql_triggers_generator_form).permit(
+        :trigger_name, :table_name, :function_name, :version,
+        :enabled, :condition, :generate_function_stub, :function_body,
+        events: [], environments: []
       )
     end
 

@@ -13,7 +13,7 @@ RSpec.describe PgSqlTriggers::Migration do
   end
 
   it "inherits from ActiveRecord::Migration" do
-    expect(described_class.superclass).to eq(ActiveRecord::Migration[6.0])
+    expect(described_class.superclass).to eq(ActiveRecord::Migration[6.1])
   end
 end
 

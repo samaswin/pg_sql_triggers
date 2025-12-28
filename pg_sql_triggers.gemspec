@@ -14,7 +14,7 @@ Gem::Specification.new do |spec|
                      "and a mountable UI."
   spec.homepage = "https://github.com/samaswin87/pg_sql_triggers"
   spec.license = "MIT"
-  spec.required_ruby_version = ">= 2.7.0"
+  spec.required_ruby_version = ">= 3.0.0"
 
   spec.metadata["homepage_uri"] = spec.homepage
   spec.metadata["source_code_uri"] = "https://github.com/samaswin87/pg_sql_triggers"
@@ -36,10 +36,11 @@ Gem::Specification.new do |spec|
 
   # Runtime dependencies
   spec.add_dependency "pg", ">= 1.0"
-  spec.add_dependency "rails", ">= 6.0"
+  spec.add_dependency "rails", ">= 6.1"
 
   # Development dependencies
   spec.add_development_dependency "database_cleaner-active_record", "~> 2.0"
+  spec.add_development_dependency "erb_lint", "~> 0.9"
   spec.add_development_dependency "factory_bot_rails", "~> 6.0"
   spec.add_development_dependency "rails-controller-testing", "~> 1.0"
   spec.add_development_dependency "rspec", "~> 3.0"

@@ -1,0 +1,47 @@
+---
+# Enable all linters by default
+EnableDefaultLinters: true
+
+# Exclude vendor files from linting
+exclude:
+  - 'vendor/**/*'
+
+linters:
+  # Syntax and parsing
+  ParserErrors:
+    enabled: true
+
+  # Whitespace and formatting
+  TrailingWhitespace:
+    enabled: true
+  ExtraWhitespace:
+    enabled: true
+  SpaceAroundErbTag:
+    enabled: true
+  ClosingErbTagIndent:
+    enabled: true
+  SpaceInHtmlTag:
+    enabled: true
+
+  # Code quality
+  CommentSyntax:
+    enabled: true
+  SelfClosingTag:
+    enabled: true
+
+  # Security
+  NoJavascriptTagHelper:
+    enabled: true
+  RequireScriptNonce:
+    enabled: false  # Disable if not using CSP nonces
+
+  # Accessibility
+  RequireInputLabel:
+    enabled: true
+
+  # Rails best practices
+  DeprecatedClasses:
+    enabled: true
+  SimpleFormat:
+    enabled: false  # Disable if you intentionally use simple_format
+

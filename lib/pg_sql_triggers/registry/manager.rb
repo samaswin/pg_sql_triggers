@@ -6,7 +6,7 @@ module PgSqlTriggers
       class << self
         def register(definition)
           trigger_name = definition.name
-          existing = TriggerRegistry.find_by(trigger_name: trigger_name)
+          existing = PgSqlTriggers::TriggerRegistry.find_by(trigger_name: trigger_name)
 
           attributes = {
             trigger_name: definition.name,
@@ -22,19 +22,19 @@ module PgSqlTriggers
             existing.update!(attributes)
             existing
           else
-            TriggerRegistry.create!(attributes.merge(checksum: "placeholder"))
+            PgSqlTriggers::TriggerRegistry.create!(attributes.merge(checksum: "placeholder"))
           end
         end
 
         def list
-          TriggerRegistry.all
+          PgSqlTriggers::TriggerRegistry.all
         end
 
-        delegate :enabled, to: :TriggerRegistry
+        delegate :enabled, to: PgSqlTriggers::TriggerRegistry
 
-        delegate :disabled, to: :TriggerRegistry
+        delegate :disabled, to: PgSqlTriggers::TriggerRegistry
 
-        delegate :for_table, to: :TriggerRegistry
+        delegate :for_table, to: PgSqlTriggers::TriggerRegistry
 
         def diff
           # Compare DSL definitions with actual database state

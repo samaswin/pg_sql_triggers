@@ -14,6 +14,18 @@ module PgSqlTriggers
   mattr_accessor :kill_switch_enabled
   self.kill_switch_enabled = true
 
+  mattr_accessor :kill_switch_environments
+  self.kill_switch_environments = %i[production staging]
+
+  mattr_accessor :kill_switch_confirmation_required
+  self.kill_switch_confirmation_required = true
+
+  mattr_accessor :kill_switch_confirmation_pattern
+  self.kill_switch_confirmation_pattern = ->(operation) { "EXECUTE #{operation.to_s.upcase}" }
+
+  mattr_accessor :kill_switch_logger
+  self.kill_switch_logger = nil # Will default to Rails.logger if available
+
   mattr_accessor :default_environment
   self.default_environment = -> { Rails.env }
 

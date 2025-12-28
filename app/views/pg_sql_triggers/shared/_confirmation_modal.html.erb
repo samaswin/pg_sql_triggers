@@ -1,0 +1,189 @@
+<%# Confirmation Modal for Dangerous Operations %>
+<%#
+  Usage:
+    <%= render 'pg_sql_triggers/shared/confirmation_modal',
+               operation: :trigger_migrate_up,
+               form_id: 'migration-form',
+               title: 'Confirm Migration',
+               message: 'Are you sure you want to run this migration?'
+%>
+
+<%
+  operation = local_assigns[:operation] || :unknown_operation
+  form_id = local_assigns[:form_id] || 'confirmation-form'
+  title = local_assigns[:title] || 'Confirm Action'
+  message = local_assigns[:message] || 'This action requires confirmation.'
+
+  # Generate expected confirmation text
+  if PgSqlTriggers.respond_to?(:kill_switch_confirmation_pattern) &&
+     PgSqlTriggers.kill_switch_confirmation_pattern.respond_to?(:call)
+    expected_confirmation = PgSqlTriggers.kill_switch_confirmation_pattern.call(operation)
+  else
+    expected_confirmation = "EXECUTE #{operation.to_s.upcase}"
+  end
+%>
+
+<div id="kill-switch-modal-<%= form_id %>" class="kill-switch-modal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4);">
+  <div class="modal-content" style="background-color: #fefefe; margin: 10% auto; padding: 20px; border: 1px solid #888; border-radius: 8px; width: 80%; max-width: 600px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); box-sizing: border-box;">
+    <div class="modal-header" style="border-bottom: 1px solid #dee2e6; padding-bottom: 12px; margin-bottom: 16px;">
+      <h3 style="margin: 0; color: #dc3545; display: flex; align-items: center; gap: 8px;">
+        <span style="font-size: 24px;">⚠️</span>
+        <%= title %>
+      </h3>
+    </div>
+
+    <div class="modal-body" style="margin-bottom: 20px; box-sizing: border-box;">
+      <p style="color: #495057; line-height: 1.6;"><%= message %></p>
+
+      <% if kill_switch_active? %>
+        <div style="background-color: #fff3cd; border: 1px solid #ffc107; border-radius: 4px; padding: 12px; margin: 16px 0; box-sizing: border-box;">
+          <p style="margin: 0 0 8px 0; font-weight: bold; color: #856404;">
+            🛡️ Kill Switch Protection Active
+          </p>
+          <p style="margin: 0 0 12px 0; color: #856404; font-size: 14px;">
+            You must enter the exact confirmation text below to proceed:
+          </p>
+          <div style="background-color: #f8f9fa; border: 2px solid #ffc107; border-radius: 4px; padding: 8px; font-family: monospace; font-size: 14px; font-weight: bold; text-align: center; color: #856404; word-break: break-word; box-sizing: border-box;">
+            <%= expected_confirmation %>
+          </div>
+        </div>
+
+        <div style="margin-top: 16px; box-sizing: border-box;">
+          <label for="confirmation-text-<%= form_id %>" style="display: block; margin-bottom: 8px; font-weight: bold; color: #495057;">
+            Confirmation Text:
+          </label>
+          <input
+            type="text"
+            id="confirmation-text-<%= form_id %>"
+            name="confirmation_text"
+            class="form-control"
+            placeholder="Type the confirmation text above"
+            style="width: 100%; max-width: 100%; padding: 8px 12px; border: 1px solid #ced4da; border-radius: 4px; font-family: monospace; box-sizing: border-box;"
+            autocomplete="off">
+          <small style="display: block; margin-top: 4px; color: #6c757d;">
+            Case-sensitive. Must match exactly.
+          </small>
+        </div>
+      <% end %>
+    </div>
+
+    <div class="modal-footer" style="border-top: 1px solid #dee2e6; padding-top: 12px; display: flex; gap: 8px; justify-content: flex-end;">
+      <button
+        type="button"
+        class="btn-cancel"
+        onclick="closeKillSwitchModal('<%= form_id %>')"
+        style="padding: 8px 16px; border: 1px solid #6c757d; background-color: #6c757d; color: white; border-radius: 4px; cursor: pointer;">
+        Cancel
+      </button>
+
+      <% if kill_switch_active? %>
+        <button
+          type="button"
+          class="btn-confirm"
+          onclick="submitWithConfirmation('<%= form_id %>', '<%= expected_confirmation %>')"
+          style="padding: 8px 16px; border: 1px solid #dc3545; background-color: #dc3545; color: white; border-radius: 4px; cursor: pointer;">
+          Confirm & Proceed
+        </button>
+      <% else %>
+        <button
+          type="button"
+          class="btn-confirm"
+          onclick="submitWithoutConfirmation('<%= form_id %>')"
+          style="padding: 8px 16px; border: 1px solid #007bff; background-color: #007bff; color: white; border-radius: 4px; cursor: pointer;">
+          Proceed
+        </button>
+      <% end %>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Only define functions once
+  if (typeof window.showKillSwitchModal === 'undefined') {
+    window.showKillSwitchModal = function(formId) {
+      const modal = document.getElementById('kill-switch-modal-' + formId);
+      if (modal) {
+        modal.style.display = 'block';
+        // Focus on confirmation input if it exists
+        const confirmationInput = document.getElementById('confirmation-text-' + formId);
+        if (confirmationInput) {
+          setTimeout(() => confirmationInput.focus(), 100);
+        }
+      }
+    };
+
+    window.closeKillSwitchModal = function(formId) {
+      const modal = document.getElementById('kill-switch-modal-' + formId);
+      if (modal) {
+        modal.style.display = 'none';
+        // Clear confirmation input
+        const confirmationInput = document.getElementById('confirmation-text-' + formId);
+        if (confirmationInput) {
+          confirmationInput.value = '';
+        }
+      }
+    };
+
+    window.submitWithConfirmation = function(formId, expectedConfirmation) {
+      const confirmationInput = document.getElementById('confirmation-text-' + formId);
+      const confirmationText = confirmationInput ? confirmationInput.value.trim() : '';
+
+      if (confirmationText !== expectedConfirmation) {
+        alert('Invalid confirmation text. Please type exactly: ' + expectedConfirmation);
+        return;
+      }
+
+      // Add confirmation text to the form
+      const form = document.getElementById(formId);
+      if (form) {
+        // Remove any existing confirmation_text input
+        const existingInput = form.querySelector('input[name="confirmation_text"]');
+        if (existingInput && existingInput !== confirmationInput) {
+          existingInput.remove();
+        }
+
+        // Create a hidden input with the confirmation text
+        const hiddenInput = document.createElement('input');
+        hiddenInput.type = 'hidden';
+        hiddenInput.name = 'confirmation_text';
+        hiddenInput.value = confirmationText;
+        form.appendChild(hiddenInput);
+
+        form.submit();
+      }
+
+      window.closeKillSwitchModal(formId);
+    };
+
+    window.submitWithoutConfirmation = function(formId) {
+      const form = document.getElementById(formId);
+      if (form) {
+        form.submit();
+      }
+      window.closeKillSwitchModal(formId);
+    };
+
+    // Close modal when clicking outside of it (only add listener once)
+    if (!window._killSwitchModalListenersAttached) {
+      window.onclick = function(event) {
+        if (event.target.className === 'kill-switch-modal') {
+          event.target.style.display = 'none';
+        }
+      };
+
+      // Close modal on Escape key
+      document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape') {
+          const modals = document.querySelectorAll('.kill-switch-modal');
+          modals.forEach(modal => {
+            if (modal.style.display === 'block') {
+              modal.style.display = 'none';
+            }
+          });
+        }
+      });
+
+      window._killSwitchModalListenersAttached = true;
+    }
+  }
+</script>

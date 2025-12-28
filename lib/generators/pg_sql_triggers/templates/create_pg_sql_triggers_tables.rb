@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-class CreatePgSqlTriggersTables < ActiveRecord::Migration[6.0]
+class CreatePgSqlTriggersTables < ActiveRecord::Migration[6.1]
   def change
     # Registry table - source of truth for all triggers
     create_table :pg_sql_triggers_registry do |t|

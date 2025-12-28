@@ -1,8 +1,23 @@
 # frozen_string_literal: true
 
+# Helper method to check kill switch before dangerous operations
+def check_kill_switch!(operation)
+  PgSqlTriggers::SQL::KillSwitch.check!(
+    operation: operation,
+    environment: Rails.env,
+    confirmation: ENV.fetch("CONFIRMATION_TEXT", nil),
+    actor: { type: "CLI", id: ENV.fetch("USER", "unknown") }
+  )
+rescue PgSqlTriggers::KillSwitchError => e
+  puts "\n#{e.message}\n"
+  exit 1
+end
+
 namespace :trigger do
   desc "Migrate trigger migrations (options: VERSION=x, VERBOSE=false)"
   task migrate: :environment do
+    check_kill_switch!(:trigger_migrate)
+
     PgSqlTriggers::Migrator.ensure_migrations_table!
 
     target_version = ENV["VERSION"]&.to_i
@@ -20,6 +35,8 @@ namespace :trigger do
 
   desc "Rollback trigger migrations (specify steps w/ STEP=n)"
   task rollback: :environment do
+    check_kill_switch!(:trigger_rollback)
+
     PgSqlTriggers::Migrator.ensure_migrations_table!
 
     steps = ENV["STEP"] ? ENV["STEP"].to_i : 1
@@ -64,6 +81,8 @@ namespace :trigger do
 
   desc "Runs the 'up' for a given migration VERSION"
   task "migrate:up" => :environment do
+    check_kill_switch!(:trigger_migrate_up)
+
     version = ENV.fetch("VERSION", nil)
     raise "VERSION is required" unless version
 
@@ -74,6 +93,8 @@ namespace :trigger do
 
   desc "Runs the 'down' for a given migration VERSION"
   task "migrate:down" => :environment do
+    check_kill_switch!(:trigger_migrate_down)
+
     version = ENV.fetch("VERSION", nil)
     raise "VERSION is required" unless version
 
@@ -84,6 +105,8 @@ namespace :trigger do
 
   desc "Rollbacks the database one migration and re migrate up (options: STEP=x, VERSION=x)"
   task "migrate:redo" => :environment do
+    check_kill_switch!(:trigger_migrate_redo)
+
     PgSqlTriggers::Migrator.ensure_migrations_table!
 
     if ENV["VERSION"]
@@ -127,6 +150,8 @@ end
 namespace :db do
   desc "Migrate the database schema and triggers (options: VERSION=x, VERBOSE=false)"
   task "migrate:with_triggers" => :environment do
+    check_kill_switch!(:db_migrate_with_triggers)
+
     verbose = ENV["VERBOSE"] != "false"
 
     puts "Running schema and trigger migrations..." if verbose
@@ -140,6 +165,8 @@ namespace :db do
 
   desc "Rollback schema and trigger migrations (specify steps w/ STEP=n)"
   task "rollback:with_triggers" => :environment do
+    check_kill_switch!(:db_rollback_with_triggers)
+
     ENV["STEP"] ? ENV["STEP"].to_i : 1
 
     # Determine which type of migration was last run
@@ -171,6 +198,8 @@ namespace :db do
 
   desc "Runs the 'up' for a given migration VERSION (schema or trigger)"
   task "migrate:up:with_triggers" => :environment do
+    check_kill_switch!(:db_migrate_up_with_triggers)
+
     version = ENV.fetch("VERSION", nil)
     raise "VERSION is required" unless version
 
@@ -201,6 +230,8 @@ namespace :db do
 
   desc "Runs the 'down' for a given migration VERSION (schema or trigger)"
   task "migrate:down:with_triggers" => :environment do
+    check_kill_switch!(:db_migrate_down_with_triggers)
+
     version = ENV.fetch("VERSION", nil)
     raise "VERSION is required" unless version
 
@@ -228,6 +259,8 @@ namespace :db do
 
   desc "Rollbacks the database one migration and re migrate up (options: STEP=x, VERSION=x)"
   task "migrate:redo:with_triggers" => :environment do
+    check_kill_switch!(:db_migrate_redo_with_triggers)
+
     if ENV["VERSION"]
       Rake::Task["db:migrate:down:with_triggers"].invoke
       Rake::Task["db:migrate:up:with_triggers"].invoke

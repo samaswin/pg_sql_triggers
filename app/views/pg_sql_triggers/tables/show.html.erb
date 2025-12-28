@@ -63,14 +63,14 @@
               </p>
             </div>
           </div>
-          
+
           <% if trigger.definition.present? %>
             <% definition = JSON.parse(trigger.definition) rescue {} %>
             <div style="margin-bottom: 1rem;">
               <strong>Function:</strong> <code style="background: #e9ecef; padding: 0.25rem 0.5rem; border-radius: 2px;"><%= definition["function_name"] || "N/A" %></code>
               <% if definition["events"].present? %>
                 <span style="margin-left: 1rem;">
-                  <strong>Events:</strong> 
+                  <strong>Events:</strong>
                   <% definition["events"].each do |event| %>
                     <span class="badge badge-info" style="margin-left: 0.25rem;"><%= event %></span>
                   <% end %>
@@ -78,7 +78,7 @@
               <% end %>
             </div>
           <% end %>
-          
+
           <% if trigger.function_body.present? %>
             <details style="margin-top: 1rem;">
               <summary style="cursor: pointer; font-weight: 600; color: #495057;">View Function Body</summary>
@@ -123,4 +123,3 @@
     </div>
   </div>
 <% end %>
-

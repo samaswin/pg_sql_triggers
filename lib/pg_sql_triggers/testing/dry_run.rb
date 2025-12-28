@@ -27,14 +27,12 @@ module PgSqlTriggers
         trigger_timing = "BEFORE" # Could be configurable
         trigger_level = "ROW"     # Could be configurable
 
-        trigger_sql = <<~SQL.squish
-          CREATE TRIGGER #{@trigger.trigger_name}
-          #{trigger_timing} #{events} ON #{@trigger.table_name}
-          FOR EACH #{trigger_level}
-        SQL
+        trigger_sql = "CREATE TRIGGER #{@trigger.trigger_name} " \
+                      "#{trigger_timing} #{events} ON #{@trigger.table_name} " \
+                      "FOR EACH #{trigger_level}"
 
-        trigger_sql += "WHEN (#{@trigger.condition})\n" if @trigger.condition.present?
-        trigger_sql += "EXECUTE FUNCTION #{definition['function_name']}();"
+        trigger_sql += " WHEN (#{@trigger.condition})" if @trigger.condition.present?
+        trigger_sql += " EXECUTE FUNCTION #{definition['function_name']}();"
 
         sql_parts << {
           type: "CREATE TRIGGER",

@@ -126,8 +126,8 @@ RSpec.describe PgSqlTriggers::Testing::SyntaxValidator do
 
     it "rolls back transaction after validation" do
       validator.validate_condition
-      # No changes should be persisted
-      expect(ActiveRecord::Base.connection).to be_connected
+      # No changes should be persisted - verify connection is still active by executing a query
+      expect(ActiveRecord::Base.connection.execute("SELECT 1")).to be_present
     end
   end
 

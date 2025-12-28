@@ -9,6 +9,9 @@ module PgSqlTriggers
 
     before_action :check_permissions?
 
+    # Helper methods available in views
+    helper_method :current_environment, :kill_switch_active?, :expected_confirmation_text
+
     private
 
     def check_permissions?
@@ -30,6 +33,49 @@ module PgSqlTriggers
 
     def current_user_id
       "unknown"
+    end
+
+    # ========== Kill Switch Helpers ==========
+
+    # Returns the current environment
+    def current_environment
+      Rails.env
+    end
+
+    # Checks if kill switch is active for the current environment
+    def kill_switch_active?
+      PgSqlTriggers::SQL::KillSwitch.active?(environment: current_environment)
+    end
+
+    # Checks kill switch before executing a dangerous operation
+    # Raises KillSwitchError if the operation is blocked
+    #
+    # @param operation [Symbol] The operation being performed
+    # @param confirmation [String, nil] Optional confirmation text from params
+    def check_kill_switch(operation:, confirmation: nil)
+      PgSqlTriggers::SQL::KillSwitch.check!(
+        operation: operation,
+        environment: current_environment,
+        confirmation: confirmation,
+        actor: current_actor
+      )
+    end
+
+    # Before action to require kill switch override for an action
+    # Add to specific controller actions that need protection:
+    #   before_action -> { require_kill_switch_override(:operation_name) }, only: [:dangerous_action]
+    def require_kill_switch_override(operation, confirmation: nil)
+      check_kill_switch(operation: operation, confirmation: confirmation)
+    end
+
+    # Returns the expected confirmation text for an operation (for use in views)
+    def expected_confirmation_text(operation)
+      if PgSqlTriggers.respond_to?(:kill_switch_confirmation_pattern) &&
+         PgSqlTriggers.kill_switch_confirmation_pattern.respond_to?(:call)
+        PgSqlTriggers.kill_switch_confirmation_pattern.call(operation)
+      else
+        "EXECUTE #{operation.to_s.upcase}"
+      end
     end
   end
 end

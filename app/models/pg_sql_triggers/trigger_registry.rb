@@ -24,7 +24,16 @@ module PgSqlTriggers
       PgSqlTriggers::Drift.detect(trigger_name)
     end
 
-    def enable!
+    def enable!(confirmation: nil)
+      # Check kill switch before enabling trigger
+      # Use Rails.env for kill switch check, not the trigger's environment field
+      PgSqlTriggers::SQL::KillSwitch.check!(
+        operation: :trigger_enable,
+        environment: Rails.env,
+        confirmation: confirmation,
+        actor: { type: "Console", id: "TriggerRegistry#enable!" }
+      )
+
       # Check if trigger exists in database before trying to enable it
       trigger_exists = false
       begin
@@ -50,7 +59,16 @@ module PgSqlTriggers
       update!(enabled: true)
     end
 
-    def disable!
+    def disable!(confirmation: nil)
+      # Check kill switch before disabling trigger
+      # Use Rails.env for kill switch check, not the trigger's environment field
+      PgSqlTriggers::SQL::KillSwitch.check!(
+        operation: :trigger_disable,
+        environment: Rails.env,
+        confirmation: confirmation,
+        actor: { type: "Console", id: "TriggerRegistry#disable!" }
+      )
+
       # Check if trigger exists in database before trying to disable it
       trigger_exists = false
       begin

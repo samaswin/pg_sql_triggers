@@ -5,6 +5,9 @@ module PgSqlTriggers
   # Provides actions to run migrations up, down, and redo
   class MigrationsController < ApplicationController
     def up
+      # Check kill switch before running migration
+      check_kill_switch(operation: :ui_migration_up, confirmation: params[:confirmation_text])
+
       target_version = params[:version]&.to_i
       PgSqlTriggers::Migrator.ensure_migrations_table!
 
@@ -22,6 +25,9 @@ module PgSqlTriggers
         end
       end
       redirect_to root_path
+    rescue PgSqlTriggers::KillSwitchError => e
+      flash[:error] = e.message
+      redirect_to root_path
     rescue StandardError => e
       Rails.logger.error("Migration up failed: #{e.message}\n#{e.backtrace.join("\n")}")
       flash[:error] = "Failed to apply migration: #{e.message}"
@@ -29,6 +35,9 @@ module PgSqlTriggers
     end
 
     def down
+      # Check kill switch before rolling back migration
+      check_kill_switch(operation: :ui_migration_down, confirmation: params[:confirmation_text])
+
       target_version = params[:version]&.to_i
       PgSqlTriggers::Migrator.ensure_migrations_table!
 
@@ -48,6 +57,9 @@ module PgSqlTriggers
         flash[:success] = "Rolled back last migration successfully."
       end
       redirect_to root_path
+    rescue PgSqlTriggers::KillSwitchError => e
+      flash[:error] = e.message
+      redirect_to root_path
     rescue StandardError => e
       Rails.logger.error("Migration down failed: #{e.message}\n#{e.backtrace.join("\n")}")
       flash[:error] = "Failed to rollback migration: #{e.message}"
@@ -55,6 +67,9 @@ module PgSqlTriggers
     end
 
     def redo
+      # Check kill switch before redoing migration
+      check_kill_switch(operation: :ui_migration_redo, confirmation: params[:confirmation_text])
+
       target_version = params[:version]&.to_i
       PgSqlTriggers::Migrator.ensure_migrations_table!
 
@@ -74,6 +89,9 @@ module PgSqlTriggers
         PgSqlTriggers::Migrator.run_up
         flash[:success] = "Last migration redone successfully."
       end
+      redirect_to root_path
+    rescue PgSqlTriggers::KillSwitchError => e
+      flash[:error] = e.message
       redirect_to root_path
     rescue StandardError => e
       Rails.logger.error("Migration redo failed: #{e.message}\n#{e.backtrace.join("\n")}")
