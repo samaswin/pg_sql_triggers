@@ -4,10 +4,12 @@ require_relative "pg_sql_triggers/version"
 require_relative "pg_sql_triggers/engine"
 
 # Rails 6.0 compatibility: compact_blank was added in Rails 6.1
-unless Array.instance_methods.include?(:compact_blank)
+unless Array.method_defined?(:compact_blank)
   class Array
     def compact_blank
+      # rubocop:disable Rails/CompactBlank
       reject(&:blank?)
+      # rubocop:enable Rails/CompactBlank
     end
   end
 end

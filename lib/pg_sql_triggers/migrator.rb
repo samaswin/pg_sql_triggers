@@ -82,6 +82,8 @@ module PgSqlTriggers
         # Check kill switch before running migrations
         # This provides protection when called directly from console
         # When called from rake tasks, the ENV override will already be in place
+        # Use ENV["CONFIRMATION_TEXT"] if confirmation is not provided (for rake task compatibility)
+        confirmation ||= ENV.fetch("CONFIRMATION_TEXT", nil)
         PgSqlTriggers::SQL::KillSwitch.check!(
           operation: :migrator_run_up,
           environment: Rails.env,
@@ -116,6 +118,8 @@ module PgSqlTriggers
         # Check kill switch before running migrations
         # This provides protection when called directly from console
         # When called from rake tasks, the ENV override will already be in place
+        # Use ENV["CONFIRMATION_TEXT"] if confirmation is not provided (for rake task compatibility)
+        confirmation ||= ENV.fetch("CONFIRMATION_TEXT", nil)
         PgSqlTriggers::SQL::KillSwitch.check!(
           operation: :migrator_run_down,
           environment: Rails.env,

@@ -24,6 +24,8 @@
   </nav>
 
   <main style="max-width: 1200px; margin: 2rem auto; padding: 0 1rem;">
+    <%= render 'pg_sql_triggers/shared/kill_switch_status' %>
+
     <% if flash[:success] %>
       <div style="background: #d4edda; color: #155724; padding: 1rem; margin-bottom: 1rem; border-radius: 4px; border-left: 4px solid #28a745;">
         <%= flash[:success] %>
@@ -32,7 +34,38 @@
 
     <% if flash[:error] %>
       <div style="background: #f8d7da; color: #721c24; padding: 1rem; margin-bottom: 1rem; border-radius: 4px; border-left: 4px solid #dc3545;">
-        <%= flash[:error] %>
+        <% error_message = flash[:error].to_s %>
+        <% if error_message.include?("Kill switch is active") %>
+          <%# Format kill switch error messages nicely %>
+          <% lines = error_message.split("\n") %>
+
+          <%# Main error header with clear start %>
+          <div style="display: flex; align-items: flex-start; margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 2px solid #f5c6cb;">
+            <span style="font-size: 1.8em; margin-right: 0.75rem; line-height: 1.2;">⚠️</span>
+            <div style="flex: 1;">
+              <div style="font-weight: bold; font-size: 1.15em; margin-bottom: 0.5rem;">
+                Operation Blocked
+              </div>
+              <% lines[0..1].each do |line| %>
+                <% next if line.strip.empty? %>
+                <div style="margin: 0.25rem 0;"><%= line.strip %></div>
+              <% end %>
+            </div>
+          </div>
+
+          <%# Instructions section with preserved formatting %>
+          <div style="margin-top: 0.5rem;">
+            <%# Extract and format the instructions portion %>
+            <% instructions_start = error_message.index("To override") || 0 %>
+            <% instructions_text = error_message[instructions_start..-1] %>
+            <div style="white-space: pre-wrap; word-wrap: break-word; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6;">
+              <%= instructions_text.strip %>
+            </div>
+          </div>
+        <% else %>
+          <%# Regular error message - preserve formatting %>
+          <div style="white-space: pre-wrap; word-wrap: break-word;"><%= error_message %></div>
+        <% end %>
       </div>
     <% end %>
 

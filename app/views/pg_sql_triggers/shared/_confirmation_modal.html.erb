@@ -24,7 +24,7 @@
 %>
 
 <div id="kill-switch-modal-<%= form_id %>" class="kill-switch-modal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4);">
-  <div class="modal-content" style="background-color: #fefefe; margin: 10% auto; padding: 20px; border: 1px solid #888; border-radius: 8px; width: 80%; max-width: 600px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+  <div class="modal-content" style="background-color: #fefefe; margin: 10% auto; padding: 20px; border: 1px solid #888; border-radius: 8px; width: 80%; max-width: 600px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); box-sizing: border-box;">
     <div class="modal-header" style="border-bottom: 1px solid #dee2e6; padding-bottom: 12px; margin-bottom: 16px;">
       <h3 style="margin: 0; color: #dc3545; display: flex; align-items: center; gap: 8px;">
         <span style="font-size: 24px;">⚠️</span>
@@ -32,23 +32,23 @@
       </h3>
     </div>
 
-    <div class="modal-body" style="margin-bottom: 20px;">
+    <div class="modal-body" style="margin-bottom: 20px; box-sizing: border-box;">
       <p style="color: #495057; line-height: 1.6;"><%= message %></p>
 
       <% if kill_switch_active? %>
-        <div style="background-color: #fff3cd; border: 1px solid #ffc107; border-radius: 4px; padding: 12px; margin: 16px 0;">
+        <div style="background-color: #fff3cd; border: 1px solid #ffc107; border-radius: 4px; padding: 12px; margin: 16px 0; box-sizing: border-box;">
           <p style="margin: 0 0 8px 0; font-weight: bold; color: #856404;">
             🛡️ Kill Switch Protection Active
           </p>
           <p style="margin: 0 0 12px 0; color: #856404; font-size: 14px;">
             You must enter the exact confirmation text below to proceed:
           </p>
-          <div style="background-color: #f8f9fa; border: 2px solid #ffc107; border-radius: 4px; padding: 8px; font-family: monospace; font-size: 14px; font-weight: bold; text-align: center; color: #856404;">
+          <div style="background-color: #f8f9fa; border: 2px solid #ffc107; border-radius: 4px; padding: 8px; font-family: monospace; font-size: 14px; font-weight: bold; text-align: center; color: #856404; word-break: break-word; box-sizing: border-box;">
             <%= expected_confirmation %>
           </div>
         </div>
 
-        <div style="margin-top: 16px;">
+        <div style="margin-top: 16px; box-sizing: border-box;">
           <label for="confirmation-text-<%= form_id %>" style="display: block; margin-bottom: 8px; font-weight: bold; color: #495057;">
             Confirmation Text:
           </label>
@@ -58,7 +58,7 @@
             name="confirmation_text"
             class="form-control"
             placeholder="Type the confirmation text above"
-            style="width: 100%; padding: 8px 12px; border: 1px solid #ced4da; border-radius: 4px; font-family: monospace;"
+            style="width: 100%; max-width: 100%; padding: 8px 12px; border: 1px solid #ced4da; border-radius: 4px; font-family: monospace; box-sizing: border-box;"
             autocomplete="off">
           <small style="display: block; margin-top: 4px; color: #6c757d;">
             Case-sensitive. Must match exactly.
@@ -98,87 +98,92 @@
 </div>
 
 <script>
-  function showKillSwitchModal(formId) {
-    const modal = document.getElementById('kill-switch-modal-' + formId);
-    if (modal) {
-      modal.style.display = 'block';
-      // Focus on confirmation input if it exists
+  // Only define functions once
+  if (typeof window.showKillSwitchModal === 'undefined') {
+    window.showKillSwitchModal = function(formId) {
+      const modal = document.getElementById('kill-switch-modal-' + formId);
+      if (modal) {
+        modal.style.display = 'block';
+        // Focus on confirmation input if it exists
+        const confirmationInput = document.getElementById('confirmation-text-' + formId);
+        if (confirmationInput) {
+          setTimeout(() => confirmationInput.focus(), 100);
+        }
+      }
+    };
+
+    window.closeKillSwitchModal = function(formId) {
+      const modal = document.getElementById('kill-switch-modal-' + formId);
+      if (modal) {
+        modal.style.display = 'none';
+        // Clear confirmation input
+        const confirmationInput = document.getElementById('confirmation-text-' + formId);
+        if (confirmationInput) {
+          confirmationInput.value = '';
+        }
+      }
+    };
+
+    window.submitWithConfirmation = function(formId, expectedConfirmation) {
       const confirmationInput = document.getElementById('confirmation-text-' + formId);
-      if (confirmationInput) {
-        setTimeout(() => confirmationInput.focus(), 100);
-      }
-    }
-  }
+      const confirmationText = confirmationInput ? confirmationInput.value.trim() : '';
 
-  function closeKillSwitchModal(formId) {
-    const modal = document.getElementById('kill-switch-modal-' + formId);
-    if (modal) {
-      modal.style.display = 'none';
-      // Clear confirmation input
-      const confirmationInput = document.getElementById('confirmation-text-' + formId);
-      if (confirmationInput) {
-        confirmationInput.value = '';
-      }
-    }
-  }
-
-  function submitWithConfirmation(formId, expectedConfirmation) {
-    const confirmationInput = document.getElementById('confirmation-text-' + formId);
-    const confirmationText = confirmationInput ? confirmationInput.value.trim() : '';
-
-    if (confirmationText !== expectedConfirmation) {
-      alert('Invalid confirmation text. Please type exactly: ' + expectedConfirmation);
-      return;
-    }
-
-    // Add confirmation text to the form
-    const form = document.getElementById(formId);
-    if (form) {
-      // Remove any existing confirmation_text input
-      const existingInput = form.querySelector('input[name="confirmation_text"]');
-      if (existingInput && existingInput !== confirmationInput) {
-        existingInput.remove();
+      if (confirmationText !== expectedConfirmation) {
+        alert('Invalid confirmation text. Please type exactly: ' + expectedConfirmation);
+        return;
       }
 
-      // If confirmation input is not already in the form, add it
-      if (!form.contains(confirmationInput)) {
+      // Add confirmation text to the form
+      const form = document.getElementById(formId);
+      if (form) {
+        // Remove any existing confirmation_text input
+        const existingInput = form.querySelector('input[name="confirmation_text"]');
+        if (existingInput && existingInput !== confirmationInput) {
+          existingInput.remove();
+        }
+
+        // Create a hidden input with the confirmation text
         const hiddenInput = document.createElement('input');
         hiddenInput.type = 'hidden';
         hiddenInput.name = 'confirmation_text';
         hiddenInput.value = confirmationText;
         form.appendChild(hiddenInput);
+
+        form.submit();
       }
 
-      form.submit();
-    }
+      window.closeKillSwitchModal(formId);
+    };
 
-    closeKillSwitchModal(formId);
-  }
+    window.submitWithoutConfirmation = function(formId) {
+      const form = document.getElementById(formId);
+      if (form) {
+        form.submit();
+      }
+      window.closeKillSwitchModal(formId);
+    };
 
-  function submitWithoutConfirmation(formId) {
-    const form = document.getElementById(formId);
-    if (form) {
-      form.submit();
-    }
-    closeKillSwitchModal(formId);
-  }
+    // Close modal when clicking outside of it (only add listener once)
+    if (!window._killSwitchModalListenersAttached) {
+      window.onclick = function(event) {
+        if (event.target.className === 'kill-switch-modal') {
+          event.target.style.display = 'none';
+        }
+      };
 
-  // Close modal when clicking outside of it
-  window.onclick = function(event) {
-    if (event.target.className === 'kill-switch-modal') {
-      event.target.style.display = 'none';
-    }
-  }
-
-  // Close modal on Escape key
-  document.addEventListener('keydown', function(event) {
-    if (event.key === 'Escape') {
-      const modals = document.querySelectorAll('.kill-switch-modal');
-      modals.forEach(modal => {
-        if (modal.style.display === 'block') {
-          modal.style.display = 'none';
+      // Close modal on Escape key
+      document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape') {
+          const modals = document.querySelectorAll('.kill-switch-modal');
+          modals.forEach(modal => {
+            if (modal.style.display === 'block') {
+              modal.style.display = 'none';
+            }
+          });
         }
       });
+
+      window._killSwitchModalListenersAttached = true;
     }
-  });
+  }
 </script>

@@ -97,25 +97,43 @@
     <!-- Migration Action Buttons -->
     <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap;">
       <% if @pending_migrations.any? %>
-        <%= form_with url: up_migrations_path, method: :post, local: true, style: "margin: 0;" do |f| %>
-          <%= f.submit "Apply All Pending Migrations",
-              style: "padding: 0.75rem 1.5rem; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.875rem; font-weight: 600;",
-              data: { confirm: "Are you sure you want to apply #{@pending_migrations.count} pending migration(s)?" } %>
+        <%= form_with url: up_migrations_path, method: :post, local: true, id: "migration-up-all-form", style: "margin: 0;" do |f| %>
+          <button type="button" onclick="showKillSwitchModal('migration-up-all-form')"
+              style="padding: 0.75rem 1.5rem; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.875rem; font-weight: 600;">
+            Apply All Pending Migrations
+          </button>
         <% end %>
+        <%= render 'pg_sql_triggers/shared/confirmation_modal',
+                   operation: :ui_migration_up,
+                   form_id: 'migration-up-all-form',
+                   title: 'Apply All Pending Migrations',
+                   message: "Are you sure you want to apply #{@pending_migrations.count} pending migration(s)?" %>
       <% end %>
 
       <% if @current_migration_version > 0 %>
-        <%= form_with url: down_migrations_path, method: :post, local: true, style: "margin: 0;" do |f| %>
-          <%= f.submit "Rollback Last Migration",
-              style: "padding: 0.75rem 1.5rem; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.875rem; font-weight: 600;",
-              data: { confirm: "Are you sure you want to rollback the last migration?" } %>
+        <%= form_with url: down_migrations_path, method: :post, local: true, id: "migration-down-form", style: "margin: 0;" do |f| %>
+          <button type="button" onclick="showKillSwitchModal('migration-down-form')"
+              style="padding: 0.75rem 1.5rem; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.875rem; font-weight: 600;">
+            Rollback Last Migration
+          </button>
         <% end %>
+        <%= render 'pg_sql_triggers/shared/confirmation_modal',
+                   operation: :ui_migration_down,
+                   form_id: 'migration-down-form',
+                   title: 'Rollback Last Migration',
+                   message: 'Are you sure you want to rollback the last migration?' %>
 
-        <%= form_with url: redo_migrations_path, method: :post, local: true, style: "margin: 0;" do |f| %>
-          <%= f.submit "Redo Last Migration",
-              style: "padding: 0.75rem 1.5rem; background: #ffc107; color: #212529; border: none; border-radius: 4px; cursor: pointer; font-size: 0.875rem; font-weight: 600;",
-              data: { confirm: "Are you sure you want to redo the last migration?" } %>
+        <%= form_with url: redo_migrations_path, method: :post, local: true, id: "migration-redo-form", style: "margin: 0;" do |f| %>
+          <button type="button" onclick="showKillSwitchModal('migration-redo-form')"
+              style="padding: 0.75rem 1.5rem; background: #ffc107; color: #212529; border: none; border-radius: 4px; cursor: pointer; font-size: 0.875rem; font-weight: 600;">
+            Redo Last Migration
+          </button>
         <% end %>
+        <%= render 'pg_sql_triggers/shared/confirmation_modal',
+                   operation: :ui_migration_redo,
+                   form_id: 'migration-redo-form',
+                   title: 'Redo Last Migration',
+                   message: 'Are you sure you want to redo the last migration?' %>
       <% end %>
     </div>
 
@@ -161,25 +179,47 @@
               <td>
                 <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
                   <% if migration[:status] == "down" %>
-                    <%= form_with url: up_migrations_path, method: :post, local: true, style: "margin: 0;" do |f| %>
+                    <% form_id = "migration-up-#{migration[:version]}-form" %>
+                    <%= form_with url: up_migrations_path, method: :post, local: true, id: form_id, style: "margin: 0;" do |f| %>
                       <%= f.hidden_field :version, value: migration[:version] %>
-                      <%= f.submit "Up",
-                          style: "padding: 0.25rem 0.75rem; background: #28a745; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 0.75rem;",
-                          data: { confirm: "Apply migration #{migration[:version]}?" } %>
+                      <button type="button" onclick="showKillSwitchModal('<%= form_id %>')"
+                          style="padding: 0.25rem 0.75rem; background: #28a745; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 0.75rem;">
+                        Up
+                      </button>
                     <% end %>
+                    <%= render 'pg_sql_triggers/shared/confirmation_modal',
+                               operation: :ui_migration_up,
+                               form_id: form_id,
+                               title: 'Apply Migration',
+                               message: "Are you sure you want to apply migration #{migration[:version]}?" %>
                   <% else %>
-                    <%= form_with url: down_migrations_path, method: :post, local: true, style: "margin: 0;" do |f| %>
+                    <% form_id_down = "migration-down-#{migration[:version]}-form" %>
+                    <%= form_with url: down_migrations_path, method: :post, local: true, id: form_id_down, style: "margin: 0;" do |f| %>
                       <%= f.hidden_field :version, value: migration[:version] %>
-                      <%= f.submit "Down",
-                          style: "padding: 0.25rem 0.75rem; background: #dc3545; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 0.75rem;",
-                          data: { confirm: "Rollback to version #{migration[:version]}?" } %>
+                      <button type="button" onclick="showKillSwitchModal('<%= form_id_down %>')"
+                          style="padding: 0.25rem 0.75rem; background: #dc3545; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 0.75rem;">
+                        Down
+                      </button>
                     <% end %>
-                    <%= form_with url: redo_migrations_path, method: :post, local: true, style: "margin: 0;" do |f| %>
+                    <%= render 'pg_sql_triggers/shared/confirmation_modal',
+                               operation: :ui_migration_down,
+                               form_id: form_id_down,
+                               title: 'Rollback Migration',
+                               message: "Are you sure you want to rollback to version #{migration[:version]}?" %>
+
+                    <% form_id_redo = "migration-redo-#{migration[:version]}-form" %>
+                    <%= form_with url: redo_migrations_path, method: :post, local: true, id: form_id_redo, style: "margin: 0;" do |f| %>
                       <%= f.hidden_field :version, value: migration[:version] %>
-                      <%= f.submit "Redo",
-                          style: "padding: 0.25rem 0.75rem; background: #ffc107; color: #212529; border: none; border-radius: 3px; cursor: pointer; font-size: 0.75rem;",
-                          data: { confirm: "Redo migration #{migration[:version]}?" } %>
+                      <button type="button" onclick="showKillSwitchModal('<%= form_id_redo %>')"
+                          style="padding: 0.25rem 0.75rem; background: #ffc107; color: #212529; border: none; border-radius: 3px; cursor: pointer; font-size: 0.75rem;">
+                        Redo
+                      </button>
                     <% end %>
+                    <%= render 'pg_sql_triggers/shared/confirmation_modal',
+                               operation: :ui_migration_redo,
+                               form_id: form_id_redo,
+                               title: 'Redo Migration',
+                               message: "Are you sure you want to redo migration #{migration[:version]}?" %>
                   <% end %>
                 </div>
               </td>

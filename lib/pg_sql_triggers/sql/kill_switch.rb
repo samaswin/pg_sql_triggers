@@ -37,6 +37,7 @@ module PgSqlTriggers
         # @param environment [String, Symbol, nil] The environment to check (defaults to current environment)
         # @param operation [String, Symbol, nil] The operation being performed (for logging)
         # @return [Boolean] true if kill switch is active, false otherwise
+        # rubocop:disable Lint/UnusedMethodArgument
         def active?(environment: nil, operation: nil)
           # Check if kill switch is globally disabled
           return false unless kill_switch_enabled?
@@ -45,13 +46,9 @@ module PgSqlTriggers
           env = detect_environment(environment)
 
           # Check if this environment is protected
-          protected = protected_environment?(env)
-
-          # Log the check
-          log_check(environment: env, operation: operation, active: protected)
-
-          protected
+          protected_environment?(env)
         end
+        # rubocop:enable Lint/UnusedMethodArgument
 
         # Checks if an operation should be blocked by the kill switch.
         # Raises KillSwitchError if the operation is blocked.
@@ -229,11 +226,6 @@ module PgSqlTriggers
           elsif defined?(Rails) && Rails.respond_to?(:logger)
             Rails.logger
           end
-        end
-
-        # Logs a kill switch check
-        def log_check(environment:, operation:, active:)
-          logger&.debug "[KILL_SWITCH] Check: operation=#{operation} environment=#{environment} active=#{active}"
         end
 
         # Logs an allowed operation

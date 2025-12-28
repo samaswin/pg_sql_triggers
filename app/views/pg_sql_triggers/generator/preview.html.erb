@@ -19,7 +19,7 @@
 </div>
 
 <!-- Actions -->
-<%= form_with url: generator_index_path, method: :post, scope: :pg_sql_triggers_generator_form do |f| %>
+<%= form_with url: generator_index_path, method: :post, scope: :pg_sql_triggers_generator_form, id: "generator-create-form" do |f| %>
   <!-- SQL Validation Result -->
   <% if @sql_validation %>
     <div style="margin-bottom: 2rem; padding: 1rem; border-radius: 4px; <%= @sql_validation[:valid] ? 'background: #d4edda; border-left: 4px solid #28a745;' : 'background: #f8d7da; border-left: 4px solid #dc3545;' %>">
@@ -69,9 +69,17 @@
   <% end %>
 
   <div style="display: flex; gap: 1rem;">
-    <%= f.submit "Generate Files", class: "btn btn-success",
-        data: { confirm: "This will create files on disk and register the trigger. Continue?" } %>
-    <%= link_to "Back to Edit", new_generator_path, class: "btn", style: "background: #6c757d; color: white; text-decoration: none;" %>
-    <%= link_to "Cancel", root_path, class: "btn", style: "background: #6c757d; color: white; text-decoration: none;" %>
+    <button type="button" onclick="showKillSwitchModal('generator-create-form')" class="btn btn-success"
+        style="padding: 0.75rem 1.5rem; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">
+      Generate Files
+    </button>
+    <%= link_to "Back to Edit", new_generator_path, class: "btn", style: "background: #6c757d; color: white; text-decoration: none; padding: 0.75rem 1.5rem; border-radius: 4px;" %>
+    <%= link_to "Cancel", root_path, class: "btn", style: "background: #6c757d; color: white; text-decoration: none; padding: 0.75rem 1.5rem; border-radius: 4px;" %>
   </div>
 <% end %>
+
+<%= render 'pg_sql_triggers/shared/confirmation_modal',
+           operation: :ui_trigger_generate,
+           form_id: 'generator-create-form',
+           title: 'Generate Trigger Files',
+           message: 'This will create files on disk and register the trigger. Continue?' %>

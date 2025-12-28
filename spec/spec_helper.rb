@@ -99,9 +99,7 @@ RSpec.configure do |config|
   config.include ActiveSupport::Testing::TimeHelpers
   # Rails 7+ deprecated ActionController::TestCase in favor of ActionDispatch::IntegrationTest
   # Support both for compatibility across Rails versions
-  if defined?(ActionController::TestCase)
-    config.include ActionController::TestCase::Behavior, type: :controller
-  end
+  config.include ActionController::TestCase::Behavior, type: :controller if defined?(ActionController::TestCase)
 
   # Configure view paths for controller specs - ensure engine views are found
   config.before(type: :controller) do
