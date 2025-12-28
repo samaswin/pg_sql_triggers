@@ -21,6 +21,12 @@ Rails teams use PostgreSQL triggers for data integrity, performance, and billing
 - UI control
 - Emergency SQL escape hatches
 
+## Requirements
+
+- **Ruby 3.0+**
+- **Rails 6.0+**
+- **PostgreSQL** (any supported version)
+
 ## Quick Start
 
 ### Installation
