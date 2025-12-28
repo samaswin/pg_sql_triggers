@@ -140,7 +140,7 @@ module PgSqlTriggers
           }
         end
 
-        def create_trigger(form, _actor: nil)
+        def create_trigger(form, actor: nil) # rubocop:disable Lint/UnusedMethodArgument
           paths = file_paths(form)
 
           # Determine if we're in a Rails app context or standalone gem

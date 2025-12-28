@@ -26,21 +26,33 @@ module PgSqlTriggers
           end
 
           # Step 2: Create trigger
-          trigger_sql = DryRun.new(@trigger).generate_sql[:sql_parts]
-                              .find { |p| p[:type] == "CREATE TRIGGER" }[:sql]
-          ActiveRecord::Base.connection.execute(trigger_sql)
-          results[:trigger_created] = true
-          results[:output] << "✓ Trigger created successfully"
-
-          # Step 3: Test with sample data (if provided)
-          if test_data
-            test_sql = build_test_insert(test_data)
-            ActiveRecord::Base.connection.execute(test_sql)
-            results[:test_insert_executed] = true
-            results[:output] << "✓ Test insert executed successfully"
+          begin
+            sql_parts = DryRun.new(@trigger).generate_sql[:sql_parts]
+            trigger_part = sql_parts.find { |p| p[:type] == "CREATE TRIGGER" }
+            if trigger_part && trigger_part[:sql]
+              ActiveRecord::Base.connection.execute(trigger_part[:sql])
+              results[:trigger_created] = true
+              results[:output] << "✓ Trigger created successfully"
+            else
+              results[:errors] << "Could not find CREATE TRIGGER SQL in generated SQL parts"
+            end
+          rescue StandardError => e
+            results[:errors] << "Error generating trigger SQL: #{e.message}"
           end
 
-          results[:success] = true
+          # Step 3: Test with sample data (if provided)
+          if test_data && results[:trigger_created]
+            begin
+              test_sql = build_test_insert(test_data)
+              ActiveRecord::Base.connection.execute(test_sql)
+              results[:test_insert_executed] = true
+              results[:output] << "✓ Test insert executed successfully"
+            rescue StandardError => e
+              results[:errors] << "Error executing test insert: #{e.message}"
+            end
+          end
+
+          results[:success] = results[:errors].empty?
         rescue ActiveRecord::StatementInvalid => e
           results[:success] = false
           results[:errors] << e.message

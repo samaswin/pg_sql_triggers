@@ -38,7 +38,7 @@ module PgSqlTriggers
       def migrations
         return [] unless Dir.exist?(migrations_path)
 
-        files = Dir.glob(migrations_path.join("*.rb")).sort
+        files = Dir.glob(migrations_path.join("*.rb"))
         files.map do |file|
           basename = File.basename(file, ".rb")
           # Handle Rails migration format: YYYYMMDDHHMMSS_name

@@ -28,16 +28,15 @@ module PgSqlTriggers
     #
     # rubocop:disable Metrics/ModuleLength
     module KillSwitch
-      class << self
-        # Thread-local storage key for override state
-        OVERRIDE_KEY = :pg_sql_triggers_kill_switch_override
+      # Thread-local storage key for override state
+      OVERRIDE_KEY = :pg_sql_triggers_kill_switch_override
 
+      class << self
         # Checks if the kill switch is active for the given environment and operation.
         #
         # @param environment [String, Symbol, nil] The environment to check (defaults to current environment)
         # @param operation [String, Symbol, nil] The operation being performed (for logging)
         # @return [Boolean] true if kill switch is active, false otherwise
-        # rubocop:disable Lint/UnusedMethodArgument
         def active?(environment: nil, operation: nil)
           # Check if kill switch is globally disabled
           return false unless kill_switch_enabled?
@@ -46,9 +45,15 @@ module PgSqlTriggers
           env = detect_environment(environment)
 
           # Check if this environment is protected
-          protected_environment?(env)
+          is_active = protected_environment?(env)
+
+          # Log the check if logger is available and operation is provided
+          if logger && operation
+            logger.debug "[KILL_SWITCH] Check: operation=#{operation} environment=#{env} active=#{is_active}"
+          end
+
+          is_active
         end
-        # rubocop:enable Lint/UnusedMethodArgument
 
         # Checks if an operation should be blocked by the kill switch.
         # Raises KillSwitchError if the operation is blocked.
@@ -88,7 +93,7 @@ module PgSqlTriggers
           end
 
           # If confirmation is provided, validate it
-          if confirmation.present?
+          unless confirmation.nil?
             validate_confirmation!(confirmation, operation)
             log_override(operation: operation, environment: env, actor: actor, source: "explicit_confirmation",
                          confirmation: confirmation)
@@ -164,7 +169,8 @@ module PgSqlTriggers
           return false if environment.nil?
 
           protected_envs = if PgSqlTriggers.respond_to?(:kill_switch_environments)
-                             PgSqlTriggers.kill_switch_environments
+                             value = PgSqlTriggers.kill_switch_environments
+                             value.nil? ? %i[production staging] : value
                            else
                              %i[production staging]
                            end
@@ -182,7 +188,11 @@ module PgSqlTriggers
 
           # Try PgSqlTriggers default_environment
           if PgSqlTriggers.respond_to?(:default_environment) && PgSqlTriggers.default_environment.respond_to?(:call)
-            return PgSqlTriggers.default_environment.call.to_s
+            begin
+              return PgSqlTriggers.default_environment.call.to_s
+            rescue NameError, NoMethodError # rubocop:disable Lint/ShadowedException
+              # Fall through to next option if default_environment proc references undefined constants
+            end
           end
 
           # Fall back to RAILS_ENV or RACK_ENV

@@ -45,11 +45,12 @@ end
 
 # Manually load app files since we're not in a full Rails environment
 engine_root = Pathname.new(File.expand_path("..", __dir__))
-Dir[engine_root.join("app/models/**/*.rb")].sort.each { |f| require f }
-Dir[engine_root.join("app/controllers/**/*.rb")].sort.each { |f| require f }
+Dir[engine_root.join("app/models/**/*.rb")].each { |f| require f }
+Dir[engine_root.join("app/controllers/**/*.rb")].each { |f| require f }
 
 # Configure database
-test_db_config = {
+# Prefer DATABASE_URL if set (Rails standard, used in CI)
+test_db_config = ENV["DATABASE_URL"] || {
   adapter: "postgresql",
   database: ENV["TEST_DATABASE"] || "pg_sql_triggers_test",
   username: ENV["TEST_DB_USER"] || "postgres",
@@ -59,17 +60,20 @@ test_db_config = {
 
 # Try to connect, create database if it doesn't exist
 begin
-  # First, try to connect to postgres to check if test database exists
-  admin_config = test_db_config.merge(database: "postgres")
-  ActiveRecord::Base.establish_connection(admin_config)
-  conn = ActiveRecord::Base.connection
+  unless test_db_config.is_a?(String)
+    # Use hash config, try to create database if it doesn't exist
+    # First, try to connect to postgres to check if test database exists
+    admin_config = test_db_config.merge(database: "postgres")
+    ActiveRecord::Base.establish_connection(admin_config)
+    conn = ActiveRecord::Base.connection
 
-  # Check if database exists
-  db_exists = conn.execute("SELECT 1 FROM pg_database WHERE datname = '#{test_db_config[:database]}'").any?
+    # Check if database exists
+    db_exists = conn.execute("SELECT 1 FROM pg_database WHERE datname = '#{test_db_config[:database]}'").any?
 
-  conn.create_database(test_db_config[:database]) unless db_exists
+    conn.create_database(test_db_config[:database]) unless db_exists
+  end
 
-  # Now connect to the test database
+  # Establish connection to test database (for both string and hash config)
   ActiveRecord::Base.establish_connection(test_db_config)
   ActiveRecord::Base.connection
 rescue StandardError
@@ -78,8 +82,9 @@ rescue StandardError
     ActiveRecord::Base.establish_connection(test_db_config)
     ActiveRecord::Base.connection
   rescue StandardError => e2
+    db_name = test_db_config.is_a?(String) ? ENV["TEST_DATABASE"] || "pg_sql_triggers_test" : test_db_config[:database]
     puts "Warning: Could not create test database. Please create it manually:"
-    puts "  createdb #{test_db_config[:database]}"
+    puts "  createdb #{db_name}"
     raise e2
   end
 end

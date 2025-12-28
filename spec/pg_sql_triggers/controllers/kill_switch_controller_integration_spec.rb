@@ -177,7 +177,7 @@ RSpec.describe "Kill Switch Controller Integration", type: :controller do
             enabled: "false",
             events: ["insert"],
             environments: ["production"],
-            function_body: "BEGIN RETURN NEW; END;"
+            function_body: "CREATE OR REPLACE FUNCTION test_function() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql;"
           }
         }
       end
@@ -244,7 +244,9 @@ RSpec.describe "Kill Switch Controller Integration", type: :controller do
     end
 
     before do
-      routes.draw { get "test_action" => "anonymous#test_action" }
+      routes.draw do
+        get "test_action", to: "pg_sql_triggers/application#test_action", as: :test_action
+      end
     end
 
     it "provides current_environment helper" do

@@ -59,9 +59,6 @@ module PgSqlTriggers
         confirmation: confirmation,
         actor: current_actor
       )
-    rescue PgSqlTriggers::KillSwitchError => e
-      flash[:error] = e.message
-      redirect_back_or_to(root_path) and return
     end
 
     # Before action to require kill switch override for an action

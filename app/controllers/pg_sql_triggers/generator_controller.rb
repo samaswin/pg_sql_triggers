@@ -70,6 +70,9 @@ module PgSqlTriggers
         @available_tables = fetch_available_tables
         render :new
       end
+    rescue PgSqlTriggers::KillSwitchError => e
+      flash[:error] = e.message
+      redirect_to root_path
     end
 
     # POST /generator/validate_table (AJAX)

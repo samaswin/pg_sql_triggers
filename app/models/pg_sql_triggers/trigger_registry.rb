@@ -26,9 +26,10 @@ module PgSqlTriggers
 
     def enable!(confirmation: nil)
       # Check kill switch before enabling trigger
+      # Use Rails.env for kill switch check, not the trigger's environment field
       PgSqlTriggers::SQL::KillSwitch.check!(
         operation: :trigger_enable,
-        environment: environment || Rails.env,
+        environment: Rails.env,
         confirmation: confirmation,
         actor: { type: "Console", id: "TriggerRegistry#enable!" }
       )
@@ -60,9 +61,10 @@ module PgSqlTriggers
 
     def disable!(confirmation: nil)
       # Check kill switch before disabling trigger
+      # Use Rails.env for kill switch check, not the trigger's environment field
       PgSqlTriggers::SQL::KillSwitch.check!(
         operation: :trigger_disable,
-        environment: environment || Rails.env,
+        environment: Rails.env,
         confirmation: confirmation,
         actor: { type: "Console", id: "TriggerRegistry#disable!" }
       )
