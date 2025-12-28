@@ -20,6 +20,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   
 ### Fixed
 - Added missing `mattr_accessor` declarations for kill switch configuration attributes (`kill_switch_environments`, `kill_switch_confirmation_required`, `kill_switch_confirmation_pattern`, `kill_switch_logger`) to ensure proper configuration access
+- Fixed debug info display issues
+- Fixed README documentation formatting
+- Fixed Rails 6.1 compatibility issues
+- Fixed BigDecimal dependency issues
+- Fixed gemlock file conflicts
+- Fixed RuboCop linting issues
+- Fixed spec test issues
 
 ## [1.0.0] - 2025-12-27
 
