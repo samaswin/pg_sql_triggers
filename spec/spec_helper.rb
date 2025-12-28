@@ -97,7 +97,11 @@ RSpec.configure do |config|
 
   # Include Rails helpers
   config.include ActiveSupport::Testing::TimeHelpers
-  config.include ActionController::TestCase::Behavior, type: :controller if defined?(ActionController::TestCase)
+  # Rails 7+ deprecated ActionController::TestCase in favor of ActionDispatch::IntegrationTest
+  # Support both for compatibility across Rails versions
+  if defined?(ActionController::TestCase)
+    config.include ActionController::TestCase::Behavior, type: :controller
+  end
 
   # Configure view paths for controller specs - ensure engine views are found
   config.before(type: :controller) do
@@ -105,8 +109,13 @@ RSpec.configure do |config|
     controller.prepend_view_path(engine_view_path) if controller.respond_to?(:prepend_view_path)
   end
 
-  # Use database transactions for tests (only if rspec-rails is available)
-  config.use_transactional_fixtures = true if config.respond_to?(:use_transactional_fixtures=)
+  # Use database transactions for tests
+  # Rails 7+ deprecated use_transactional_fixtures in favor of use_transactional_tests
+  if config.respond_to?(:use_transactional_tests=)
+    config.use_transactional_tests = true
+  elsif config.respond_to?(:use_transactional_fixtures=)
+    config.use_transactional_fixtures = true
+  end
 
   # Clean database before each test
   config.before(:suite) do

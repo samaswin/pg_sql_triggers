@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require "rails_helper"
+require "spec_helper"
 
 RSpec.describe "Kill Switch Controller Integration", type: :controller do
   let(:logger) { instance_double(Logger) }

@@ -3,6 +3,15 @@
 require_relative "pg_sql_triggers/version"
 require_relative "pg_sql_triggers/engine"
 
+# Rails 6.0 compatibility: compact_blank was added in Rails 6.1
+unless Array.instance_methods.include?(:compact_blank)
+  class Array
+    def compact_blank
+      reject(&:blank?)
+    end
+  end
+end
+
 module PgSqlTriggers
   class Error < StandardError; end
   class PermissionError < Error; end
