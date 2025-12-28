@@ -67,13 +67,7 @@ rake trigger:migrate
 
 Navigate to `http://localhost:3000/pg_sql_triggers` to manage triggers visually.
 
-## Screenshots
-
-### Dashboard
-<img width="3360" height="2506" alt="Dashboard" src="https://github.com/user-attachments/assets/a7f5904b-1172-41fc-ba3f-c05587cb1fe8" />
-
-### Trigger Generator
-<img width="3360" height="3420" alt="Generator" src="https://github.com/user-attachments/assets/fc9e53f2-f540-489d-8e41-6075dab8d731" />
+Screenshots are available in the [docs/screenshots](docs/screenshots/) directory.
 
 ## Documentation
 
