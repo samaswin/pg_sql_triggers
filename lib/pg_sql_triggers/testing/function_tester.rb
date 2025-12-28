@@ -8,7 +8,7 @@ module PgSqlTriggers
       end
 
       # Test ONLY the function, not the trigger
-      def test_function_only(_test_context: {})
+      def test_function_only(test_context: {})
         results = {
           function_created: false,
           function_executed: false,
