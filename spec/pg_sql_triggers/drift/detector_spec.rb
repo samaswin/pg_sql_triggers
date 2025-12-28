@@ -10,6 +10,7 @@ RSpec.describe PgSqlTriggers::Drift::Detector do
   let(:condition) { "NEW.email IS NOT NULL" }
 
   describe ".detect" do
+    # rubocop:disable RSpec/MultipleMemoizedHelpers
     context "when trigger is in sync" do
       let!(:registry_entry) do
         PgSqlTriggers::TriggerRegistry.create!(
@@ -24,7 +25,6 @@ RSpec.describe PgSqlTriggers::Drift::Detector do
           condition: condition
         )
       end
-
       let(:db_trigger) do
         {
           "trigger_name" => trigger_name,
@@ -57,20 +57,6 @@ RSpec.describe PgSqlTriggers::Drift::Detector do
     end
 
     context "when trigger has drifted" do
-      let!(:registry_entry) do
-        PgSqlTriggers::TriggerRegistry.create!(
-          trigger_name: trigger_name,
-          table_name: table_name,
-          version: 1,
-          enabled: true,
-          source: "dsl",
-          checksum: calculate_checksum(trigger_name, table_name, 1, function_body, condition),
-          definition: {}.to_json,
-          function_body: function_body,
-          condition: condition
-        )
-      end
-
       let(:modified_function_body) { "CREATE OR REPLACE FUNCTION test_function() RETURNS TRIGGER AS $$ BEGIN RETURN OLD; END; $$ LANGUAGE plpgsql;" }
       let(:db_trigger) do
         {
@@ -84,6 +70,18 @@ RSpec.describe PgSqlTriggers::Drift::Detector do
       end
 
       before do
+        PgSqlTriggers::TriggerRegistry.create!(
+          trigger_name: trigger_name,
+          table_name: table_name,
+          version: 1,
+          enabled: true,
+          source: "dsl",
+          checksum: calculate_checksum(trigger_name, table_name, 1, function_body, condition),
+          definition: {}.to_json,
+          function_body: function_body,
+          condition: condition
+        )
+
         allow(PgSqlTriggers::Drift::DbQueries).to receive(:find_trigger)
           .with(trigger_name)
           .and_return(db_trigger)
@@ -155,20 +153,6 @@ RSpec.describe PgSqlTriggers::Drift::Detector do
     end
 
     context "when trigger is disabled" do
-      let!(:registry_entry) do
-        PgSqlTriggers::TriggerRegistry.create!(
-          trigger_name: trigger_name,
-          table_name: table_name,
-          version: 1,
-          enabled: false,
-          source: "dsl",
-          checksum: calculate_checksum(trigger_name, table_name, 1, function_body, condition),
-          definition: {}.to_json,
-          function_body: function_body,
-          condition: condition
-        )
-      end
-
       let(:db_trigger) do
         {
           "trigger_name" => trigger_name,
@@ -181,6 +165,18 @@ RSpec.describe PgSqlTriggers::Drift::Detector do
       end
 
       before do
+        PgSqlTriggers::TriggerRegistry.create!(
+          trigger_name: trigger_name,
+          table_name: table_name,
+          version: 1,
+          enabled: false,
+          source: "dsl",
+          checksum: calculate_checksum(trigger_name, table_name, 1, function_body, condition),
+          definition: {}.to_json,
+          function_body: function_body,
+          condition: condition
+        )
+
         allow(PgSqlTriggers::Drift::DbQueries).to receive(:find_trigger)
           .with(trigger_name)
           .and_return(db_trigger)
@@ -194,20 +190,6 @@ RSpec.describe PgSqlTriggers::Drift::Detector do
     end
 
     context "when trigger is manual override" do
-      let!(:registry_entry) do
-        PgSqlTriggers::TriggerRegistry.create!(
-          trigger_name: trigger_name,
-          table_name: table_name,
-          version: 1,
-          enabled: true,
-          source: "manual_sql",
-          checksum: calculate_checksum(trigger_name, table_name, 1, function_body, condition),
-          definition: {}.to_json,
-          function_body: function_body,
-          condition: condition
-        )
-      end
-
       let(:db_trigger) do
         {
           "trigger_name" => trigger_name,
@@ -220,6 +202,18 @@ RSpec.describe PgSqlTriggers::Drift::Detector do
       end
 
       before do
+        PgSqlTriggers::TriggerRegistry.create!(
+          trigger_name: trigger_name,
+          table_name: table_name,
+          version: 1,
+          enabled: true,
+          source: "manual_sql",
+          checksum: calculate_checksum(trigger_name, table_name, 1, function_body, condition),
+          definition: {}.to_json,
+          function_body: function_body,
+          condition: condition
+        )
+
         allow(PgSqlTriggers::Drift::DbQueries).to receive(:find_trigger)
           .with(trigger_name)
           .and_return(db_trigger)
@@ -231,37 +225,11 @@ RSpec.describe PgSqlTriggers::Drift::Detector do
         expect(result[:details]).to include("manual")
       end
     end
+    # rubocop:enable RSpec/MultipleMemoizedHelpers
   end
 
+  # rubocop:disable RSpec/MultipleMemoizedHelpers
   describe ".detect_all" do
-    let!(:in_sync_trigger) do
-      PgSqlTriggers::TriggerRegistry.create!(
-        trigger_name: "in_sync_trigger",
-        table_name: table_name,
-        version: 1,
-        enabled: true,
-        source: "dsl",
-        checksum: calculate_checksum("in_sync_trigger", table_name, 1, function_body, condition),
-        definition: {}.to_json,
-        function_body: function_body,
-        condition: condition
-      )
-    end
-
-    let!(:dropped_trigger) do
-      PgSqlTriggers::TriggerRegistry.create!(
-        trigger_name: "dropped_trigger",
-        table_name: table_name,
-        version: 1,
-        enabled: true,
-        source: "dsl",
-        checksum: calculate_checksum("dropped_trigger", table_name, 1, function_body, condition),
-        definition: {}.to_json,
-        function_body: function_body,
-        condition: condition
-      )
-    end
-
     let(:db_triggers) do
       [
         {
@@ -284,6 +252,30 @@ RSpec.describe PgSqlTriggers::Drift::Detector do
     end
 
     before do
+      PgSqlTriggers::TriggerRegistry.create!(
+        trigger_name: "in_sync_trigger",
+        table_name: table_name,
+        version: 1,
+        enabled: true,
+        source: "dsl",
+        checksum: calculate_checksum("in_sync_trigger", table_name, 1, function_body, condition),
+        definition: {}.to_json,
+        function_body: function_body,
+        condition: condition
+      )
+
+      PgSqlTriggers::TriggerRegistry.create!(
+        trigger_name: "dropped_trigger",
+        table_name: table_name,
+        version: 1,
+        enabled: true,
+        source: "dsl",
+        checksum: calculate_checksum("dropped_trigger", table_name, 1, function_body, condition),
+        definition: {}.to_json,
+        function_body: function_body,
+        condition: condition
+      )
+
       allow(PgSqlTriggers::Drift::DbQueries).to receive(:all_triggers).and_return(db_triggers)
       allow(PgSqlTriggers::Drift::DbQueries).to receive(:find_trigger) do |name|
         db_triggers.find { |t| t["trigger_name"] == name }
@@ -305,36 +297,10 @@ RSpec.describe PgSqlTriggers::Drift::Detector do
       expect(unknown[:state]).to eq(PgSqlTriggers::DRIFT_STATE_UNKNOWN)
     end
   end
+  # rubocop:enable RSpec/MultipleMemoizedHelpers
 
+  # rubocop:disable RSpec/MultipleMemoizedHelpers
   describe ".detect_for_table" do
-    let!(:trigger1) do
-      PgSqlTriggers::TriggerRegistry.create!(
-        trigger_name: "users_trigger_1",
-        table_name: "users",
-        version: 1,
-        enabled: true,
-        source: "dsl",
-        checksum: calculate_checksum("users_trigger_1", "users", 1, function_body, condition),
-        definition: {}.to_json,
-        function_body: function_body,
-        condition: condition
-      )
-    end
-
-    let!(:trigger2) do
-      PgSqlTriggers::TriggerRegistry.create!(
-        trigger_name: "posts_trigger_1",
-        table_name: "posts",
-        version: 1,
-        enabled: true,
-        source: "dsl",
-        checksum: calculate_checksum("posts_trigger_1", "posts", 1, function_body, condition),
-        definition: {}.to_json,
-        function_body: function_body,
-        condition: condition
-      )
-    end
-
     let(:users_db_triggers) do
       [
         {
@@ -349,6 +315,30 @@ RSpec.describe PgSqlTriggers::Drift::Detector do
     end
 
     before do
+      PgSqlTriggers::TriggerRegistry.create!(
+        trigger_name: "users_trigger_1",
+        table_name: "users",
+        version: 1,
+        enabled: true,
+        source: "dsl",
+        checksum: calculate_checksum("users_trigger_1", "users", 1, function_body, condition),
+        definition: {}.to_json,
+        function_body: function_body,
+        condition: condition
+      )
+
+      PgSqlTriggers::TriggerRegistry.create!(
+        trigger_name: "posts_trigger_1",
+        table_name: "posts",
+        version: 1,
+        enabled: true,
+        source: "dsl",
+        checksum: calculate_checksum("posts_trigger_1", "posts", 1, function_body, condition),
+        definition: {}.to_json,
+        function_body: function_body,
+        condition: condition
+      )
+
       allow(PgSqlTriggers::Drift::DbQueries).to receive(:find_triggers_for_table)
         .with("users")
         .and_return(users_db_triggers)
@@ -365,6 +355,7 @@ RSpec.describe PgSqlTriggers::Drift::Detector do
       expect(results.first[:state]).to eq(PgSqlTriggers::DRIFT_STATE_IN_SYNC)
     end
   end
+  # rubocop:enable RSpec/MultipleMemoizedHelpers
 
   private
 

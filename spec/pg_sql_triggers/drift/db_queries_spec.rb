@@ -6,7 +6,7 @@ RSpec.describe PgSqlTriggers::Drift::DbQueries do
   describe ".all_triggers" do
     it "returns all triggers from the database" do
       # Create a test trigger in the database
-      ActiveRecord::Base.connection.execute(<<~SQL)
+      ActiveRecord::Base.connection.execute(<<~SQL.squish)
         CREATE OR REPLACE FUNCTION test_trigger_function() RETURNS TRIGGER AS $$
         BEGIN
           RETURN NEW;
@@ -14,11 +14,11 @@ RSpec.describe PgSqlTriggers::Drift::DbQueries do
         $$ LANGUAGE plpgsql;
       SQL
 
-      ActiveRecord::Base.connection.execute(<<~SQL)
+      ActiveRecord::Base.connection.execute(<<~SQL.squish)
         CREATE TABLE IF NOT EXISTS test_table (id SERIAL PRIMARY KEY, name VARCHAR);
       SQL
 
-      ActiveRecord::Base.connection.execute(<<~SQL)
+      ActiveRecord::Base.connection.execute(<<~SQL.squish)
         DROP TRIGGER IF EXISTS test_trigger ON test_table;
         CREATE TRIGGER test_trigger
           BEFORE INSERT ON test_table
@@ -51,7 +51,7 @@ RSpec.describe PgSqlTriggers::Drift::DbQueries do
 
   describe ".find_trigger" do
     before do
-      ActiveRecord::Base.connection.execute(<<~SQL)
+      ActiveRecord::Base.connection.execute(<<~SQL.squish)
         CREATE OR REPLACE FUNCTION find_test_function() RETURNS TRIGGER AS $$
         BEGIN
           RETURN NEW;
@@ -59,11 +59,11 @@ RSpec.describe PgSqlTriggers::Drift::DbQueries do
         $$ LANGUAGE plpgsql;
       SQL
 
-      ActiveRecord::Base.connection.execute(<<~SQL)
+      ActiveRecord::Base.connection.execute(<<~SQL.squish)
         CREATE TABLE IF NOT EXISTS find_test_table (id SERIAL PRIMARY KEY);
       SQL
 
-      ActiveRecord::Base.connection.execute(<<~SQL)
+      ActiveRecord::Base.connection.execute(<<~SQL.squish)
         DROP TRIGGER IF EXISTS find_test_trigger ON find_test_table;
         CREATE TRIGGER find_test_trigger
           BEFORE INSERT ON find_test_table
@@ -89,7 +89,7 @@ RSpec.describe PgSqlTriggers::Drift::DbQueries do
 
   describe ".find_triggers_for_table" do
     before do
-      ActiveRecord::Base.connection.execute(<<~SQL)
+      ActiveRecord::Base.connection.execute(<<~SQL.squish)
         CREATE OR REPLACE FUNCTION table_test_function() RETURNS TRIGGER AS $$
         BEGIN
           RETURN NEW;
@@ -97,11 +97,11 @@ RSpec.describe PgSqlTriggers::Drift::DbQueries do
         $$ LANGUAGE plpgsql;
       SQL
 
-      ActiveRecord::Base.connection.execute(<<~SQL)
+      ActiveRecord::Base.connection.execute(<<~SQL.squish)
         CREATE TABLE IF NOT EXISTS table_test_table (id SERIAL PRIMARY KEY);
       SQL
 
-      ActiveRecord::Base.connection.execute(<<~SQL)
+      ActiveRecord::Base.connection.execute(<<~SQL.squish)
         DROP TRIGGER IF EXISTS table_test_trigger ON table_test_table;
         CREATE TRIGGER table_test_trigger
           BEFORE INSERT ON table_test_table
@@ -121,7 +121,7 @@ RSpec.describe PgSqlTriggers::Drift::DbQueries do
     end
 
     it "returns empty array for table with no triggers" do
-      ActiveRecord::Base.connection.execute(<<~SQL)
+      ActiveRecord::Base.connection.execute(<<~SQL.squish)
         CREATE TABLE IF NOT EXISTS empty_table (id SERIAL PRIMARY KEY);
       SQL
 
@@ -133,7 +133,7 @@ RSpec.describe PgSqlTriggers::Drift::DbQueries do
 
   describe ".find_function" do
     before do
-      ActiveRecord::Base.connection.execute(<<~SQL)
+      ActiveRecord::Base.connection.execute(<<~SQL.squish)
         CREATE OR REPLACE FUNCTION find_function_test() RETURNS TRIGGER AS $$
         BEGIN
           RETURN NEW;
@@ -156,4 +156,3 @@ RSpec.describe PgSqlTriggers::Drift::DbQueries do
     end
   end
 end
-

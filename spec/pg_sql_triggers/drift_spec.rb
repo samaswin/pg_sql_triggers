@@ -10,20 +10,6 @@ RSpec.describe PgSqlTriggers::Drift do
 
   describe ".detect" do
     context "with trigger name" do
-      let!(:registry_entry) do
-        PgSqlTriggers::TriggerRegistry.create!(
-          trigger_name: trigger_name,
-          table_name: table_name,
-          version: 1,
-          enabled: true,
-          source: "dsl",
-          checksum: calculate_checksum(trigger_name, table_name, 1, function_body, condition),
-          definition: {}.to_json,
-          function_body: function_body,
-          condition: condition
-        )
-      end
-
       let(:db_trigger) do
         {
           "trigger_name" => trigger_name,
@@ -36,6 +22,18 @@ RSpec.describe PgSqlTriggers::Drift do
       end
 
       before do
+        PgSqlTriggers::TriggerRegistry.create!(
+          trigger_name: trigger_name,
+          table_name: table_name,
+          version: 1,
+          enabled: true,
+          source: "dsl",
+          checksum: calculate_checksum(trigger_name, table_name, 1, function_body, condition),
+          definition: {}.to_json,
+          function_body: function_body,
+          condition: condition
+        )
+
         allow(PgSqlTriggers::Drift::DbQueries).to receive(:find_trigger)
           .with(trigger_name)
           .and_return(db_trigger)
@@ -73,14 +71,14 @@ RSpec.describe PgSqlTriggers::Drift do
   describe ".summary" do
     before do
       allow(PgSqlTriggers::Drift::Reporter).to receive(:summary).and_return({
-        total: 0,
-        in_sync: 0,
-        drifted: 0,
-        disabled: 0,
-        dropped: 0,
-        unknown: 0,
-        manual_override: 0
-      })
+                                                                              total: 0,
+                                                                              in_sync: 0,
+                                                                              drifted: 0,
+                                                                              disabled: 0,
+                                                                              dropped: 0,
+                                                                              unknown: 0,
+                                                                              manual_override: 0
+                                                                            })
     end
 
     it "delegates to Reporter.summary" do
@@ -129,4 +127,3 @@ RSpec.describe PgSqlTriggers::Drift do
     ].join)
   end
 end
-
