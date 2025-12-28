@@ -47,4 +47,37 @@ RSpec.describe PgSqlTriggers::ApplicationController, type: :controller do
                           })
     end
   end
+
+  describe "#current_user_type" do
+    it "returns default user type" do
+      user_type = controller.send(:current_user_type)
+      expect(user_type).to eq("User")
+    end
+  end
+
+  describe "#current_user_id" do
+    it "returns default user id" do
+      user_id = controller.send(:current_user_id)
+      expect(user_id).to eq("unknown")
+    end
+  end
+
+  describe "#expected_confirmation_text" do
+    it "returns default confirmation text" do
+      text = controller.send(:expected_confirmation_text, :test_operation)
+      expect(text).to eq("EXECUTE TEST_OPERATION")
+    end
+
+    context "when custom confirmation pattern is configured" do
+      before do
+        allow(PgSqlTriggers).to receive(:respond_to?).with(:kill_switch_confirmation_pattern).and_return(true)
+        allow(PgSqlTriggers).to receive(:kill_switch_confirmation_pattern).and_return(->(op) { "CUSTOM #{op}" })
+      end
+
+      it "uses custom confirmation pattern" do
+        text = controller.send(:expected_confirmation_text, :test_operation)
+        expect(text).to eq("CUSTOM test_operation")
+      end
+    end
+  end
 end

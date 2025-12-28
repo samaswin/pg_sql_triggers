@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require_relative "../../drift/db_queries"
+require_relative "../drift/db_queries"
 
 module PgSqlTriggers
   class Migrator

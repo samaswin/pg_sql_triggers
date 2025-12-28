@@ -245,4 +245,60 @@ RSpec.describe PgSqlTriggers::Registry::Manager do
       described_class.diff
     end
   end
+
+  describe ".drifted" do
+    it "returns triggers with drifted state" do
+      allow(PgSqlTriggers::Drift::Detector).to receive(:detect_all).and_return([
+        { state: PgSqlTriggers::DRIFT_STATE_DRIFTED, trigger_name: "drifted1" },
+        { state: PgSqlTriggers::DRIFT_STATE_IN_SYNC, trigger_name: "in_sync1" },
+        { state: PgSqlTriggers::DRIFT_STATE_DRIFTED, trigger_name: "drifted2" }
+      ])
+
+      result = described_class.drifted
+      expect(result.count).to eq(2)
+      expect(result.map { |r| r[:trigger_name] }).to contain_exactly("drifted1", "drifted2")
+    end
+  end
+
+  describe ".in_sync" do
+    it "returns triggers with in_sync state" do
+      allow(PgSqlTriggers::Drift::Detector).to receive(:detect_all).and_return([
+        { state: PgSqlTriggers::DRIFT_STATE_IN_SYNC, trigger_name: "in_sync1" },
+        { state: PgSqlTriggers::DRIFT_STATE_DRIFTED, trigger_name: "drifted1" },
+        { state: PgSqlTriggers::DRIFT_STATE_IN_SYNC, trigger_name: "in_sync2" }
+      ])
+
+      result = described_class.in_sync
+      expect(result.count).to eq(2)
+      expect(result.map { |r| r[:trigger_name] }).to contain_exactly("in_sync1", "in_sync2")
+    end
+  end
+
+  describe ".unknown_triggers" do
+    it "returns triggers with unknown state" do
+      allow(PgSqlTriggers::Drift::Detector).to receive(:detect_all).and_return([
+        { state: PgSqlTriggers::DRIFT_STATE_UNKNOWN, trigger_name: "unknown1" },
+        { state: PgSqlTriggers::DRIFT_STATE_IN_SYNC, trigger_name: "in_sync1" },
+        { state: PgSqlTriggers::DRIFT_STATE_UNKNOWN, trigger_name: "unknown2" }
+      ])
+
+      result = described_class.unknown_triggers
+      expect(result.count).to eq(2)
+      expect(result.map { |r| r[:trigger_name] }).to contain_exactly("unknown1", "unknown2")
+    end
+  end
+
+  describe ".dropped" do
+    it "returns triggers with dropped state" do
+      allow(PgSqlTriggers::Drift::Detector).to receive(:detect_all).and_return([
+        { state: PgSqlTriggers::DRIFT_STATE_DROPPED, trigger_name: "dropped1" },
+        { state: PgSqlTriggers::DRIFT_STATE_IN_SYNC, trigger_name: "in_sync1" },
+        { state: PgSqlTriggers::DRIFT_STATE_DROPPED, trigger_name: "dropped2" }
+      ])
+
+      result = described_class.dropped
+      expect(result.count).to eq(2)
+      expect(result.map { |r| r[:trigger_name] }).to contain_exactly("dropped1", "dropped2")
+    end
+  end
 end

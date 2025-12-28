@@ -117,6 +117,12 @@ After checking out the repo, run `bin/setup` to install dependencies. Run `rake 
 
 To install this gem locally, run `bundle exec rake install`. To release a new version, update the version number in `version.rb`, and run `bundle exec rake release`.
 
+## Test Coverage
+
+See [COVERAGE.md](COVERAGE.md) for detailed coverage information.
+
+**Total Coverage: 84.97%**
+
 ## Contributing
 
 Bug reports and pull requests are welcome on GitHub at https://github.com/samaswin87/pg_sql_triggers.

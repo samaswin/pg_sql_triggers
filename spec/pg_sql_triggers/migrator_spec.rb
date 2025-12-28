@@ -364,6 +364,113 @@ RSpec.describe PgSqlTriggers::Migrator do
     end
   end
 
+  describe ".run" do
+    let(:migration_content) do
+      <<~RUBY
+        class TestMigration < PgSqlTriggers::Migration
+          def up
+            execute "CREATE TABLE IF NOT EXISTS test_table (id SERIAL PRIMARY KEY)"
+          end
+
+          def down
+            execute "DROP TABLE IF EXISTS test_table"
+          end
+        end
+      RUBY
+    end
+
+    before do
+      File.write(migrations_path.join("20231215120001_test_migration.rb"), migration_content)
+    end
+
+    after do
+      ActiveRecord::Base.connection.execute("DROP TABLE IF EXISTS test_table")
+    end
+
+    it "calls run_up when direction is :up" do
+      described_class.ensure_migrations_table!
+      expect(described_class).to receive(:run_up).with(nil)
+      described_class.run(:up)
+    end
+
+    it "calls run_down when direction is :down" do
+      described_class.ensure_migrations_table!
+      described_class.run_up
+      expect(described_class).to receive(:run_down).with(nil)
+      described_class.run(:down)
+      described_class.run_up # restore
+    end
+  end
+
+  describe ".status" do
+    let(:migration_content) do
+      <<~RUBY
+        class TestMigration < PgSqlTriggers::Migration
+          def up
+            execute "CREATE TABLE IF NOT EXISTS test_table (id SERIAL PRIMARY KEY)"
+          end
+
+          def down
+            execute "DROP TABLE IF EXISTS test_table"
+          end
+        end
+      RUBY
+    end
+
+    before do
+      File.write(migrations_path.join("20231215120001_test_migration.rb"), migration_content)
+      described_class.ensure_migrations_table!
+    end
+
+    after do
+      ActiveRecord::Base.connection.execute("DROP TABLE IF EXISTS test_table")
+    end
+
+    it "returns status for all migrations" do
+      status = described_class.status
+      expect(status).to be_an(Array)
+      expect(status.first).to include(:version, :name, :status, :filename)
+      expect(status.first[:status]).to eq("down")
+    end
+
+    it "shows migrations as up after running them" do
+      described_class.run_up
+      status = described_class.status
+      expect(status.first[:status]).to eq("up")
+    end
+  end
+
+  describe ".version" do
+    it "returns current_version" do
+      described_class.ensure_migrations_table!
+      expect(described_class).to receive(:current_version).and_return(123)
+      expect(described_class.version).to eq(123)
+    end
+  end
+
+  describe ".run_migration error handling" do
+    let(:invalid_migration_content) do
+      <<~RUBY
+        class InvalidMigration < PgSqlTriggers::Migration
+          def up
+            raise StandardError, "Test error"
+          end
+        end
+      RUBY
+    end
+
+    before do
+      File.write(migrations_path.join("20231215120001_invalid_migration.rb"), invalid_migration_content)
+      described_class.ensure_migrations_table!
+    end
+
+    it "raises error when migration fails" do
+      expect do
+        described_class.run_up
+      end.to raise_error(StandardError, /Error running trigger migration/)
+    end
+  end
+
   describe ".cleanup_orphaned_registry_entries" do
     before do
       PgSqlTriggers::TriggerRegistry.create!(

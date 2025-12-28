@@ -41,13 +41,7 @@ module PgSqlTriggers
         delegate :for_table, to: PgSqlTriggers::TriggerRegistry
 
         def diff(trigger_name = nil)
-          if trigger_name
-            # Single trigger diff
-            PgSqlTriggers::Drift::Reporter.report(trigger_name)
-          else
-            # All triggers summary
-            PgSqlTriggers::Drift::Reporter.summary
-          end
+          PgSqlTriggers::Drift.detect(trigger_name)
         end
 
         def drifted
@@ -77,13 +71,18 @@ module PgSqlTriggers
         private
 
         def calculate_checksum(definition)
+          # DSL definitions don't have function_body, so use placeholder
+          # Generator forms have function_body, so calculate real checksum
+          function_body_value = definition.respond_to?(:function_body) ? definition.function_body : nil
+          return "placeholder" if function_body_value.nil? || function_body_value.empty?
+
           # Use field-concatenation algorithm (consistent with TriggerRegistry#calculate_checksum)
           require "digest"
           Digest::SHA256.hexdigest([
             definition.name,
             definition.table_name,
             definition.version,
-            definition.function_body || "",
+            function_body_value,
             definition.condition || ""
           ].join)
         end

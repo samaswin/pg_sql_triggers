@@ -213,8 +213,8 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
     end
 
     it "delegates to Drift.detect" do
-      expect(PgSqlTriggers::Drift).to receive(:detect).with("test_trigger")
-      registry.drift_state
+      expect(PgSqlTriggers::Drift).to receive(:detect).with("test_trigger").and_return({ state: :in_sync })
+      expect(registry.drift_state).to eq(:in_sync)
     end
   end
 

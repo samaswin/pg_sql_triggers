@@ -50,6 +50,10 @@ module PgSqlTriggers
         @condition = condition_sql
       end
 
+      def function_body
+        nil # DSL definitions don't include function_body directly
+      end
+
       def to_h
         {
           name: @name,

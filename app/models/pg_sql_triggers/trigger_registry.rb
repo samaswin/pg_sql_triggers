@@ -20,7 +20,7 @@ module PgSqlTriggers
 
     # Drift detection methods
     def drift_state
-      result = PgSqlTriggers::Drift::Detector.detect(trigger_name)
+      result = PgSqlTriggers::Drift.detect(trigger_name)
       result[:state]
     end
 
