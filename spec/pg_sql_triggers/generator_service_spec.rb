@@ -217,6 +217,39 @@ RSpec.describe PgSqlTriggers::Generator::Service do
       expect(sql_block[1]).to start_with("CREATE")
     end
 
+    it "properly indents SQL content in heredoc" do
+      form.function_body = <<~SQL
+        CREATE OR REPLACE FUNCTION test_function()
+        RETURNS TRIGGER AS $$
+        BEGIN
+          RAISE NOTICE 'Test';
+          RETURN NEW;
+        END;
+        $$ LANGUAGE plpgsql;
+      SQL
+      code = described_class.generate_migration(form)
+      # Extract the SQL block from the function body
+      function_sql_match = code.match(/execute <<-SQL\n(\s+.*?)\n\s+SQL/m)
+      expect(function_sql_match).to be_present
+      sql_lines = function_sql_match[1].split("\n")
+      # All lines should be indented with 18 spaces
+      sql_lines.each do |line|
+        expect(line).to match(/\A {18}/) unless line.strip.empty?
+      end
+    end
+
+    it "properly indents trigger SQL in heredoc" do
+      code = described_class.generate_migration(form)
+      # Extract the trigger SQL block (second SQL block after the function)
+      sql_blocks = code.scan(/execute <<-SQL\n(\s+.*?)\n\s+SQL/m)
+      expect(sql_blocks.length).to be >= 2
+      trigger_sql_lines = sql_blocks[1][0].split("\n")
+      # All non-empty lines should be indented with 18 spaces
+      trigger_sql_lines.each do |line|
+        expect(line).to match(/\A {18}/) unless line.strip.empty?
+      end
+    end
+
     it "handles complex trigger name in class name" do
       form.trigger_name = "my_complex_trigger_name"
       code = described_class.generate_migration(form)

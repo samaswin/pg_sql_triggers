@@ -10,7 +10,7 @@
 </div>
 
 <!-- Actions -->
-<%= form_with url: generator_index_path, method: :post, scope: :pg_sql_triggers_generator_form, id: "generator-create-form" do |f| %>
+<%= form_with url: generator_index_path, method: :post, scope: :pg_sql_triggers_generator_form, id: "generator-create-form", local: true do |f| %>
   <!-- DSL Preview -->
   <div style="margin-bottom: 2rem;">
     <h3 style="display: flex; align-items: center; gap: 0.5rem;">
@@ -136,30 +136,34 @@
         style="padding: 0.75rem 1.5rem; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">
       Generate Files
     </button>
-    <%= form_with url: preview_generator_index_path, method: :post, scope: :pg_sql_triggers_generator_form, id: "back-to-edit-form", style: "margin: 0;" do |f| %>
-      <%= f.hidden_field :trigger_name, value: @form.trigger_name %>
-      <%= f.hidden_field :table_name, value: @form.table_name %>
-      <%= f.hidden_field :function_name, value: @form.function_name %>
-      <%= f.hidden_field :version, value: @form.version %>
-      <%= f.hidden_field :enabled, value: @form.enabled %>
-      <%= f.hidden_field :generate_function_stub, value: @form.generate_function_stub %>
-      <%= f.hidden_field :timing, id: "back-to-edit-timing" %>
-      <%= f.hidden_field :condition, id: "back-to-edit-condition" %>
-      <%= f.hidden_field :function_body, id: "back-to-edit-function-body" %>
-      <% Array(@form.events).reject(&:blank?).each do |event| %>
-        <%= hidden_field_tag "pg_sql_triggers_generator_form[events][]", event %>
-      <% end %>
-      <% Array(@form.environments).reject(&:blank?).each do |env| %>
-        <%= hidden_field_tag "pg_sql_triggers_generator_form[environments][]", env %>
-      <% end %>
-      <%= hidden_field_tag :back_to_edit, "1" %>
-      <button type="submit" class="btn" style="background: #6c757d; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 4px; cursor: pointer;">
-        Back to Edit
-      </button>
-    <% end %>
-    <%= link_to "Cancel", root_path, class: "btn", style: "background: #6c757d; color: white; text-decoration: none; padding: 0.75rem 1.5rem; border-radius: 4px;" %>
   </div>
 <% end %>
+
+<!-- Separate form for "Back to Edit" to avoid nested forms -->
+<div style="display: flex; gap: 1rem; margin-top: 1rem;">
+  <%= form_with url: preview_generator_index_path, method: :post, scope: :pg_sql_triggers_generator_form, id: "back-to-edit-form", local: true, style: "margin: 0;" do |f| %>
+    <%= f.hidden_field :trigger_name, value: @form.trigger_name %>
+    <%= f.hidden_field :table_name, value: @form.table_name %>
+    <%= f.hidden_field :function_name, value: @form.function_name %>
+    <%= f.hidden_field :version, value: @form.version %>
+    <%= f.hidden_field :enabled, value: @form.enabled %>
+    <%= f.hidden_field :generate_function_stub, value: @form.generate_function_stub %>
+    <%= f.hidden_field :timing, id: "back-to-edit-timing" %>
+    <%= f.hidden_field :condition, id: "back-to-edit-condition" %>
+    <%= f.hidden_field :function_body, id: "back-to-edit-function-body" %>
+    <% Array(@form.events).reject(&:blank?).each do |event| %>
+      <%= hidden_field_tag "pg_sql_triggers_generator_form[events][]", event %>
+    <% end %>
+    <% Array(@form.environments).reject(&:blank?).each do |env| %>
+      <%= hidden_field_tag "pg_sql_triggers_generator_form[environments][]", env %>
+    <% end %>
+    <%= hidden_field_tag :back_to_edit, "1" %>
+    <button type="submit" class="btn" style="background: #6c757d; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 4px; cursor: pointer;">
+      Back to Edit
+    </button>
+  <% end %>
+  <%= link_to "Cancel", root_path, class: "btn", style: "background: #6c757d; color: white; text-decoration: none; padding: 0.75rem 1.5rem; border-radius: 4px;" %>
+</div>
 
 <%= render 'pg_sql_triggers/shared/confirmation_modal',
            operation: :ui_trigger_generate,
@@ -287,6 +291,10 @@ PgSqlTriggers::DSL.pg_sql_trigger "${triggerName}" do
     if (backToEditForm) {
       backToEditForm.addEventListener('submit', function(e) {
         syncBackToEditForm();
+        // Ensure CSRF token is included
+        if (typeof window.ensureCsrfToken === 'function') {
+          window.ensureCsrfToken(backToEditForm);
+        }
       });
     }
 

@@ -8,6 +8,7 @@
 <%= form_with model: @form, url: preview_generator_index_path, method: :post,
               scope: :pg_sql_triggers_generator_form,
               id: "trigger-generator-form",
+              local: true,
               html: { style: "background: white; padding: 2rem; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);", onsubmit: "return validateForm();" } do |f| %>
 
   <!-- Section 1: Basic Information -->

@@ -136,6 +136,11 @@
       // Add confirmation text to the form
       const form = document.getElementById(formId);
       if (form) {
+        // Ensure CSRF token is included
+        if (typeof window.ensureCsrfToken === 'function') {
+          window.ensureCsrfToken(form);
+        }
+
         // Remove any existing confirmation_text input
         const existingInput = form.querySelector('input[name="confirmation_text"]');
         if (existingInput && existingInput !== confirmationInput) {
@@ -158,9 +163,36 @@
     window.submitWithoutConfirmation = function(formId) {
       const form = document.getElementById(formId);
       if (form) {
+        // Ensure CSRF token is included
+        if (typeof window.ensureCsrfToken === 'function') {
+          window.ensureCsrfToken(form);
+        }
         form.submit();
       }
       window.closeKillSwitchModal(formId);
+    };
+
+    // Helper function to ensure CSRF token is included in form (globally available)
+    window.ensureCsrfToken = function(form) {
+      // Check if form already has a CSRF token
+      const existingToken = form.querySelector('input[name="authenticity_token"]');
+      if (existingToken) {
+        return; // Token already exists
+      }
+
+      // Get CSRF token from meta tag
+      const csrfMetaTag = document.querySelector('meta[name="csrf-token"]');
+      if (csrfMetaTag) {
+        const token = csrfMetaTag.getAttribute('content');
+        if (token) {
+          // Create hidden input with CSRF token
+          const tokenInput = document.createElement('input');
+          tokenInput.type = 'hidden';
+          tokenInput.name = 'authenticity_token';
+          tokenInput.value = token;
+          form.appendChild(tokenInput);
+        }
+      }
     };
 
     // Close modal when clicking outside of it (only add listener once)

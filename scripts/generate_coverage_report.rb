@@ -5,7 +5,7 @@ require "json"
 require "pathname"
 
 def calculate_file_coverage(lines)
-  return 0.0 if lines.blank?
+  return 0.0 if lines.nil? || lines.empty?
 
   relevant_lines = lines.compact
   return 0.0 if relevant_lines.empty?

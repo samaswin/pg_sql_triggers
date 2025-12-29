@@ -64,6 +64,11 @@ module PgSqlTriggers
           down_sql = "DROP TRIGGER IF EXISTS #{form.trigger_name} ON #{form.table_name};\n"
           down_sql += "DROP FUNCTION IF EXISTS #{form.function_name}();"
 
+          # Indent SQL strings to match heredoc indentation (18 spaces)
+          indented_function_body = indent_sql(function_body_sql, 18)
+          indented_trigger_sql = indent_sql(trigger_sql, 18)
+          indented_down_sql = indent_sql(down_sql, 18)
+
           <<~RUBY
             # frozen_string_literal: true
 
@@ -72,18 +77,18 @@ module PgSqlTriggers
               def up
                 # Create the function
                 execute <<-SQL
-                  #{function_body_sql}
+                  #{indented_function_body}
                 SQL
 
                 # Create the trigger
                 execute <<-SQL
-                  #{trigger_sql}
+                  #{indented_trigger_sql}
                 SQL
               end
 
               def down
                 execute <<-SQL
-                  #{down_sql}
+                  #{indented_down_sql}
                 SQL
               end
             end
@@ -157,6 +162,14 @@ module PgSqlTriggers
         end
 
         private
+
+        def indent_sql(sql_string, indent_level)
+          indent = " " * indent_level
+          sql_string.lines.map do |line|
+            stripped = line.chomp
+            stripped.empty? ? "" : indent + stripped
+          end.join("\n")
+        end
 
         def rails_base_path
           defined?(Rails) && Rails.respond_to?(:root) ? Rails.root : Pathname.new(Dir.pwd)
