@@ -3,9 +3,10 @@
 
 require "json"
 require "pathname"
+require "active_support/core_ext/object/blank"
 
 def calculate_file_coverage(lines)
-  return 0.0 if lines.nil? || lines.empty?
+  return 0.0 if lines.blank?
 
   relevant_lines = lines.compact
   return 0.0 if relevant_lines.empty?

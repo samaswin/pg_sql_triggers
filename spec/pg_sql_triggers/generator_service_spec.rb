@@ -218,7 +218,7 @@ RSpec.describe PgSqlTriggers::Generator::Service do
     end
 
     it "properly indents SQL content in heredoc" do
-      form.function_body = <<~SQL
+      form.function_body = <<~SQL # rubocop:disable Rails/SquishedSQLHeredocs
         CREATE OR REPLACE FUNCTION test_function()
         RETURNS TRIGGER AS $$
         BEGIN
