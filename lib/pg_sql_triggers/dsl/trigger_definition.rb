@@ -3,7 +3,7 @@
 module PgSqlTriggers
   module DSL
     class TriggerDefinition
-      attr_accessor :name, :table_name, :events, :function_name, :environments, :condition, :timing
+      attr_accessor :name, :table_name, :events, :function_name, :environments, :condition
 
       def initialize(name)
         @name = name

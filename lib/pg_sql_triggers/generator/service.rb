@@ -6,6 +6,7 @@ require "active_support/core_ext/string/inflections"
 
 module PgSqlTriggers
   module Generator
+    # rubocop:disable Metrics/ClassLength
     class Service
       class << self
         def generate_dsl(form)
@@ -144,29 +145,45 @@ module PgSqlTriggers
 
         def create_trigger(form, actor: nil) # rubocop:disable Lint/UnusedMethodArgument
           paths = file_paths(form)
+          base_path = rails_base_path
 
-          # Determine if we're in a Rails app context or standalone gem
-          base_path = defined?(Rails) && Rails.respond_to?(:root) ? Rails.root : Pathname.new(Dir.pwd)
+          create_trigger_files(form, paths, base_path)
+          registry = register_trigger(form)
 
+          build_success_response(registry, paths, form)
+        rescue StandardError => e
+          log_error(e)
+          build_error_response(e)
+        end
+
+        private
+
+        def rails_base_path
+          defined?(Rails) && Rails.respond_to?(:root) ? Rails.root : Pathname.new(Dir.pwd)
+        end
+
+        def create_trigger_files(form, paths, base_path)
           full_migration_path = base_path.join(paths[:migration])
           full_dsl_path = base_path.join(paths[:dsl])
 
-          # Create directories
           FileUtils.mkdir_p(full_migration_path.dirname)
           FileUtils.mkdir_p(full_dsl_path.dirname)
 
-          # Generate content
           migration_content = generate_migration(form)
           dsl_content = generate_dsl(form)
-          # Use function_body (required field)
-          function_content = form.function_body
 
-          # Write both files
           File.write(full_migration_path, migration_content)
           File.write(full_dsl_path, dsl_content)
+        end
 
-          # Register in TriggerRegistry
-          definition = {
+        def register_trigger(form)
+          definition = build_trigger_definition(form)
+          attributes = build_registry_attributes(form, definition)
+          TriggerRegistry.create!(attributes)
+        end
+
+        def build_trigger_definition(form)
+          {
             name: form.trigger_name,
             table_name: form.table_name,
             events: form.events.compact_blank,
@@ -176,9 +193,11 @@ module PgSqlTriggers
             environments: form.environments.compact_blank,
             condition: form.condition,
             timing: form.timing || "before",
-            function_body: function_content
+            function_body: form.function_body
           }
+        end
 
+        def build_registry_attributes(form, definition)
           attributes = {
             trigger_name: form.trigger_name,
             table_name: form.table_name,
@@ -187,18 +206,22 @@ module PgSqlTriggers
             source: "dsl",
             environment: form.environments.compact_blank.join(",").presence,
             definition: definition.to_json,
-            function_body: function_content,
+            function_body: form.function_body,
             checksum: calculate_checksum(definition)
           }
 
-          # Only include condition if the column exists and value is present
-          attributes[:condition] = form.condition.presence if TriggerRegistry.column_names.include?("condition")
+          add_conditional_attributes(attributes, form)
+          attributes
+        end
 
-          # Only include timing if the column exists
-          attributes[:timing] = (form.timing || "before") if TriggerRegistry.column_names.include?("timing")
+        def add_conditional_attributes(attributes, form)
+          column_names = TriggerRegistry.column_names
 
-          registry = TriggerRegistry.create!(attributes)
+          attributes[:condition] = form.condition.presence if column_names.include?("condition")
+          attributes[:timing] = (form.timing || "before") if column_names.include?("timing")
+        end
 
+        def build_success_response(registry, paths, form)
           {
             success: true,
             registry_id: registry.id,
@@ -211,17 +234,21 @@ module PgSqlTriggers
               files_created: [paths[:migration], paths[:dsl]]
             }
           }
-        rescue StandardError => e
-          Rails.logger.error("Trigger generation failed: #{e.message}") if defined?(Rails)
-          Rails.logger.error(e.backtrace.join("\n")) if defined?(Rails)
-
-          {
-            success: false,
-            error: e.message
-          }
         end
 
-        private
+        def log_error(error)
+          return unless defined?(Rails)
+
+          Rails.logger.error("Trigger generation failed: #{error.message}")
+          Rails.logger.error(error.backtrace.join("\n"))
+        end
+
+        def build_error_response(error)
+          {
+            success: false,
+            error: error.message
+          }
+        end
 
         def next_migration_number
           # Determine if we're in a Rails app context or standalone gem
@@ -262,5 +289,6 @@ module PgSqlTriggers
         end
       end
     end
+    # rubocop:enable Metrics/ClassLength
   end
 end

@@ -6,4 +6,3 @@ class AddTimingToPgSqlTriggersRegistry < ActiveRecord::Migration[6.1]
     add_index :pg_sql_triggers_registry, :timing
   end
 end
-
