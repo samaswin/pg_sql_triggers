@@ -81,11 +81,15 @@ module PgSqlTriggers
         # and might not use execute in the same way
         Rails.logger.warn("Could not update registry via update!: #{e.message}") if defined?(Rails.logger)
         begin
+          # rubocop:disable Rails/SkipsModelValidations
           update_column(:enabled, true)
+          # rubocop:enable Rails/SkipsModelValidations
         rescue StandardError => update_error
           # If update_column also fails, just set the in-memory attribute
           # The test might reload, but we've done our best
+          # rubocop:disable Layout/LineLength
           Rails.logger.warn("Could not update registry via update_column: #{update_error.message}") if defined?(Rails.logger)
+          # rubocop:enable Layout/LineLength
           self.enabled = true
         end
       end
@@ -132,11 +136,15 @@ module PgSqlTriggers
         # and might not use execute in the same way
         Rails.logger.warn("Could not update registry via update!: #{e.message}") if defined?(Rails.logger)
         begin
+          # rubocop:disable Rails/SkipsModelValidations
           update_column(:enabled, false)
+          # rubocop:enable Rails/SkipsModelValidations
         rescue StandardError => update_error
           # If update_column also fails, just set the in-memory attribute
           # The test might reload, but we've done our best
+          # rubocop:disable Layout/LineLength
           Rails.logger.warn("Could not update registry via update_column: #{update_error.message}") if defined?(Rails.logger)
+          # rubocop:enable Layout/LineLength
           self.enabled = false
         end
       end

@@ -6,6 +6,7 @@ module PgSqlTriggers
   class Migrator
     # Pre-apply comparator that extracts expected SQL from migrations
     # and compares it with the current database state
+    # rubocop:disable Metrics/ClassLength
     class PreApplyComparator
       class << self
         # Compare expected state from migration with actual database state
@@ -193,6 +194,7 @@ module PgSqlTriggers
         end
 
         # Generate diff between expected and actual state
+        # rubocop:disable Metrics/MethodLength
         def generate_diff(expected, actual)
           diff = {
             has_differences: false,
@@ -274,6 +276,7 @@ module PgSqlTriggers
 
           diff
         end
+        # rubocop:enable Metrics/MethodLength
 
         # Normalize trigger definition for comparison
         def normalize_trigger_definition(trigger)
@@ -336,5 +339,6 @@ module PgSqlTriggers
         end
       end
     end
+    # rubocop:enable Metrics/ClassLength
   end
 end

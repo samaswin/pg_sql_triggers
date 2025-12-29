@@ -8,6 +8,7 @@ module PgSqlTriggers
       end
 
       # Test ONLY the function, not the trigger
+      # rubocop:disable Lint/UnusedMethodArgument
       def test_function_only(test_context: {})
         results = {
           function_created: false,
@@ -38,6 +39,7 @@ module PgSqlTriggers
           return results
         end
 
+        # rubocop:disable Metrics/BlockLength
         ActiveRecord::Base.transaction do
           # Create function in transaction
           begin
@@ -130,6 +132,7 @@ module PgSqlTriggers
         results[:output] << "\n⚠ Function rolled back (test mode)"
         results
       end
+      # rubocop:enable Lint/UnusedMethodArgument, Metrics/BlockLength
 
       # Check if function already exists in database
       def function_exists?

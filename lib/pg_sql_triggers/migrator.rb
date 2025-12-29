@@ -8,6 +8,7 @@ require_relative "migrator/pre_apply_diff_reporter"
 require_relative "migrator/safety_validator"
 
 module PgSqlTriggers
+  # rubocop:disable Metrics/ClassLength
   class Migrator
     MIGRATIONS_TABLE_NAME = "trigger_migrations"
 
@@ -161,6 +162,7 @@ module PgSqlTriggers
         end
       end
 
+      # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
       def run_migration(migration, direction)
         require migration.path
 
@@ -265,6 +267,7 @@ module PgSqlTriggers
         raise StandardError,
               "Error running trigger migration #{migration.filename}: #{e.message}\n#{e.backtrace.first(5).join("\n")}"
       end
+      # rubocop:enable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
 
       def status
         ensure_migrations_table!
@@ -312,4 +315,5 @@ module PgSqlTriggers
       end
     end
   end
+  # rubocop:enable Metrics/ClassLength
 end
