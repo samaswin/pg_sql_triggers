@@ -84,8 +84,9 @@ module PgSqlTriggers
               begin
                 sanitized_name = begin
                   ActiveRecord::Base.connection.quote_string(function_name)
-                rescue StandardError
+                rescue StandardError => e
                   # If quote_string fails, use the function name as-is (less safe but allows test to continue)
+                  results[:errors] << "Error during function name sanitization: #{e.message}"
                   function_name
                 end
                 check_sql = <<~SQL.squish
