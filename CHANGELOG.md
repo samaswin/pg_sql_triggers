@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2025-12-29
+
 ### Added
 - Trigger timing support (BEFORE/AFTER) in generator and registry
   - Added `timing` field to generator form with "before" and "after" options
