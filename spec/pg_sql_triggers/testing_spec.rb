@@ -411,6 +411,8 @@ RSpec.describe PgSqlTriggers::Testing::FunctionTester do
     end
 
     it "handles errors during function verification gracefully" do
+      # Ensure registry is created before setting up the mock
+      registry # Force evaluation of let(:registry) before mock is set up
       allow(ActiveRecord::Base.connection).to receive(:execute).and_raise(StandardError.new("DB error"))
       result = tester.test_function_only(test_context: {})
       expect(result[:success]).to be false
