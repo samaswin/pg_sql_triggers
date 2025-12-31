@@ -5,21 +5,21 @@ require_relative "lib/pg_sql_triggers/version"
 Gem::Specification.new do |spec|
   spec.name = "pg_sql_triggers"
   spec.version = PgSqlTriggers::VERSION
-  spec.authors = ["samaswin87"]
+  spec.authors = ["samaswin"]
   spec.email = ["samaswin@gmail.com"]
 
   spec.summary = "A PostgreSQL Trigger Control Plane for Rails"
   spec.description = "Production-grade PostgreSQL trigger management for Rails with " \
                      "lifecycle management, safe deploys, versioning, drift detection, " \
                      "and a mountable UI."
-  spec.homepage = "https://github.com/samaswin87/pg_sql_triggers"
+  spec.homepage = "https://github.com/samaswin/pg_sql_triggers"
   spec.license = "MIT"
   spec.required_ruby_version = ">= 3.0.0"
 
   spec.metadata["homepage_uri"] = spec.homepage
-  spec.metadata["source_code_uri"] = "https://github.com/samaswin87/pg_sql_triggers"
-  spec.metadata["changelog_uri"] = "https://github.com/samaswin87/pg_sql_triggers/blob/main/CHANGELOG.md"
-  spec.metadata["github_repo"] = "ssh://github.com/samaswin87/pg_sql_triggers"
+  spec.metadata["source_code_uri"] = "https://github.com/samaswin/pg_sql_triggers"
+  spec.metadata["changelog_uri"] = "https://github.com/samaswin/pg_sql_triggers/blob/main/CHANGELOG.md"
+  spec.metadata["github_repo"] = "ssh://github.com/samaswin/pg_sql_triggers"
   spec.metadata["rubygems_mfa_required"] = "true"
 
   # Specify which files should be added to the gem when it is released.

@@ -152,7 +152,7 @@ gem search pg_sql_triggers
 
 ### 11. Create a GitHub Release (Optional but Recommended)
 
-1. Go to https://github.com/samaswin87/pg_sql_triggers/releases
+1. Go to https://github.com/samaswin/pg_sql_triggers/releases
 2. Click "Draft a new release"
 3. Select the tag you just created (e.g., `v1.0.1`)
 4. Use the CHANGELOG entry as the release notes

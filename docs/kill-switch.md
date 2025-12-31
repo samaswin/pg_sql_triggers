@@ -422,21 +422,21 @@ All kill switch events are logged with comprehensive information.
 Operation was prevented:
 
 ```
-[KILL_SWITCH] BLOCKED: operation=trigger_migrate environment=production actor=CLI:ashwin reason=no_override
+[KILL_SWITCH] BLOCKED: operation=trigger_migrate environment=production actor=CLI:samaswin reason=no_override
 ```
 
 #### OVERRIDDEN
 Operation allowed with valid override:
 
 ```
-[KILL_SWITCH] OVERRIDDEN: operation=trigger_migrate environment=production actor=CLI:ashwin source=env_with_confirmation confirmation=EXECUTE TRIGGER_MIGRATE
+[KILL_SWITCH] OVERRIDDEN: operation=trigger_migrate environment=production actor=CLI:samaswin source=env_with_confirmation confirmation=EXECUTE TRIGGER_MIGRATE
 ```
 
 #### ALLOWED
 Operation allowed (not in protected environment):
 
 ```
-[KILL_SWITCH] ALLOWED: operation=trigger_migrate environment=development actor=CLI:ashwin reason=not_protected_environment
+[KILL_SWITCH] ALLOWED: operation=trigger_migrate environment=development actor=CLI:samaswin reason=not_protected_environment
 ```
 
 ### Audit Information

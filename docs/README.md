@@ -61,6 +61,6 @@ When updating documentation:
 
 ## External Resources
 
-- [GitHub Repository](https://github.com/samaswin87/pg_sql_triggers)
-- [Example Application](https://github.com/samaswin87/pg_triggers_example)
+- [GitHub Repository](https://github.com/samaswin/pg_sql_triggers)
+- [Example Application](https://github.com/samaswin/pg_triggers_example)
 - [RubyGems](https://rubygems.org/gems/pg_sql_triggers)

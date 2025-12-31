@@ -11,5 +11,5 @@
 # 3. Run: bundle exec rake release
 # See RELEASE.md for detailed release instructions
 module PgSqlTriggers
-  VERSION = "1.1.0"
+  VERSION = "1.1.1"
 end
