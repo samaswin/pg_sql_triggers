@@ -132,4 +132,4 @@ You should see your trigger listed in the dashboard.
 
 ## Examples Repository
 
-For working examples and a complete demonstration of PgSqlTriggers in action, check out the [example repository](https://github.com/samaswin87/pg_triggers_example).
+For working examples and a complete demonstration of PgSqlTriggers in action, check out the [example repository](https://github.com/samaswin/pg_triggers_example).

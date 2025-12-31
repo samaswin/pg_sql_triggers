@@ -102,7 +102,7 @@ Three-tier permission system (Viewer, Operator, Admin) with customizable authori
 
 ## Examples
 
-For working examples and complete demonstrations, check out the [example repository](https://github.com/samaswin87/pg_triggers_example).
+For working examples and complete demonstrations, check out the [example repository](https://github.com/samaswin/pg_triggers_example).
 
 ## Core Principles
 
@@ -125,7 +125,7 @@ See [COVERAGE.md](COVERAGE.md) for detailed coverage information.
 
 ## Contributing
 
-Bug reports and pull requests are welcome on GitHub at https://github.com/samaswin87/pg_sql_triggers.
+Bug reports and pull requests are welcome on GitHub at https://github.com/samaswin/pg_sql_triggers.
 
 ## License
 
