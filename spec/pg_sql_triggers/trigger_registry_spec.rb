@@ -842,8 +842,11 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
       before do
         # Stub connection execute to fail for CREATE statements but delegate everything else
         # This simulates database errors like syntax errors, permission issues, etc.
+        # Construct the expected function_body string to avoid accessing registry before it's created
+        expected_function_body = "CREATE OR REPLACE FUNCTION #{function_name}() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql; CREATE TRIGGER #{trigger_name} BEFORE INSERT ON test_table FOR EACH ROW EXECUTE FUNCTION #{function_name}();"
+        
         allow(ActiveRecord::Base.connection).to receive(:execute).and_wrap_original do |original_method, sql, *args|
-          if sql.to_s.include?(registry.function_body)
+          if sql.to_s.include?(expected_function_body)
             raise ActiveRecord::StatementInvalid, "PG::Error: simulated SQL error"
           end
 
