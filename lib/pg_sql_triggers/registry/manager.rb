@@ -33,8 +33,12 @@ module PgSqlTriggers
           trigger_name = definition.name
 
           # Use cached lookup if available to avoid N+1 queries during trigger file loading
-          existing = _registry_cache[trigger_name] ||=
-            PgSqlTriggers::TriggerRegistry.find_by(trigger_name: trigger_name)
+          # Explicitly check cache first to avoid query in some Ruby versions where ||= may evaluate RHS
+          existing = if _registry_cache.key?(trigger_name)
+            _registry_cache[trigger_name]
+          else
+            _registry_cache[trigger_name] = PgSqlTriggers::TriggerRegistry.find_by(trigger_name: trigger_name)
+          end
 
           # Calculate checksum using field-concatenation (consistent with TriggerRegistry model)
           checksum = calculate_checksum(definition)
