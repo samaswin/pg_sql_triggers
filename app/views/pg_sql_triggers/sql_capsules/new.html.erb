@@ -20,6 +20,7 @@
             placeholder: "e.g., fix_user_permissions",
             required: true,
             pattern: "[a-zA-Z0-9_-]+",
+            autocomplete: "off",
             style: "width: 100%; padding: 0.5rem; border: 1px solid #ced4da; border-radius: 4px;" %>
         <small style="color: #6c757d; display: block; margin-top: 0.25rem;">
           Letters, numbers, underscores, and hyphens only
@@ -33,6 +34,7 @@
         <%= text_field_tag :environment, @environment,
             placeholder: "e.g., production",
             required: true,
+            autocomplete: "off",
             style: "width: 100%; padding: 0.5rem; border: 1px solid #ced4da; border-radius: 4px;" %>
         <small style="color: #6c757d; display: block; margin-top: 0.25rem;">
           The environment this capsule is intended for

@@ -67,6 +67,7 @@
             </label>
             <input type="text" id="<%= form_id %>-confirmation" name="confirmation_text" required
                 placeholder="<%= expected_confirmation_text(:trigger_re_execute) %>"
+                autocomplete="off"
                 style="width: 100%; padding: 0.5rem; border: 1px solid #ced4da; border-radius: 4px; font-family: 'Monaco', 'Menlo', monospace;">
             <small style="color: #6c757d; display: block; margin-top: 0.25rem;">
               Type: <code><%= expected_confirmation_text(:trigger_re_execute) %></code>
