@@ -933,4 +933,99 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
       end
     end
   end
+
+  describe "private methods" do
+    let(:registry) do
+      described_class.create!(
+        trigger_name: "test_trigger",
+        table_name: "test_table",
+        version: 1,
+        checksum: "abc123",
+        source: "dsl",
+        function_body: "CREATE FUNCTION test() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql;",
+        condition: "NEW.status = 'active'"
+      )
+    end
+
+    describe "#quote_identifier" do
+      it "quotes table identifiers safely" do
+        # Access private method using send
+        quoted = registry.send(:quote_identifier, "users")
+        expect(quoted).to be_a(String)
+        expect(quoted).not_to eq("users") # Should be quoted
+      end
+
+      it "handles special characters safely" do
+        quoted = registry.send(:quote_identifier, "table-with-dash")
+        expect(quoted).to be_a(String)
+      end
+    end
+
+    describe "#calculate_checksum" do
+      it "calculates checksum from trigger attributes" do
+        checksum = registry.send(:calculate_checksum)
+        expect(checksum).to be_a(String)
+        expect(checksum.length).to eq(64) # SHA256 produces 64 character hex string
+      end
+
+      it "includes trigger_name in checksum" do
+        checksum1 = registry.send(:calculate_checksum)
+        registry.trigger_name = "different_trigger"
+        checksum2 = registry.send(:calculate_checksum)
+        expect(checksum1).not_to eq(checksum2)
+      end
+
+      it "includes table_name in checksum" do
+        checksum1 = registry.send(:calculate_checksum)
+        registry.table_name = "different_table"
+        checksum2 = registry.send(:calculate_checksum)
+        expect(checksum1).not_to eq(checksum2)
+      end
+
+      it "includes version in checksum" do
+        checksum1 = registry.send(:calculate_checksum)
+        registry.version = 2
+        checksum2 = registry.send(:calculate_checksum)
+        expect(checksum1).not_to eq(checksum2)
+      end
+
+      it "includes function_body in checksum" do
+        checksum1 = registry.send(:calculate_checksum)
+        registry.function_body = "CREATE FUNCTION other() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql;"
+        checksum2 = registry.send(:calculate_checksum)
+        expect(checksum1).not_to eq(checksum2)
+      end
+
+      it "includes condition in checksum" do
+        checksum1 = registry.send(:calculate_checksum)
+        registry.condition = "NEW.status = 'inactive'"
+        checksum2 = registry.send(:calculate_checksum)
+        expect(checksum1).not_to eq(checksum2)
+      end
+
+      it "handles nil function_body" do
+        registry.function_body = nil
+        checksum = registry.send(:calculate_checksum)
+        expect(checksum).to be_a(String)
+        expect(checksum.length).to eq(64)
+      end
+
+      it "handles nil condition" do
+        registry.condition = nil
+        checksum = registry.send(:calculate_checksum)
+        expect(checksum).to be_a(String)
+        expect(checksum.length).to eq(64)
+      end
+    end
+
+    describe "#verify!" do
+      it "updates last_verified_at timestamp" do
+        freeze_time do
+          expect do
+            registry.send(:verify!)
+          end.to change { registry.reload.last_verified_at }.to(Time.current)
+        end
+      end
+    end
+  end
 end

@@ -73,6 +73,21 @@ RSpec.describe PgSqlTriggers::Testing::SyntaxValidator do
       expect(result[:valid]).to be false
       expect(result[:errors]).to include("Invalid version")
     end
+
+    it "returns error when definition is blank" do
+      registry.definition = nil
+      result = validator.validate_dsl
+      expect(result[:valid]).to be false
+      expect(result[:errors]).to include("Missing definition")
+      expect(result[:definition]).to eq({})
+    end
+
+    it "handles invalid JSON gracefully" do
+      registry.definition = "invalid json {"
+      result = validator.validate_dsl
+      expect(result[:valid]).to be false
+      expect(result[:definition]).to eq({})
+    end
   end
 
   describe "#validate_function_syntax" do
@@ -128,6 +143,81 @@ RSpec.describe PgSqlTriggers::Testing::SyntaxValidator do
       validator.validate_condition
       # No changes should be persisted - verify connection is still active by executing a query
       expect(ActiveRecord::Base.connection.execute("SELECT 1")).to be_present
+    end
+
+    it "returns error when table_name is blank" do
+      registry.table_name = nil
+      registry.condition = "NEW.id > 0"
+      result = validator.validate_condition
+      expect(result[:valid]).to be false
+      expect(result[:error]).to include("Table name is required")
+    end
+
+    it "returns error when definition is blank" do
+      registry.definition = nil
+      registry.condition = "NEW.id > 0"
+      result = validator.validate_condition
+      expect(result[:valid]).to be false
+      expect(result[:error]).to include("Function name is required")
+    end
+
+    it "detects invalid condition with OLD values for INSERT trigger" do
+      registry.definition = {
+        name: "test_trigger",
+        table_name: "test_users",
+        function_name: "test_function",
+        events: ["insert"],
+        version: 1
+      }.to_json
+      registry.condition = "OLD.status != NEW.status"
+      result = validator.validate_condition
+      expect(result[:valid]).to be false
+      expect(result[:error]).to include("cannot reference OLD values for INSERT")
+    end
+
+    it "validates condition with OLD values for UPDATE trigger" do
+      registry.definition = {
+        name: "test_trigger",
+        table_name: "test_users",
+        function_name: "test_function",
+        events: ["update"],
+        version: 1
+      }.to_json
+      registry.condition = "OLD.status != NEW.status"
+      result = validator.validate_condition
+      expect(result[:valid]).to be true
+    end
+
+    it "validates condition with OLD values for DELETE trigger" do
+      registry.definition = {
+        name: "test_trigger",
+        table_name: "test_users",
+        function_name: "test_function",
+        events: ["delete"],
+        version: 1
+      }.to_json
+      registry.condition = "OLD.id > 0"
+      result = validator.validate_condition
+      expect(result[:valid]).to be true
+    end
+
+    it "uses default function name when not in definition" do
+      registry.definition = {
+        name: "test_trigger",
+        table_name: "test_users",
+        events: ["insert"],
+        version: 1
+      }.to_json
+      registry.condition = "NEW.id > 0"
+      result = validator.validate_condition
+      expect(result[:valid]).to be true
+    end
+
+    it "handles invalid JSON in definition" do
+      registry.definition = "invalid json"
+      registry.condition = "NEW.id > 0"
+      result = validator.validate_condition
+      expect(result[:valid]).to be true # Should use defaults
     end
   end
 
@@ -368,6 +458,23 @@ RSpec.describe PgSqlTriggers::Testing::FunctionTester do
       expect(tester.function_exists?).to be true
       ActiveRecord::Base.connection.execute("DROP FUNCTION IF EXISTS test_function()")
     end
+
+    it "handles empty string function_name" do
+      registry.definition = { function_name: "" }.to_json
+      expect(tester.function_exists?).to be false
+    end
+
+    it "handles blank function_name with spaces" do
+      registry.definition = { function_name: "   " }.to_json
+      expect(tester.function_exists?).to be false
+    end
+
+    it "checks only function_name field first" do
+      registry.definition = { function_name: "test_function", name: "other_name" }.to_json
+      ActiveRecord::Base.connection.execute(registry.function_body)
+      expect(tester.function_exists?).to be true
+      ActiveRecord::Base.connection.execute("DROP FUNCTION IF EXISTS test_function()")
+    end
   end
 
   describe "#test_function_only edge cases" do
@@ -403,6 +510,14 @@ RSpec.describe PgSqlTriggers::Testing::FunctionTester do
       expect(result[:success]).to be false
     end
 
+    it "handles blank function_body" do
+      registry.function_body = "   "
+      result = tester.test_function_only(test_context: {})
+      expect(result[:function_created]).to be false
+      expect(result[:success]).to be false
+      expect(result[:errors]).to include("Function body is missing")
+    end
+
     it "handles errors during function creation gracefully" do
       registry.function_body = "INVALID SQL SYNTAX"
       result = tester.test_function_only
@@ -417,6 +532,102 @@ RSpec.describe PgSqlTriggers::Testing::FunctionTester do
       result = tester.test_function_only(test_context: {})
       expect(result[:success]).to be false
       expect(result[:errors]).not_to be_empty
+    end
+
+    it "handles function_body with blank function name" do
+      registry.function_body = "CREATE FUNCTION () RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql;"
+      registry.definition = {
+        name: "test_trigger",
+        table_name: "test_users",
+        function_name: "fallback_function",
+        events: ["insert"],
+        version: 1
+      }.to_json
+      result = tester.test_function_only(test_context: {})
+      expect(result[:function_created]).to be false
+    end
+
+    it "uses function name from definition when body extraction fails" do
+      registry.function_body = "CREATE OR REPLACE FUNCTION valid_func() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql;"
+      registry.definition = {
+        name: "test_trigger",
+        table_name: "test_users",
+        function_name: "valid_func",
+        events: ["insert"],
+        version: 1
+      }.to_json
+      result = tester.test_function_only(test_context: {})
+      expect(result[:function_created]).to be true
+      expect(result[:function_executed]).to be true
+    end
+
+    it "handles when function count check fails" do
+      allow(ActiveRecord::Base.connection).to receive(:execute) do |sql|
+        if sql.include?("CREATE OR REPLACE FUNCTION")
+          # Allow function creation
+          nil
+        elsif sql.include?("SELECT COUNT")
+          # Simulate error during count check
+          raise StandardError, "Query failed"
+        end
+      end
+
+      result = tester.test_function_only(test_context: {})
+      expect(result[:success]).to be false
+      expect(result[:errors]).not_to be_empty
+    end
+
+    it "handles when function verification returns zero count" do
+      # Mock successful function creation but function not found in pg_proc
+      allow(ActiveRecord::Base.connection).to receive(:execute) do |sql|
+        if sql.include?("SELECT COUNT")
+          # Return zero count
+          [{ "count" => "0" }]
+        end
+      end
+
+      result = tester.test_function_only(test_context: {})
+      # Function should still be created successfully, verification shows it exists or created
+      expect(result[:function_created]).to be true
+    end
+
+    it "handles quote_string failure gracefully" do
+      # Create a registry with a function that will be created successfully
+      allow(ActiveRecord::Base.connection).to receive(:quote_string).and_raise(StandardError, "Quote failed")
+
+      result = tester.test_function_only(test_context: {})
+      # Should handle the error and continue
+      expect(result).to have_key(:success)
+    end
+
+    it "handles when function_name cannot be extracted from body or definition" do
+      registry.function_body = "CREATE OR REPLACE FUNCTION valid_func() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql;"
+      registry.definition = { name: "test_trigger" }.to_json # No function_name in definition
+      result = tester.test_function_only(test_context: {})
+      expect(result[:function_created]).to be true
+      expect(result[:function_executed]).to be true
+      expect(result[:output].join).to include("Function created")
+    end
+
+    it "outputs correct message when function exists and is callable" do
+      result = tester.test_function_only(test_context: {})
+      expect(result[:output].join).to match(/Function (exists and is callable|created)/)
+    end
+
+    it "outputs message when function created but not verified" do
+      # Make the function exist check return false (count = 0)
+      allow(ActiveRecord::Base.connection).to receive(:execute) do |sql|
+        if sql.include?("SELECT COUNT")
+          # Simulate function not being found in pg_proc
+          [{ "count" => "0" }]
+        elsif sql.include?("BEGIN") || sql.include?("ROLLBACK")
+          nil
+        end
+      end
+
+      result = tester.test_function_only(test_context: {})
+      expect(result[:function_created]).to be true
+      expect(result[:output].join).to include("created")
     end
   end
 end

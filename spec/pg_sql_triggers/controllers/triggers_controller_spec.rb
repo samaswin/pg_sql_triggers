@@ -316,4 +316,330 @@ RSpec.describe PgSqlTriggers::TriggersController, type: :controller do
       expect(Rails.logger).not_to have_received(:error)
     end
   end
+
+  describe "GET #show" do
+    before do
+      allow(PgSqlTriggers::Permissions).to receive(:can?).with(anything, :view_triggers).and_return(true)
+    end
+
+    context "when trigger exists" do
+      it "loads the trigger" do
+        get :show, params: { id: trigger.id }
+        expect(assigns(:trigger)).to eq(trigger)
+      end
+
+      it "calculates drift information" do
+        get :show, params: { id: trigger.id }
+        expect(assigns(:drift_info)).to be_a(Hash)
+        expect(assigns(:drift_info)).to have_key(:has_drift)
+        expect(assigns(:drift_info)).to have_key(:drift_type)
+      end
+
+      it "renders the show template" do
+        get :show, params: { id: trigger.id }
+        expect(response).to render_template(:show)
+      end
+    end
+
+    context "when trigger does not exist" do
+      it "sets error flash and redirects" do
+        get :show, params: { id: 99_999 }
+        expect(flash[:error]).to eq("Trigger not found.")
+        expect(response).to redirect_to(root_path)
+      end
+    end
+
+    context "when user lacks view permission" do
+      before do
+        allow(PgSqlTriggers::Permissions).to receive(:can?).with(anything, :view_triggers).and_return(false)
+      end
+
+      it "redirects to root with alert" do
+        get :show, params: { id: trigger.id }
+        expect(flash[:alert]).to match(/Insufficient permissions/)
+        expect(flash[:alert]).to include("Viewer role required")
+        expect(response).to redirect_to(root_path)
+      end
+    end
+
+    context "when drift calculation fails" do
+      before do
+        allow_any_instance_of(PgSqlTriggers::Drift::Reporter).to receive(:summary).and_raise(StandardError.new("DB error"))
+      end
+
+      it "returns default drift info" do
+        get :show, params: { id: trigger.id }
+        expect(assigns(:drift_info)).to eq({ has_drift: false, drift_type: nil, expected_sql: nil, actual_sql: nil })
+      end
+
+      it "logs the error" do
+        get :show, params: { id: trigger.id }
+        expect(Rails.logger).to have_received(:error).with(/Failed to calculate drift/)
+      end
+    end
+  end
+
+  describe "POST #drop" do
+    before do
+      allow(PgSqlTriggers::Permissions).to receive(:can?).with(anything, :drop_trigger).and_return(true)
+    end
+
+    context "when drop is successful" do
+      before do
+        allow_any_instance_of(PgSqlTriggers::TriggerRegistry).to receive(:drop!).and_return(true)
+      end
+
+      it "drops the trigger with reason" do
+        expect_any_instance_of(PgSqlTriggers::TriggerRegistry).to receive(:drop!).with(
+          reason: "No longer needed",
+          confirmation: nil,
+          actor: anything
+        )
+        post :drop, params: { id: trigger.id, reason: "No longer needed" }
+      end
+
+      it "passes confirmation text" do
+        expect_any_instance_of(PgSqlTriggers::TriggerRegistry).to receive(:drop!).with(
+          reason: "Test reason",
+          confirmation: "EXECUTE DROP",
+          actor: anything
+        )
+        post :drop, params: { id: trigger.id, reason: "Test reason", confirmation_text: "EXECUTE DROP" }
+      end
+
+      it "sets success flash message" do
+        post :drop, params: { id: trigger.id, reason: "No longer needed" }
+        expect(flash[:success]).to match(/dropped successfully/)
+        expect(flash[:success]).to include(trigger.trigger_name)
+      end
+
+      it "redirects to dashboard" do
+        post :drop, params: { id: trigger.id, reason: "No longer needed" }
+        expect(response).to redirect_to(dashboard_path)
+      end
+    end
+
+    context "when reason is missing" do
+      it "sets error flash" do
+        post :drop, params: { id: trigger.id }
+        expect(flash[:error]).to eq("Reason is required for dropping a trigger.")
+      end
+
+      it "redirects to root path" do
+        post :drop, params: { id: trigger.id }
+        expect(response).to redirect_to(root_path)
+      end
+
+      it "does not call drop!" do
+        expect_any_instance_of(PgSqlTriggers::TriggerRegistry).not_to receive(:drop!)
+        post :drop, params: { id: trigger.id }
+      end
+    end
+
+    context "when reason is blank" do
+      it "sets error flash" do
+        post :drop, params: { id: trigger.id, reason: "   " }
+        expect(flash[:error]).to eq("Reason is required for dropping a trigger.")
+      end
+    end
+
+    context "when kill switch blocks operation" do
+      before do
+        allow_any_instance_of(PgSqlTriggers::TriggersController)
+          .to receive(:check_kill_switch)
+          .and_raise(PgSqlTriggers::KillSwitchError.new("Kill switch active"))
+      end
+
+      it "sets error flash" do
+        post :drop, params: { id: trigger.id, reason: "Test" }
+        expect(flash[:error]).to eq("Kill switch active")
+      end
+
+      it "redirects to root path" do
+        post :drop, params: { id: trigger.id, reason: "Test" }
+        expect(response).to redirect_to(root_path)
+      end
+    end
+
+    context "when drop raises ArgumentError" do
+      before do
+        allow_any_instance_of(PgSqlTriggers::TriggerRegistry)
+          .to receive(:drop!)
+          .and_raise(ArgumentError.new("Invalid argument"))
+      end
+
+      it "sets error flash with ArgumentError message" do
+        post :drop, params: { id: trigger.id, reason: "Test" }
+        expect(flash[:error]).to match(/Invalid request/)
+        expect(flash[:error]).to include("Invalid argument")
+      end
+    end
+
+    context "when drop fails with StandardError" do
+      before do
+        allow_any_instance_of(PgSqlTriggers::TriggerRegistry)
+          .to receive(:drop!)
+          .and_raise(StandardError.new("Database error"))
+      end
+
+      it "sets error flash" do
+        post :drop, params: { id: trigger.id, reason: "Test" }
+        expect(flash[:error]).to match(/Failed to drop trigger/)
+        expect(flash[:error]).to include("Database error")
+      end
+
+      it "logs the error" do
+        post :drop, params: { id: trigger.id, reason: "Test" }
+        expect(Rails.logger).to have_received(:error).with(/Drop failed/)
+      end
+    end
+
+    context "when user lacks drop permission" do
+      before do
+        allow(PgSqlTriggers::Permissions).to receive(:can?).with(anything, :drop_trigger).and_return(false)
+      end
+
+      it "redirects to root with alert" do
+        post :drop, params: { id: trigger.id, reason: "Test" }
+        expect(flash[:alert]).to match(/Insufficient permissions/)
+        expect(flash[:alert]).to include("Admin role required")
+        expect(response).to redirect_to(root_path)
+      end
+    end
+  end
+
+  describe "POST #re_execute" do
+    before do
+      allow(PgSqlTriggers::Permissions).to receive(:can?).with(anything, :drop_trigger).and_return(true)
+      trigger.update!(function_body: "CREATE FUNCTION test() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql;")
+    end
+
+    context "when re-execute is successful" do
+      before do
+        allow_any_instance_of(PgSqlTriggers::TriggerRegistry).to receive(:re_execute!).and_return(true)
+      end
+
+      it "re-executes the trigger with reason" do
+        expect_any_instance_of(PgSqlTriggers::TriggerRegistry).to receive(:re_execute!).with(
+          reason: "Fixing drift",
+          confirmation: nil,
+          actor: anything
+        )
+        post :re_execute, params: { id: trigger.id, reason: "Fixing drift" }
+      end
+
+      it "passes confirmation text" do
+        expect_any_instance_of(PgSqlTriggers::TriggerRegistry).to receive(:re_execute!).with(
+          reason: "Test reason",
+          confirmation: "EXECUTE RE_EXECUTE",
+          actor: anything
+        )
+        post :re_execute, params: { id: trigger.id, reason: "Test reason", confirmation_text: "EXECUTE RE_EXECUTE" }
+      end
+
+      it "sets success flash message" do
+        post :re_execute, params: { id: trigger.id, reason: "Fixing drift" }
+        expect(flash[:success]).to match(/re-executed successfully/)
+        expect(flash[:success]).to include(trigger.trigger_name)
+      end
+
+      it "redirects to root path by default" do
+        post :re_execute, params: { id: trigger.id, reason: "Fixing drift" }
+        expect(response).to redirect_to(root_path)
+      end
+
+      it "redirects to specified path when redirect_to param present" do
+        post :re_execute, params: { id: trigger.id, reason: "Fixing drift", redirect_to: "/custom/path" }
+        expect(response).to redirect_to("/custom/path")
+      end
+    end
+
+    context "when reason is missing" do
+      it "sets error flash" do
+        post :re_execute, params: { id: trigger.id }
+        expect(flash[:error]).to eq("Reason is required for re-executing a trigger.")
+      end
+
+      it "redirects to root path" do
+        post :re_execute, params: { id: trigger.id }
+        expect(response).to redirect_to(root_path)
+      end
+
+      it "does not call re_execute!" do
+        expect_any_instance_of(PgSqlTriggers::TriggerRegistry).not_to receive(:re_execute!)
+        post :re_execute, params: { id: trigger.id }
+      end
+    end
+
+    context "when reason is blank" do
+      it "sets error flash" do
+        post :re_execute, params: { id: trigger.id, reason: "   " }
+        expect(flash[:error]).to eq("Reason is required for re-executing a trigger.")
+      end
+    end
+
+    context "when kill switch blocks operation" do
+      before do
+        allow_any_instance_of(PgSqlTriggers::TriggersController)
+          .to receive(:check_kill_switch)
+          .and_raise(PgSqlTriggers::KillSwitchError.new("Kill switch active"))
+      end
+
+      it "sets error flash" do
+        post :re_execute, params: { id: trigger.id, reason: "Test" }
+        expect(flash[:error]).to eq("Kill switch active")
+      end
+
+      it "redirects to root path" do
+        post :re_execute, params: { id: trigger.id, reason: "Test" }
+        expect(response).to redirect_to(root_path)
+      end
+    end
+
+    context "when re-execute raises ArgumentError" do
+      before do
+        allow_any_instance_of(PgSqlTriggers::TriggerRegistry)
+          .to receive(:re_execute!)
+          .and_raise(ArgumentError.new("Missing function body"))
+      end
+
+      it "sets error flash with ArgumentError message" do
+        post :re_execute, params: { id: trigger.id, reason: "Test" }
+        expect(flash[:error]).to match(/Invalid request/)
+        expect(flash[:error]).to include("Missing function body")
+      end
+    end
+
+    context "when re-execute fails with StandardError" do
+      before do
+        allow_any_instance_of(PgSqlTriggers::TriggerRegistry)
+          .to receive(:re_execute!)
+          .and_raise(StandardError.new("Execution failed"))
+      end
+
+      it "sets error flash" do
+        post :re_execute, params: { id: trigger.id, reason: "Test" }
+        expect(flash[:error]).to match(/Failed to re-execute trigger/)
+        expect(flash[:error]).to include("Execution failed")
+      end
+
+      it "logs the error" do
+        post :re_execute, params: { id: trigger.id, reason: "Test" }
+        expect(Rails.logger).to have_received(:error).with(/Re-execute failed/)
+      end
+    end
+
+    context "when user lacks admin permission" do
+      before do
+        allow(PgSqlTriggers::Permissions).to receive(:can?).with(anything, :drop_trigger).and_return(false)
+      end
+
+      it "redirects to root with alert" do
+        post :re_execute, params: { id: trigger.id, reason: "Test" }
+        expect(flash[:alert]).to match(/Insufficient permissions/)
+        expect(flash[:alert]).to include("Admin role required")
+        expect(response).to redirect_to(root_path)
+      end
+    end
+  end
 end
