@@ -169,7 +169,9 @@ RSpec.configure do |config|
     # Allow cleaning even when ENV['RAILS_ENV'] or ENV['RACK_ENV'] is set to production in tests
     DatabaseCleaner.allow_remote_database_url = true
     DatabaseCleaner.allow_production = true
-    DatabaseCleaner.strategy = :transaction
+    # Use truncation strategy for better isolation in Rails 7/Ruby 3.4
+    # Transaction strategy can have issues with test isolation in newer Rails versions
+    DatabaseCleaner.strategy = :truncation
     DatabaseCleaner.clean_with(:truncation)
   end
 
