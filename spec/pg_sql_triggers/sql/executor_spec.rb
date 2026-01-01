@@ -74,6 +74,11 @@ RSpec.describe PgSqlTriggers::SQL::Executor do
     end
 
     context "with dry_run mode" do
+      before do
+        # Clean up any existing registry entries for this capsule
+        PgSqlTriggers::TriggerRegistry.where(trigger_name: "sql_capsule_test_capsule").destroy_all
+      end
+
       it "validates without executing SQL" do
         expect(ActiveRecord::Base.connection).not_to receive(:execute)
 
@@ -185,6 +190,8 @@ RSpec.describe PgSqlTriggers::SQL::Executor do
 
     context "when SQL execution fails" do
       before do
+        # Clean up any existing registry entries for this capsule
+        PgSqlTriggers::TriggerRegistry.where(trigger_name: "sql_capsule_test_capsule").destroy_all
         allow(ActiveRecord::Base.connection).to receive(:execute)
           .and_raise(ActiveRecord::StatementInvalid.new("SQL syntax error"))
       end

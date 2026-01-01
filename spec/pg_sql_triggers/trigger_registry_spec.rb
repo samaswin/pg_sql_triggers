@@ -455,9 +455,12 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
   end
 
   describe "#drop!" do
+    # Use unique trigger name to avoid conflicts with other tests
+    let(:trigger_name) { "test_trigger_drop_#{SecureRandom.hex(4)}" }
+    
     let(:registry) do
       create(:trigger_registry, :enabled, :with_function_body,
-        trigger_name: "test_trigger",
+        trigger_name: trigger_name,
         table_name: "test_table",
         function_body: "CREATE OR REPLACE FUNCTION test_function() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql;")
     end
@@ -476,8 +479,9 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
         END;
         $$ LANGUAGE plpgsql;
       SQL
+      # Use the unique trigger name from let
       ActiveRecord::Base.connection.execute(<<~SQL.squish)
-        CREATE TRIGGER test_trigger
+        CREATE TRIGGER #{trigger_name}
         BEFORE INSERT ON test_table
         FOR EACH ROW
         EXECUTE FUNCTION test_function();
@@ -494,12 +498,12 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
       it "drops the trigger from database" do
         # Verify trigger exists before drop
         introspection = PgSqlTriggers::DatabaseIntrospection.new
-        expect(introspection.trigger_exists?("test_trigger")).to be true
+        expect(introspection.trigger_exists?(trigger_name)).to be true
 
         registry.drop!(reason: "No longer needed", actor: actor)
 
         # Verify trigger was actually dropped from database
-        expect(introspection.trigger_exists?("test_trigger")).to be false
+        expect(introspection.trigger_exists?(trigger_name)).to be false
       end
 
       it "removes registry entry" do
@@ -578,7 +582,7 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
     context "when trigger does not exist in database" do
       before do
         # Drop the trigger that was created in the outer before block
-        ActiveRecord::Base.connection.execute("DROP TRIGGER IF EXISTS test_trigger ON test_table")
+        ActiveRecord::Base.connection.execute("DROP TRIGGER IF EXISTS #{trigger_name} ON test_table")
       end
 
       it "still removes registry entry" do
@@ -587,7 +591,7 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
 
         # Verify trigger doesn't exist
         introspection = PgSqlTriggers::DatabaseIntrospection.new
-        expect(introspection.trigger_exists?("test_trigger")).to be false
+        expect(introspection.trigger_exists?(trigger_name)).to be false
 
         expect do
           registry.drop!(reason: "Cleanup", actor: actor)
@@ -597,11 +601,11 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
       it "does not attempt to drop trigger from database" do
         # Verify trigger doesn't exist before and after
         introspection = PgSqlTriggers::DatabaseIntrospection.new
-        expect(introspection.trigger_exists?("test_trigger")).to be false
+        expect(introspection.trigger_exists?(trigger_name)).to be false
 
         registry.drop!(reason: "Cleanup", actor: actor)
 
-        expect(introspection.trigger_exists?("test_trigger")).to be false
+        expect(introspection.trigger_exists?(trigger_name)).to be false
       end
     end
 

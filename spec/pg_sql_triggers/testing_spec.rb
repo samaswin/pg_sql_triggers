@@ -372,16 +372,19 @@ RSpec.describe PgSqlTriggers::Testing::SafeExecutor do
 end
 
 RSpec.describe PgSqlTriggers::Testing::FunctionTester do
+  # Use unique trigger name to avoid conflicts with other tests
+  let(:trigger_name) { "test_trigger_function_tester_#{SecureRandom.hex(4)}" }
+  
   let(:registry) do
     PgSqlTriggers::TriggerRegistry.create!(
-      trigger_name: "test_trigger",
+      trigger_name: trigger_name,
       table_name: "test_users",
       version: 1,
       enabled: false,
       checksum: "abc",
       source: "dsl",
       definition: {
-        name: "test_trigger",
+        name: trigger_name,
         table_name: "test_users",
         function_name: "test_function",
         events: ["insert"],
