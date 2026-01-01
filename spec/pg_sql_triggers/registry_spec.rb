@@ -420,7 +420,7 @@ RSpec.describe PgSqlTriggers::Registry::Manager do
     end
   end
 
-  # rubocop:disable RSpec/NestedGroups, RSpec/AnyInstance, RSpec/StubbedMock
+  # rubocop:disable RSpec/NestedGroups, RSpec/AnyInstance
   describe "console API permission enforcement" do
     let(:actor) { { type: "User", id: 1 } }
     let!(:trigger) do
@@ -430,24 +430,16 @@ RSpec.describe PgSqlTriggers::Registry::Manager do
         function_body: "CREATE OR REPLACE FUNCTION test_trigger_function() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql;")
     end
 
-    before do
-      # Stub kill switch by default
-      allow(PgSqlTriggers::SQL::KillSwitch).to receive(:check!).and_return(true)
-    end
+    # Kill switch and permissions are configured per test context using around blocks
 
     describe ".enable" do
       context "with operator permissions" do
-        before do
-          allow(PgSqlTriggers::Permissions).to receive(:check!)
-            .with(actor, :enable_trigger)
-            .and_return(true)
-        end
-
-        it "checks permissions before enabling" do
-          expect(PgSqlTriggers::Permissions).to receive(:check!)
-            .with(actor, :enable_trigger)
-
-          PgSqlTriggers::Registry.enable("test_trigger", actor: actor)
+        around do |example|
+          with_kill_switch_disabled do
+            with_permission_checker(enable_trigger: true) do
+              example.run
+            end
+          end
         end
 
         it "enables the trigger" do
@@ -466,10 +458,12 @@ RSpec.describe PgSqlTriggers::Registry::Manager do
       end
 
       context "without operator permissions" do
-        before do
-          allow(PgSqlTriggers::Permissions).to receive(:check!)
-            .with(actor, :enable_trigger)
-            .and_raise(PgSqlTriggers::PermissionError.new("Permission denied"))
+        around do |example|
+          with_kill_switch_disabled do
+            with_permission_checker(enable_trigger: false) do
+              example.run
+            end
+          end
         end
 
         it "raises PermissionError" do
@@ -488,10 +482,12 @@ RSpec.describe PgSqlTriggers::Registry::Manager do
       end
 
       context "when trigger not found" do
-        before do
-          allow(PgSqlTriggers::Permissions).to receive(:check!)
-            .with(actor, :enable_trigger)
-            .and_return(true)
+        around do |example|
+          with_kill_switch_disabled do
+            with_permission_checker(enable_trigger: true) do
+              example.run
+            end
+          end
         end
 
         it "raises ArgumentError" do
@@ -508,17 +504,12 @@ RSpec.describe PgSqlTriggers::Registry::Manager do
       end
 
       context "with operator permissions" do
-        before do
-          allow(PgSqlTriggers::Permissions).to receive(:check!)
-            .with(actor, :disable_trigger)
-            .and_return(true)
-        end
-
-        it "checks permissions before disabling" do
-          expect(PgSqlTriggers::Permissions).to receive(:check!)
-            .with(actor, :disable_trigger)
-
-          PgSqlTriggers::Registry.disable("test_trigger", actor: actor)
+        around do |example|
+          with_kill_switch_disabled do
+            with_permission_checker(disable_trigger: true) do
+              example.run
+            end
+          end
         end
 
         it "disables the trigger" do
@@ -537,10 +528,12 @@ RSpec.describe PgSqlTriggers::Registry::Manager do
       end
 
       context "without operator permissions" do
-        before do
-          allow(PgSqlTriggers::Permissions).to receive(:check!)
-            .with(actor, :disable_trigger)
-            .and_raise(PgSqlTriggers::PermissionError.new("Permission denied"))
+        around do |example|
+          with_kill_switch_disabled do
+            with_permission_checker(disable_trigger: false) do
+              example.run
+            end
+          end
         end
 
         it "raises PermissionError" do
@@ -559,10 +552,12 @@ RSpec.describe PgSqlTriggers::Registry::Manager do
       end
 
       context "when trigger not found" do
-        before do
-          allow(PgSqlTriggers::Permissions).to receive(:check!)
-            .with(actor, :disable_trigger)
-            .and_return(true)
+        around do |example|
+          with_kill_switch_disabled do
+            with_permission_checker(disable_trigger: true) do
+              example.run
+            end
+          end
         end
 
         it "raises ArgumentError" do
@@ -575,17 +570,12 @@ RSpec.describe PgSqlTriggers::Registry::Manager do
 
     describe ".drop" do
       context "with admin permissions" do
-        before do
-          allow(PgSqlTriggers::Permissions).to receive(:check!)
-            .with(actor, :drop_trigger)
-            .and_return(true)
-        end
-
-        it "checks permissions before dropping" do
-          expect(PgSqlTriggers::Permissions).to receive(:check!)
-            .with(actor, :drop_trigger)
-
-          PgSqlTriggers::Registry.drop("test_trigger", actor: actor, reason: "No longer needed")
+        around do |example|
+          with_kill_switch_disabled do
+            with_permission_checker(drop_trigger: true) do
+              example.run
+            end
+          end
         end
 
         it "drops the trigger" do
@@ -611,16 +601,18 @@ RSpec.describe PgSqlTriggers::Registry::Manager do
       end
 
       context "without admin permissions" do
-        before do
-          allow(PgSqlTriggers::Permissions).to receive(:check!)
-            .with(actor, :drop_trigger)
-            .and_raise(PgSqlTriggers::PermissionError.new("Permission denied: admin role required"))
+        around do |example|
+          with_kill_switch_disabled do
+            with_permission_checker(drop_trigger: false) do
+              example.run
+            end
+          end
         end
 
         it "raises PermissionError" do
           expect do
             PgSqlTriggers::Registry.drop("test_trigger", actor: actor, reason: "Testing")
-          end.to raise_error(PgSqlTriggers::PermissionError, /admin role required/)
+          end.to raise_error(PgSqlTriggers::PermissionError)
         end
 
         it "does not drop trigger" do
@@ -633,10 +625,12 @@ RSpec.describe PgSqlTriggers::Registry::Manager do
       end
 
       context "when trigger not found" do
-        before do
-          allow(PgSqlTriggers::Permissions).to receive(:check!)
-            .with(actor, :drop_trigger)
-            .and_return(true)
+        around do |example|
+          with_kill_switch_disabled do
+            with_permission_checker(drop_trigger: true) do
+              example.run
+            end
+          end
         end
 
         it "raises ArgumentError" do
@@ -649,17 +643,12 @@ RSpec.describe PgSqlTriggers::Registry::Manager do
 
     describe ".re_execute" do
       context "with admin permissions" do
-        before do
-          allow(PgSqlTriggers::Permissions).to receive(:check!)
-            .with(actor, :drop_trigger)
-            .and_return(true)
-        end
-
-        it "checks permissions before re-executing" do
-          expect(PgSqlTriggers::Permissions).to receive(:check!)
-            .with(actor, :drop_trigger)
-
-          PgSqlTriggers::Registry.re_execute("test_trigger", actor: actor, reason: "Fix drift")
+        around do |example|
+          with_kill_switch_disabled do
+            with_permission_checker(drop_trigger: true) do
+              example.run
+            end
+          end
         end
 
         it "re-executes the trigger" do
@@ -685,16 +674,18 @@ RSpec.describe PgSqlTriggers::Registry::Manager do
       end
 
       context "without admin permissions" do
-        before do
-          allow(PgSqlTriggers::Permissions).to receive(:check!)
-            .with(actor, :drop_trigger)
-            .and_raise(PgSqlTriggers::PermissionError.new("Permission denied: admin role required"))
+        around do |example|
+          with_kill_switch_disabled do
+            with_permission_checker(drop_trigger: false) do
+              example.run
+            end
+          end
         end
 
         it "raises PermissionError" do
           expect do
             PgSqlTriggers::Registry.re_execute("test_trigger", actor: actor, reason: "Fix drift")
-          end.to raise_error(PgSqlTriggers::PermissionError, /admin role required/)
+          end.to raise_error(PgSqlTriggers::PermissionError)
         end
 
         it "does not re-execute trigger" do
@@ -705,10 +696,12 @@ RSpec.describe PgSqlTriggers::Registry::Manager do
       end
 
       context "when trigger not found" do
-        before do
-          allow(PgSqlTriggers::Permissions).to receive(:check!)
-            .with(actor, :drop_trigger)
-            .and_return(true)
+        around do |example|
+          with_kill_switch_disabled do
+            with_permission_checker(drop_trigger: true) do
+              example.run
+            end
+          end
         end
 
         it "raises ArgumentError" do
@@ -720,38 +713,79 @@ RSpec.describe PgSqlTriggers::Registry::Manager do
     end
 
     describe "permission level requirements" do
-      it "enable requires :enable_trigger action" do
-        expect(PgSqlTriggers::Permissions).to receive(:check!)
-          .with(actor, :enable_trigger)
+      around do |example|
+        with_kill_switch_disabled do
+          example.run
+        end
+      end
 
-        allow(PgSqlTriggers::Permissions).to receive(:check!).and_return(true)
-        PgSqlTriggers::Registry.enable("test_trigger", actor: actor)
+      it "enable requires :enable_trigger action" do
+        # Verify that denying enable_trigger permission raises an error
+        with_permission_checker(enable_trigger: false) do
+          expect do
+            PgSqlTriggers::Registry.enable("test_trigger", actor: actor)
+          end.to raise_error(PgSqlTriggers::PermissionError)
+        end
+
+        # Verify that allowing enable_trigger permission works
+        with_permission_checker(enable_trigger: true) do
+          expect do
+            PgSqlTriggers::Registry.enable("test_trigger", actor: actor)
+          end.to change { trigger.reload.enabled }.from(false).to(true)
+        end
       end
 
       it "disable requires :disable_trigger action" do
-        expect(PgSqlTriggers::Permissions).to receive(:check!)
-          .with(actor, :disable_trigger)
+        trigger.update!(enabled: true)
 
-        allow(PgSqlTriggers::Permissions).to receive(:check!).and_return(true)
-        PgSqlTriggers::Registry.disable("test_trigger", actor: actor)
+        # Verify that denying disable_trigger permission raises an error
+        with_permission_checker(disable_trigger: false) do
+          expect do
+            PgSqlTriggers::Registry.disable("test_trigger", actor: actor)
+          end.to raise_error(PgSqlTriggers::PermissionError)
+        end
+
+        # Verify that allowing disable_trigger permission works
+        trigger.update!(enabled: true)
+        with_permission_checker(disable_trigger: true) do
+          expect do
+            PgSqlTriggers::Registry.disable("test_trigger", actor: actor)
+          end.to change { trigger.reload.enabled }.from(true).to(false)
+        end
       end
 
       it "drop requires :drop_trigger action" do
-        expect(PgSqlTriggers::Permissions).to receive(:check!)
-          .with(actor, :drop_trigger)
+        # Verify that denying drop_trigger permission raises an error
+        with_permission_checker(drop_trigger: false) do
+          expect do
+            PgSqlTriggers::Registry.drop("test_trigger", actor: actor, reason: "Testing")
+          end.to raise_error(PgSqlTriggers::PermissionError)
+        end
 
-        allow(PgSqlTriggers::Permissions).to receive(:check!).and_return(true)
-        PgSqlTriggers::Registry.drop("test_trigger", actor: actor, reason: "Testing")
+        # Verify that allowing drop_trigger permission works
+        with_permission_checker(drop_trigger: true) do
+          expect do
+            PgSqlTriggers::Registry.drop("test_trigger", actor: actor, reason: "Testing")
+          end.to change { PgSqlTriggers::TriggerRegistry.exists?(trigger.id) }.from(true).to(false)
+        end
       end
 
       it "re_execute requires :drop_trigger action (same as drop)" do
-        expect(PgSqlTriggers::Permissions).to receive(:check!)
-          .with(actor, :drop_trigger)
+        # Verify that denying drop_trigger permission raises an error for re_execute
+        with_permission_checker(drop_trigger: false) do
+          expect do
+            PgSqlTriggers::Registry.re_execute("test_trigger", actor: actor, reason: "Fix drift")
+          end.to raise_error(PgSqlTriggers::PermissionError)
+        end
 
-        allow(PgSqlTriggers::Permissions).to receive(:check!).and_return(true)
-        PgSqlTriggers::Registry.re_execute("test_trigger", actor: actor, reason: "Fix drift")
+        # Verify that allowing drop_trigger permission works for re_execute
+        with_permission_checker(drop_trigger: true) do
+          expect do
+            PgSqlTriggers::Registry.re_execute("test_trigger", actor: actor, reason: "Fix drift")
+          end.not_to raise_error
+        end
       end
     end
   end
-  # rubocop:enable RSpec/NestedGroups, RSpec/AnyInstance, RSpec/StubbedMock
+  # rubocop:enable RSpec/NestedGroups, RSpec/AnyInstance
 end
