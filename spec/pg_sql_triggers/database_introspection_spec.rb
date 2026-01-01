@@ -47,14 +47,29 @@ RSpec.describe PgSqlTriggers::DatabaseIntrospection do
       # Create a new introspection instance to avoid connection state issues
       introspection_instance = described_class.new
 
-      # Mock execute to raise error only for the specific SQL query in list_tables
-      connection = ActiveRecord::Base.connection
-      allow(connection).to receive(:execute).and_call_original
-      allow(connection).to receive(:execute).with(/FROM information_schema.tables/).and_raise(StandardError.new("Connection error"))
-      allow(Rails.logger).to receive(:error)
+      # Use real database error scenario by temporarily breaking the connection
+      # We'll use a transaction that we rollback to simulate a connection issue
+      original_execute = ActiveRecord::Base.connection.method(:execute)
+      call_count = 0
+      
+      allow(ActiveRecord::Base.connection).to receive(:execute) do |sql, *args|
+        call_count += 1
+        # Raise error on the specific query used by list_tables
+        if sql.to_s.include?("FROM information_schema.tables") && sql.to_s.include?("table_schema = 'public'")
+          raise StandardError.new("Connection error")
+        end
+        original_execute.call(sql, *args)
+      end
+
+      # Capture log output
+      log_output = []
+      allow(Rails.logger).to receive(:error) do |message|
+        log_output << message
+      end
 
       tables = introspection_instance.list_tables
       expect(tables).to eq([])
+      expect(log_output).to include(match(/Failed to fetch tables/))
     end
   end
 
@@ -196,12 +211,26 @@ RSpec.describe PgSqlTriggers::DatabaseIntrospection do
     end
 
     it "handles errors when fetching database triggers" do
-      allow(ActiveRecord::Base.connection).to receive(:execute).and_call_original
-      allow(ActiveRecord::Base.connection).to receive(:execute).with(/pg_sql_trigger/).and_raise(StandardError.new("Error"))
-      allow(Rails.logger).to receive(:error)
+      # Use real database error scenario by intercepting the specific SQL query
+      original_execute = ActiveRecord::Base.connection.method(:execute)
+      
+      allow(ActiveRecord::Base.connection).to receive(:execute) do |sql, *args|
+        # Raise error on the specific query used by tables_with_triggers for database triggers
+        if sql.to_s.include?("FROM pg_trigger t") && sql.to_s.include?("JOIN pg_class c")
+          raise StandardError.new("Error")
+        end
+        original_execute.call(sql, *args)
+      end
+
+      # Capture log output
+      log_output = []
+      allow(Rails.logger).to receive(:error) do |message|
+        log_output << message
+      end
 
       tables = introspection.tables_with_triggers
       expect(tables).to be_an(Array)
+      expect(log_output).to include(match(/Failed to fetch database triggers/))
     end
   end
 
@@ -237,12 +266,26 @@ RSpec.describe PgSqlTriggers::DatabaseIntrospection do
     end
 
     it "handles errors when fetching database triggers" do
-      allow(ActiveRecord::Base.connection).to receive(:execute).and_call_original
-      allow(ActiveRecord::Base.connection).to receive(:execute).with(/FROM pg_trigger t/).and_raise(StandardError.new("Error"))
-      allow(Rails.logger).to receive(:error)
+      # Use real database error scenario by intercepting the specific SQL query
+      original_execute = ActiveRecord::Base.connection.method(:execute)
+      
+      allow(ActiveRecord::Base.connection).to receive(:execute) do |sql, *args|
+        # Raise error on the specific query used by table_triggers for database triggers
+        if sql.to_s.include?("FROM pg_trigger t") && sql.to_s.include?("c.relname =")
+          raise StandardError.new("Error")
+        end
+        original_execute.call(sql, *args)
+      end
+
+      # Capture log output
+      log_output = []
+      allow(Rails.logger).to receive(:error) do |message|
+        log_output << message
+      end
 
       result = introspection.table_triggers("test_users")
       expect(result[:database_triggers]).to eq([])
+      expect(log_output).to include(match(/Failed to fetch database triggers/))
     end
   end
 end
