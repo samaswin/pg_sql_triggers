@@ -231,8 +231,8 @@ RSpec.describe "Kill Switch Controller Integration", type: :controller do
       end
 
       # Set up real temporary Rails root directory structure
-      FileUtils.mkdir_p(temp_rails_root.join("db/trigger_migrations"))
       FileUtils.mkdir_p(temp_rails_root.join("db/triggers"))
+      FileUtils.mkdir_p(temp_rails_root.join("app/triggers"))
 
       # Stub Rails.root to use temp directory
       allow(Rails).to receive(:root).and_return(temp_rails_root)
@@ -267,8 +267,8 @@ RSpec.describe "Kill Switch Controller Integration", type: :controller do
           if response.redirect?
             expect(response).to redirect_to(root_path)
             # Verify that real files were created on success
-            dsl_files = Dir.glob(temp_rails_root.join("db/triggers/*.rb"))
-            migration_files = Dir.glob(temp_rails_root.join("db/trigger_migrations/*.rb"))
+            dsl_files = Dir.glob(temp_rails_root.join("app/triggers/*.rb"))
+            migration_files = Dir.glob(temp_rails_root.join("db/triggers/*.rb"))
 
             expect(dsl_files).not_to be_empty
             expect(migration_files).not_to be_empty
@@ -303,8 +303,8 @@ RSpec.describe "Kill Switch Controller Integration", type: :controller do
           if response.redirect?
             expect(response).to redirect_to(root_path)
             # Verify that real files were created on success
-            dsl_files = Dir.glob(temp_rails_root.join("db/triggers/*.rb"))
-            migration_files = Dir.glob(temp_rails_root.join("db/trigger_migrations/*.rb"))
+            dsl_files = Dir.glob(temp_rails_root.join("app/triggers/*.rb"))
+            migration_files = Dir.glob(temp_rails_root.join("db/triggers/*.rb"))
 
             expect(dsl_files).not_to be_empty
             expect(migration_files).not_to be_empty
