@@ -126,7 +126,16 @@ RSpec.configure do |config|
     ActiveRecord::Base.connection
 
     # Create tables if they don't exist
-    unless ActiveRecord::Base.connection.table_exists?("pg_sql_triggers_registry")
+    if ActiveRecord::Base.connection.table_exists?("pg_sql_triggers_registry")
+      # Add last_executed_at column if it doesn't exist
+      unless ActiveRecord::Base.connection.column_exists?("pg_sql_triggers_registry", :last_executed_at)
+        ActiveRecord::Base.connection.add_column "pg_sql_triggers_registry", :last_executed_at, :datetime
+      end
+      # Add timing column if it doesn't exist
+      unless ActiveRecord::Base.connection.column_exists?("pg_sql_triggers_registry", :timing)
+        ActiveRecord::Base.connection.add_column "pg_sql_triggers_registry", :timing, :string, default: "before", null: false
+      end
+    else
       ActiveRecord::Base.connection.create_table "pg_sql_triggers_registry" do |t|
         t.string :trigger_name, null: false
         t.string :table_name, null: false
@@ -138,8 +147,10 @@ RSpec.configure do |config|
         t.text :definition
         t.text :function_body
         t.text :condition
+        t.string :timing, default: "before", null: false
         t.datetime :installed_at
         t.datetime :last_verified_at
+        t.datetime :last_executed_at
         t.timestamps
       end
 

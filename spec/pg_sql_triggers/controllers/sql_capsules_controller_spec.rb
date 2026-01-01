@@ -543,9 +543,26 @@ RSpec.describe PgSqlTriggers::SqlCapsulesController, type: :controller do
     end
 
     describe "#can_execute_capsule?" do
+      let!(:capsule_entry) do
+        PgSqlTriggers::TriggerRegistry.create!(
+          trigger_name: "sql_capsule_test",
+          table_name: "manual_sql_execution",
+          version: Time.current.to_i,
+          checksum: "abc123",
+          source: "manual_sql",
+          function_body: "SELECT 1;",
+          condition: "Test capsule",
+          environment: "production",
+          enabled: false
+        )
+      end
+
       it "returns true when user has execute_sql permission" do
         allow(PgSqlTriggers::Permissions).to receive(:can?)
           .with(actor, :execute_sql)
+          .and_return(true)
+        allow(PgSqlTriggers::Permissions).to receive(:can?)
+          .with(actor, :generate_trigger)
           .and_return(true)
 
         get :show, params: { id: "test" }

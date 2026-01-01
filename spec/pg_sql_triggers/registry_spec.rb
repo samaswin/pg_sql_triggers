@@ -515,7 +515,7 @@ RSpec.describe PgSqlTriggers::Registry::Manager do
         enabled: false,
         checksum: "abc",
         source: "dsl",
-        function_body: "CREATE TRIGGER test_trigger..."
+        function_body: "CREATE OR REPLACE FUNCTION test_trigger_function() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql;"
       )
     end
 

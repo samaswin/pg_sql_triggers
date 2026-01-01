@@ -171,8 +171,12 @@ module PgSqlTriggers
         end
 
         def log_execution_error(capsule, actor, error)
-          logger&.error "[SQL_CAPSULE] ERROR: name=#{capsule.name} " \
-                        "environment=#{capsule.environment} actor=#{format_actor(actor)} " \
+          # Handle case where capsule might not be valid
+          capsule_name = capsule.respond_to?(:name) ? capsule.name : "invalid_capsule"
+          environment = capsule.respond_to?(:environment) ? capsule.environment : "unknown"
+
+          logger&.error "[SQL_CAPSULE] ERROR: name=#{capsule_name} " \
+                        "environment=#{environment} actor=#{format_actor(actor)} " \
                         "error=#{error.class.name} message=#{error.message}"
         end
 

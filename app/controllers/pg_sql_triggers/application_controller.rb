@@ -10,7 +10,7 @@ module PgSqlTriggers
     before_action :check_permissions?
 
     # Helper methods available in views
-    helper_method :current_environment, :kill_switch_active?, :expected_confirmation_text
+    helper_method :current_environment, :kill_switch_active?, :expected_confirmation_text, :current_actor
 
     private
 

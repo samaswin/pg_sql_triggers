@@ -25,7 +25,7 @@ RSpec.describe PgSqlTriggers::Testing::SyntaxValidator do
   let(:validator) { described_class.new(registry) }
 
   before do
-    ActiveRecord::Base.connection.execute("CREATE TABLE IF NOT EXISTS test_users (id SERIAL PRIMARY KEY, name VARCHAR)")
+    ActiveRecord::Base.connection.execute("CREATE TABLE IF NOT EXISTS test_users (id SERIAL PRIMARY KEY, name VARCHAR, status VARCHAR)")
   end
 
   after do
@@ -328,7 +328,7 @@ RSpec.describe PgSqlTriggers::Testing::SafeExecutor do
   let(:executor) { described_class.new(registry) }
 
   before do
-    ActiveRecord::Base.connection.execute("CREATE TABLE IF NOT EXISTS test_users (id SERIAL PRIMARY KEY, name VARCHAR)")
+    ActiveRecord::Base.connection.execute("CREATE TABLE IF NOT EXISTS test_users (id SERIAL PRIMARY KEY, name VARCHAR, status VARCHAR)")
   end
 
   after do

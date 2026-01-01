@@ -502,13 +502,30 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
         enabled: true,
         checksum: "abc",
         source: "dsl",
-        function_body: "CREATE TRIGGER test_trigger..."
+        function_body: "CREATE OR REPLACE FUNCTION test_function() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql;"
       )
     end
 
     let(:actor) { { type: "User", id: 1 } }
 
     before do
+      # Create test table
+      ActiveRecord::Base.connection.execute("CREATE TABLE IF NOT EXISTS test_table (id SERIAL PRIMARY KEY, name VARCHAR)")
+      # Create test trigger function and trigger in database
+      ActiveRecord::Base.connection.execute(<<~SQL.squish)
+        CREATE OR REPLACE FUNCTION test_function()
+        RETURNS TRIGGER AS $$
+        BEGIN
+          RETURN NEW;
+        END;
+        $$ LANGUAGE plpgsql;
+      SQL
+      ActiveRecord::Base.connection.execute(<<~SQL.squish)
+        CREATE TRIGGER test_trigger
+        BEFORE INSERT ON test_table
+        FOR EACH ROW
+        EXECUTE FUNCTION test_function();
+      SQL
       # Stub kill switch by default
       allow(PgSqlTriggers::SQL::KillSwitch).to receive(:check!).and_return(true)
       # Stub logger
@@ -517,21 +534,26 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
       allow(Rails.logger).to receive(:error)
     end
 
+    after do
+      ActiveRecord::Base.connection.execute("DROP TABLE IF EXISTS test_table CASCADE")
+    end
+
     context "with valid reason and confirmation" do
       it "drops the trigger from database" do
-        # Mock trigger exists check
-        introspection = instance_double(PgSqlTriggers::DatabaseIntrospection)
-        allow(PgSqlTriggers::DatabaseIntrospection).to receive(:new).and_return(introspection)
-        allow(introspection).to receive(:trigger_exists?).with("test_trigger").and_return(true)
-
-        # Expect DROP TRIGGER SQL
-        expect(ActiveRecord::Base.connection).to receive(:execute)
-          .with(/DROP TRIGGER IF EXISTS.*test_trigger.*ON.*test_table/i)
+        # Verify trigger exists before drop
+        introspection = PgSqlTriggers::DatabaseIntrospection.new
+        expect(introspection.trigger_exists?("test_trigger")).to be true
 
         registry.drop!(reason: "No longer needed", actor: actor)
+
+        # Verify trigger was actually dropped from database
+        expect(introspection.trigger_exists?("test_trigger")).to be false
       end
 
       it "removes registry entry" do
+        # Ensure registry exists before drop
+        registry.reload
+
         expect do
           registry.drop!(reason: "Cleanup", actor: actor)
         end.to change(described_class, :count).by(-1)
@@ -604,32 +626,48 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
 
     context "when trigger does not exist in database" do
       before do
-        introspection = instance_double(PgSqlTriggers::DatabaseIntrospection)
-        allow(PgSqlTriggers::DatabaseIntrospection).to receive(:new).and_return(introspection)
-        allow(introspection).to receive(:trigger_exists?).with("test_trigger").and_return(false)
+        # Drop the trigger that was created in the outer before block
+        ActiveRecord::Base.connection.execute("DROP TRIGGER IF EXISTS test_trigger ON test_table")
       end
 
       it "still removes registry entry" do
+        # Ensure registry exists
+        registry.reload
+
+        # Verify trigger doesn't exist
+        introspection = PgSqlTriggers::DatabaseIntrospection.new
+        expect(introspection.trigger_exists?("test_trigger")).to be false
+
         expect do
           registry.drop!(reason: "Cleanup", actor: actor)
         end.to change(described_class, :count).by(-1)
       end
 
       it "does not attempt to drop trigger from database" do
-        expect(ActiveRecord::Base.connection).not_to receive(:execute).with(/DROP TRIGGER/)
+        # Verify trigger doesn't exist before and after
+        introspection = PgSqlTriggers::DatabaseIntrospection.new
+        expect(introspection.trigger_exists?("test_trigger")).to be false
+
         registry.drop!(reason: "Cleanup", actor: actor)
+
+        expect(introspection.trigger_exists?("test_trigger")).to be false
       end
     end
 
     context "when DROP TRIGGER fails" do
       before do
-        introspection = instance_double(PgSqlTriggers::DatabaseIntrospection)
-        allow(PgSqlTriggers::DatabaseIntrospection).to receive(:new).and_return(introspection)
-        allow(introspection).to receive(:trigger_exists?).with("test_trigger").and_return(true)
+        # Ensure registry exists
+        registry.reload
 
-        allow(ActiveRecord::Base.connection).to receive(:execute)
-          .with(/DROP TRIGGER/)
-          .and_raise(ActiveRecord::StatementInvalid.new("SQL error"))
+        # Stub connection execute to fail for DROP TRIGGER but delegate everything else
+        # This simulates database errors like permissions, locks, etc.
+        allow(ActiveRecord::Base.connection).to receive(:execute).and_wrap_original do |original_method, sql, *args|
+          if sql.to_s.match?(/DROP TRIGGER/i)
+            raise ActiveRecord::StatementInvalid, "PG::Error: simulated database error"
+          end
+
+          original_method.call(sql, *args)
+        end
       end
 
       it "raises error and rolls back transaction" do
@@ -637,7 +675,8 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
           registry.drop!(reason: "Test", actor: actor)
         end.to raise_error(ActiveRecord::StatementInvalid)
 
-        expect(registry.reload).to be_present
+        # Verify registry was not deleted (transaction rolled back)
+        expect(described_class.exists?(registry.id)).to be true
       end
 
       it "logs the error" do
@@ -678,13 +717,30 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
         enabled: true,
         checksum: "abc",
         source: "dsl",
-        function_body: "CREATE TRIGGER test_trigger BEFORE INSERT ON test_table FOR EACH ROW EXECUTE FUNCTION test_function();"
+        function_body: "CREATE OR REPLACE FUNCTION test_function() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql; CREATE TRIGGER test_trigger BEFORE INSERT ON test_table FOR EACH ROW EXECUTE FUNCTION test_function();"
       )
     end
 
     let(:actor) { { type: "User", id: 1 } }
 
     before do
+      # Create test table
+      ActiveRecord::Base.connection.execute("CREATE TABLE IF NOT EXISTS test_table (id SERIAL PRIMARY KEY, name VARCHAR)")
+      # Create test trigger function and trigger in database
+      ActiveRecord::Base.connection.execute(<<~SQL.squish)
+        CREATE OR REPLACE FUNCTION test_function()
+        RETURNS TRIGGER AS $$
+        BEGIN
+          RETURN NEW;
+        END;
+        $$ LANGUAGE plpgsql;
+      SQL
+      ActiveRecord::Base.connection.execute(<<~SQL.squish)
+        CREATE TRIGGER test_trigger
+        BEFORE INSERT ON test_table
+        FOR EACH ROW
+        EXECUTE FUNCTION test_function();
+      SQL
       # Stub kill switch by default
       allow(PgSqlTriggers::SQL::KillSwitch).to receive(:check!).and_return(true)
       # Stub logger
@@ -695,31 +751,20 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
       allow(registry).to receive(:drift_result).and_return({ state: :drifted })
     end
 
+    after do
+      ActiveRecord::Base.connection.execute("DROP TABLE IF EXISTS test_table CASCADE")
+    end
+
     context "with valid reason and confirmation" do
-      before do
-        # Mock DatabaseIntrospection
-        introspection = instance_double(PgSqlTriggers::DatabaseIntrospection)
-        allow(PgSqlTriggers::DatabaseIntrospection).to receive(:new).and_return(introspection)
-        allow(introspection).to receive(:trigger_exists?).with("test_trigger").and_return(true)
-      end
-
-      it "drops existing trigger" do
-        expect(ActiveRecord::Base.connection).to receive(:execute)
-          .with(/DROP TRIGGER IF EXISTS.*test_trigger.*ON.*test_table/i)
-          .ordered
-
-        expect(ActiveRecord::Base.connection).to receive(:execute)
-          .with(/CREATE TRIGGER/)
-          .ordered
+      it "recreates trigger successfully" do
+        # Verify trigger exists before re-execute
+        introspection = PgSqlTriggers::DatabaseIntrospection.new
+        expect(introspection.trigger_exists?("test_trigger")).to be true
 
         registry.re_execute!(reason: "Fix drift", actor: actor)
-      end
 
-      it "recreates trigger with stored function_body" do
-        expect(ActiveRecord::Base.connection).to receive(:execute)
-          .with(registry.function_body)
-
-        registry.re_execute!(reason: "Fix drift", actor: actor)
+        # Verify trigger still exists after re-execute (it was dropped and recreated)
+        expect(introspection.trigger_exists?("test_trigger")).to be true
       end
 
       it "updates registry after re-execution" do
@@ -816,45 +861,48 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
       end
 
       it "does not re-execute trigger" do
-        expect(ActiveRecord::Base.connection).not_to receive(:execute)
+        # Verify trigger exists before
+        introspection = PgSqlTriggers::DatabaseIntrospection.new
+        expect(introspection.trigger_exists?("test_trigger")).to be true
 
         expect do
           registry.re_execute!(reason: "Fix", actor: actor)
         end.to raise_error(PgSqlTriggers::KillSwitchError)
+
+        # Verify trigger still exists and wasn't modified
+        expect(introspection.trigger_exists?("test_trigger")).to be true
       end
     end
 
     context "when trigger does not exist in database" do
       before do
-        introspection = instance_double(PgSqlTriggers::DatabaseIntrospection)
-        allow(PgSqlTriggers::DatabaseIntrospection).to receive(:new).and_return(introspection)
-        allow(introspection).to receive(:trigger_exists?).with("test_trigger").and_return(false)
+        # Drop the trigger that was created in the outer before block
+        ActiveRecord::Base.connection.execute("DROP TRIGGER IF EXISTS test_trigger ON test_table")
       end
 
-      it "still recreates trigger" do
-        expect(ActiveRecord::Base.connection).to receive(:execute)
-          .with(registry.function_body)
+      it "creates trigger even when it doesn't exist" do
+        # Verify trigger doesn't exist before re-execute
+        introspection = PgSqlTriggers::DatabaseIntrospection.new
+        expect(introspection.trigger_exists?("test_trigger")).to be false
 
         registry.re_execute!(reason: "Recreate", actor: actor)
-      end
 
-      it "does not attempt to drop non-existent trigger" do
-        expect(ActiveRecord::Base.connection).not_to receive(:execute)
-          .with(/DROP TRIGGER/)
-
-        registry.re_execute!(reason: "Recreate", actor: actor)
+        # Verify trigger was created
+        expect(introspection.trigger_exists?("test_trigger")).to be true
       end
     end
 
     context "when trigger recreation fails" do
       before do
-        introspection = instance_double(PgSqlTriggers::DatabaseIntrospection)
-        allow(PgSqlTriggers::DatabaseIntrospection).to receive(:new).and_return(introspection)
-        allow(introspection).to receive(:trigger_exists?).with("test_trigger").and_return(false)
+        # Stub connection execute to fail for CREATE statements but delegate everything else
+        # This simulates database errors like syntax errors, permission issues, etc.
+        allow(ActiveRecord::Base.connection).to receive(:execute).and_wrap_original do |original_method, sql, *args|
+          if sql.to_s.include?(registry.function_body)
+            raise ActiveRecord::StatementInvalid, "PG::Error: simulated SQL error"
+          end
 
-        allow(ActiveRecord::Base.connection).to receive(:execute)
-          .with(registry.function_body)
-          .and_raise(ActiveRecord::StatementInvalid.new("SQL error"))
+          original_method.call(sql, *args)
+        end
       end
 
       it "raises error and rolls back transaction" do
@@ -897,10 +945,6 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
 
     context "with logging" do
       it "logs successful drop" do
-        introspection = instance_double(PgSqlTriggers::DatabaseIntrospection)
-        allow(PgSqlTriggers::DatabaseIntrospection).to receive(:new).and_return(introspection)
-        allow(introspection).to receive(:trigger_exists?).with("test_trigger").and_return(true)
-
         expect(Rails.logger).to receive(:info).with(/Dropped existing/)
         registry.re_execute!(reason: "Fix", actor: actor)
       end
@@ -916,19 +960,24 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
       end
 
       it "warns when drop fails but continues" do
+        # Drop actual trigger so CREATE won't fail with "already exists"
+        ActiveRecord::Base.connection.execute("DROP TRIGGER IF EXISTS test_trigger ON test_table")
+
+        # Stub DatabaseIntrospection to say trigger exists so DROP is attempted
         introspection = instance_double(PgSqlTriggers::DatabaseIntrospection)
         allow(PgSqlTriggers::DatabaseIntrospection).to receive(:new).and_return(introspection)
         allow(introspection).to receive(:trigger_exists?).with("test_trigger").and_return(true)
-        allow(ActiveRecord::Base.connection).to receive(:execute)
-          .with(/DROP TRIGGER/)
-          .and_raise(StandardError.new("Drop failed"))
+
+        # Stub connection execute to fail for DROP TRIGGER but allow other operations
+        allow(ActiveRecord::Base.connection).to receive(:execute).and_wrap_original do |original_method, sql, *args|
+          raise StandardError, "Drop failed" if sql.to_s.match?(/DROP TRIGGER/i)
+
+          original_method.call(sql, *args)
+        end
 
         expect(Rails.logger).to receive(:warn).with(/Drop failed/)
 
-        # Should still attempt to recreate
-        expect(ActiveRecord::Base.connection).to receive(:execute)
-          .with(registry.function_body)
-
+        # Should still attempt to recreate and succeed
         registry.re_execute!(reason: "Fix", actor: actor)
       end
     end

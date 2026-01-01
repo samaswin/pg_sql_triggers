@@ -24,28 +24,26 @@ module PgSqlTriggers
     end
 
     def create
+      # Strip whitespace from parameters
+      @capsule_name = params[:name].to_s.strip
+      @environment = params[:environment].to_s.strip
+      @purpose = params[:purpose].to_s.strip
+      @sql = params[:sql].to_s.strip
+
       capsule = build_capsule_from_params
 
       # Save the capsule to registry
       result = save_capsule_to_registry(capsule)
 
       if result[:success]
-        redirect_to sql_capsule_path(id: params[:name]),
+        redirect_to sql_capsule_path(id: @capsule_name),
                     notice: "SQL Capsule '#{capsule.name}' created successfully"
       else
         flash.now[:alert] = result[:message]
-        @capsule_name = params[:name]
-        @environment = params[:environment]
-        @purpose = params[:purpose]
-        @sql = params[:sql]
         render :new
       end
     rescue ArgumentError => e
       flash.now[:alert] = "Invalid capsule: #{e.message}"
-      @capsule_name = params[:name]
-      @environment = params[:environment]
-      @purpose = params[:purpose]
-      @sql = params[:sql]
       render :new
     end
 
