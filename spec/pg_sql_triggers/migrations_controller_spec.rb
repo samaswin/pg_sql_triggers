@@ -26,7 +26,7 @@ RSpec.describe PgSqlTriggers::MigrationsController, type: :controller do
 
   after do
     # Clean up test migrations
-    FileUtils.rm_rf(tmp_dir) if Dir.exist?(tmp_dir)
+    FileUtils.rm_rf(tmp_dir)
     PgSqlTriggers::Migrator.ensure_migrations_table!
     ActiveRecord::Base.connection.execute("TRUNCATE TABLE trigger_migrations")
   end

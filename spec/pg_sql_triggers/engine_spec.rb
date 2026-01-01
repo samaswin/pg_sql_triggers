@@ -18,7 +18,6 @@ RSpec.describe PgSqlTriggers::Engine do
   end
 
   describe "assets configuration" do
-    # rubocop:disable RSpec/VerifiedDoubles
     let(:app) { double("Rails::Application") }
     let(:config) { double("Rails::Application::Configuration") }
     # rubocop:enable RSpec/VerifiedDoubles

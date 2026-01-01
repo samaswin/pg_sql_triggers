@@ -154,12 +154,11 @@ RSpec.describe PgSqlTriggers::SqlCapsulesController, type: :controller do
     context "when capsule name already exists" do
       before do
         create(:trigger_registry, :disabled, :manual_sql_source, :production,
-          trigger_name: "sql_capsule_fix_permissions",
-          table_name: "manual_sql_execution",
-          checksum: "abc123",
-          function_body: "SELECT 1;",
-          condition: "test"
-        )
+               trigger_name: "sql_capsule_fix_permissions",
+               table_name: "manual_sql_execution",
+               checksum: "abc123",
+               function_body: "SELECT 1;",
+               condition: "test")
       end
 
       it "does not create duplicate capsule" do
@@ -215,13 +214,12 @@ RSpec.describe PgSqlTriggers::SqlCapsulesController, type: :controller do
   describe "GET #show" do
     let!(:capsule_entry) do
       create(:trigger_registry, :disabled, :manual_sql_source, :production,
-        trigger_name: "sql_capsule_test",
-        table_name: "manual_sql_execution",
-        version: Time.current.to_i,
-        checksum: "abc123",
-        function_body: "SELECT 1;",
-        condition: "Test capsule"
-      )
+             trigger_name: "sql_capsule_test",
+             table_name: "manual_sql_execution",
+             version: Time.current.to_i,
+             checksum: "abc123",
+             function_body: "SELECT 1;",
+             condition: "Test capsule")
     end
 
     context "when capsule exists" do
@@ -290,13 +288,12 @@ RSpec.describe PgSqlTriggers::SqlCapsulesController, type: :controller do
   describe "POST #execute" do
     let!(:capsule_entry) do
       create(:trigger_registry, :disabled, :manual_sql_source, :production,
-        trigger_name: "sql_capsule_test",
-        table_name: "manual_sql_execution",
-        version: Time.current.to_i,
-        checksum: "abc123",
-        function_body: "SELECT 1 AS result;",
-        condition: "Test capsule"
-      )
+             trigger_name: "sql_capsule_test",
+             table_name: "manual_sql_execution",
+             version: Time.current.to_i,
+             checksum: "abc123",
+             function_body: "SELECT 1 AS result;",
+             condition: "Test capsule")
     end
 
     context "with admin permissions" do
@@ -535,13 +532,12 @@ RSpec.describe PgSqlTriggers::SqlCapsulesController, type: :controller do
     describe "#can_execute_capsule?" do
       let!(:capsule_entry) do
         create(:trigger_registry, :disabled, :manual_sql_source, :production,
-          trigger_name: "sql_capsule_test",
-          table_name: "manual_sql_execution",
-          version: Time.current.to_i,
-          checksum: "abc123",
-          function_body: "SELECT 1;",
-          condition: "Test capsule"
-        )
+               trigger_name: "sql_capsule_test",
+               table_name: "manual_sql_execution",
+               version: Time.current.to_i,
+               checksum: "abc123",
+               function_body: "SELECT 1;",
+               condition: "Test capsule")
       end
 
       it "returns true when user has execute_sql permission" do

@@ -23,12 +23,11 @@ RSpec.describe PgSqlTriggers::Drift do
 
       before do
         create(:trigger_registry, :enabled, :dsl_source, :in_sync,
-          trigger_name: trigger_name,
-          table_name: table_name,
-          definition: {}.to_json,
-          function_body: function_body,
-          condition: condition
-        )
+               trigger_name: trigger_name,
+               table_name: table_name,
+               definition: {}.to_json,
+               function_body: function_body,
+               condition: condition)
 
         allow(PgSqlTriggers::Drift::DbQueries).to receive(:find_trigger)
           .with(trigger_name)

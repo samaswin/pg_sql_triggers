@@ -57,7 +57,6 @@ RSpec.describe "Kill Switch Controller Integration", type: :controller do
     end
 
     describe "POST #up" do
-      # rubocop:disable RSpec/NestedGroups
       context "when in production environment" do
         before do
           allow(Rails).to receive(:env).and_return(ActiveSupport::StringInquirer.new("production"))

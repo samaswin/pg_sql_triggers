@@ -500,7 +500,7 @@ RSpec.describe PgSqlTriggers::Generator::Service do
       expect(registry.checksum).not_to eq("placeholder")
     end
 
-    it "handles errors gracefully" do
+    it "handles file permission errors gracefully" do
       # Make the directory read-only to simulate permission error
       triggers_dir = rails_root.join("db", "triggers")
       FileUtils.mkdir_p(triggers_dir)
@@ -606,7 +606,7 @@ RSpec.describe PgSqlTriggers::Generator::Service do
       expect(result[:metadata][:files_created]).to include(result[:migration_path], result[:dsl_path])
     end
 
-    it "logs errors when Rails is available" do
+    it "returns error result when file creation fails" do
       # Make the directory read-only to simulate permission error
       triggers_dir = rails_root.join("db", "triggers")
       FileUtils.mkdir_p(triggers_dir)
@@ -622,7 +622,7 @@ RSpec.describe PgSqlTriggers::Generator::Service do
       FileUtils.chmod("a+w", triggers_dir) if Dir.exist?(triggers_dir)
     end
 
-    it "handles errors when Rails is not available" do
+    it "handles file system errors during trigger creation" do
       # Make the directory read-only to simulate permission error
       triggers_dir = rails_root.join("db", "triggers")
       FileUtils.mkdir_p(triggers_dir)

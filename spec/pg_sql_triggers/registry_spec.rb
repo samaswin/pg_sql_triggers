@@ -187,17 +187,16 @@ RSpec.describe PgSqlTriggers::Registry::Manager do
       function_body = "CREATE OR REPLACE FUNCTION #{function_name}() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql;"
 
       # Create registry entry
-      registry = create(:trigger_registry, :enabled, :dsl_source,
-        trigger_name: trigger_name,
-        table_name: "users",
-        checksum: "test_checksum",
-        definition: {}.to_json,
-        function_body: function_body
-      )
+      create(:trigger_registry, :enabled, :dsl_source,
+             trigger_name: trigger_name,
+             table_name: "users",
+             checksum: "test_checksum",
+             definition: {}.to_json,
+             function_body: function_body)
 
       # Create real trigger in database
       ActiveRecord::Base.connection.execute(function_body)
-      ActiveRecord::Base.connection.execute(<<~SQL)
+      ActiveRecord::Base.connection.execute(<<~SQL.squish)
         CREATE TRIGGER #{trigger_name} BEFORE INSERT ON users FOR EACH ROW EXECUTE FUNCTION #{function_name}();
       SQL
 
@@ -433,20 +432,17 @@ RSpec.describe PgSqlTriggers::Registry::Manager do
       it "reduces queries when preloading triggers" do
         # Create triggers first
         create(:trigger_registry, :disabled, :dsl_source,
-          trigger_name: "trigger1",
-          table_name: "users",
-          checksum: "abc"
-        )
+               trigger_name: "trigger1",
+               table_name: "users",
+               checksum: "abc")
         create(:trigger_registry, :disabled, :dsl_source,
-          trigger_name: "trigger2",
-          table_name: "posts",
-          checksum: "def"
-        )
+               trigger_name: "trigger2",
+               table_name: "posts",
+               checksum: "def")
         create(:trigger_registry, :disabled, :dsl_source,
-          trigger_name: "trigger3",
-          table_name: "comments",
-          checksum: "ghi"
-        )
+               trigger_name: "trigger3",
+               table_name: "comments",
+               checksum: "ghi")
 
         # Count SELECT queries to pg_sql_triggers_registry table
         select_query_count = 0
@@ -455,7 +451,7 @@ RSpec.describe PgSqlTriggers::Registry::Manager do
           sql = payload[:sql]
           if sql.include?("pg_sql_triggers_registry") && sql.match?(/SELECT.*FROM.*pg_sql_triggers_registry/i)
             # Count WHERE queries (batch queries from preload_triggers)
-            if sql.include?("WHERE") && sql.include?("trigger_name") && !sql.include?("LIMIT 1")
+            if sql.include?("WHERE") && sql.include?("trigger_name") && sql.exclude?("LIMIT 1")
               select_query_count += 1
             # Count find_by queries (single record lookups)
             elsif sql.include?("trigger_name") && sql.include?("LIMIT 1")
@@ -480,7 +476,6 @@ RSpec.describe PgSqlTriggers::Registry::Manager do
     end
   end
 
-  # rubocop:disable RSpec/NestedGroups
   describe "console API permission enforcement" do
     let(:actor) { { type: "User", id: 1 } }
     let!(:trigger) do

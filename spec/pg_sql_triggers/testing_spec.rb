@@ -5,18 +5,17 @@ require "spec_helper"
 RSpec.describe PgSqlTriggers::Testing::SyntaxValidator do
   let(:registry) do
     create(:trigger_registry, :disabled, :dsl_source,
-      trigger_name: "test_trigger",
-      table_name: "test_users",
-      checksum: "abc",
-      definition: {
-        name: "test_trigger",
-        table_name: "test_users",
-        function_name: "test_function",
-        events: ["insert"],
-        version: 1
-      }.to_json,
-      function_body: "CREATE OR REPLACE FUNCTION test_function() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql;"
-    )
+           trigger_name: "test_trigger",
+           table_name: "test_users",
+           checksum: "abc",
+           definition: {
+             name: "test_trigger",
+             table_name: "test_users",
+             function_name: "test_function",
+             events: ["insert"],
+             version: 1
+           }.to_json,
+           function_body: "CREATE OR REPLACE FUNCTION test_function() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql;")
   end
 
   let(:validator) { described_class.new(registry) }
@@ -239,19 +238,18 @@ end
 RSpec.describe PgSqlTriggers::Testing::DryRun do
   let(:registry) do
     create(:trigger_registry, :disabled, :dsl_source,
-      trigger_name: "test_trigger",
-      table_name: "test_users",
-      checksum: "abc",
-      definition: {
-        name: "test_trigger",
-        table_name: "test_users",
-        function_name: "test_function",
-        events: %w[insert update],
-        version: 1
-      }.to_json,
-      function_body: "CREATE OR REPLACE FUNCTION test_function() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql;",
-      condition: "NEW.status = 'active'"
-    )
+           trigger_name: "test_trigger",
+           table_name: "test_users",
+           checksum: "abc",
+           definition: {
+             name: "test_trigger",
+             table_name: "test_users",
+             function_name: "test_function",
+             events: %w[insert update],
+             version: 1
+           }.to_json,
+           function_body: "CREATE OR REPLACE FUNCTION test_function() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql;",
+           condition: "NEW.status = 'active'")
   end
 
   let(:dry_run) { described_class.new(registry) }
@@ -302,18 +300,17 @@ end
 RSpec.describe PgSqlTriggers::Testing::SafeExecutor do
   let(:registry) do
     create(:trigger_registry, :disabled, :dsl_source,
-      trigger_name: "test_trigger",
-      table_name: "test_users",
-      checksum: "abc",
-      definition: {
-        name: "test_trigger",
-        table_name: "test_users",
-        function_name: "test_function",
-        events: ["insert"],
-        version: 1
-      }.to_json,
-      function_body: "CREATE OR REPLACE FUNCTION test_function() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql;"
-    )
+           trigger_name: "test_trigger",
+           table_name: "test_users",
+           checksum: "abc",
+           definition: {
+             name: "test_trigger",
+             table_name: "test_users",
+             function_name: "test_function",
+             events: ["insert"],
+             version: 1
+           }.to_json,
+           function_body: "CREATE OR REPLACE FUNCTION test_function() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql;")
   end
 
   let(:executor) { described_class.new(registry) }
@@ -365,21 +362,20 @@ end
 RSpec.describe PgSqlTriggers::Testing::FunctionTester do
   # Use unique trigger name to avoid conflicts with other tests
   let(:trigger_name) { "test_trigger_function_tester_#{SecureRandom.hex(4)}" }
-  
+
   let(:registry) do
     create(:trigger_registry, :disabled, :dsl_source,
-      trigger_name: trigger_name,
-      table_name: "test_users",
-      checksum: "abc",
-      definition: {
-        name: trigger_name,
-        table_name: "test_users",
-        function_name: "test_function",
-        events: ["insert"],
-        version: 1
-      }.to_json,
-      function_body: "CREATE OR REPLACE FUNCTION test_function() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql;"
-    )
+           trigger_name: trigger_name,
+           table_name: "test_users",
+           checksum: "abc",
+           definition: {
+             name: trigger_name,
+             table_name: "test_users",
+             function_name: "test_function",
+             events: ["insert"],
+             version: 1
+           }.to_json,
+           function_body: "CREATE OR REPLACE FUNCTION test_function() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql;")
   end
 
   let(:tester) { described_class.new(registry) }

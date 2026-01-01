@@ -20,7 +20,7 @@ RSpec.describe PgSqlTriggers::SQL::Capsule do
     end
 
     it "accepts custom created_at timestamp" do
-      timestamp = Time.current - 1.hour
+      timestamp = 1.hour.ago
       capsule = described_class.new(
         name: "test",
         environment: "production",

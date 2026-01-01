@@ -33,8 +33,7 @@ RSpec.describe PgSqlTriggers::GeneratorController, type: :controller do
     allow(Rails).to receive(:root).and_return(Pathname.new(tmp_dir))
 
     # Set up current_actor via current_user_type/id (real controller actor setup)
-    allow(controller).to receive(:current_user_type).and_return(actor[:type])
-    allow(controller).to receive(:current_user_id).and_return(actor[:id])
+    allow(controller).to receive_messages(current_user_type: actor[:type], current_user_id: actor[:id])
 
     # Create test tables for real database introspection
     ActiveRecord::Base.connection.execute("CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, name VARCHAR)")
@@ -50,7 +49,7 @@ RSpec.describe PgSqlTriggers::GeneratorController, type: :controller do
     ActiveRecord::Base.connection.execute("DROP TABLE IF EXISTS posts CASCADE")
 
     # Clean up created trigger files
-    FileUtils.rm_rf(tmp_dir) if Dir.exist?(tmp_dir)
+    FileUtils.rm_rf(tmp_dir)
 
     # Clean up registry entries
     PgSqlTriggers::TriggerRegistry.where(trigger_name: "test_trigger").destroy_all
@@ -341,7 +340,7 @@ RSpec.describe PgSqlTriggers::GeneratorController, type: :controller do
         end
       end
 
-      it "rejects invalid WHEN condition" do
+      it "rejects invalid WHEN condition syntax" do
         with_all_permissions_allowed do
           with_kill_switch_disabled do
             invalid_condition_params = valid_params.deep_dup.tap do |p|
@@ -380,7 +379,7 @@ RSpec.describe PgSqlTriggers::GeneratorController, type: :controller do
         end
       end
 
-      it "rejects invalid condition syntax with real database" do
+      it "rejects invalid condition syntax during database validation" do
         with_all_permissions_allowed do
           with_kill_switch_disabled do
             invalid_condition_params = valid_params.deep_dup.tap do |p|

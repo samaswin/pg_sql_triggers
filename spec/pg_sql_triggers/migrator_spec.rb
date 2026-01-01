@@ -479,10 +479,10 @@ RSpec.describe PgSqlTriggers::Migrator do
       # Create a trigger in database for existing_trigger
       create_users_table
       begin
-        ActiveRecord::Base.connection.execute(<<~SQL)
+        ActiveRecord::Base.connection.execute(<<~SQL.squish)
           CREATE FUNCTION existing_function() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql;
         SQL
-        ActiveRecord::Base.connection.execute(<<~SQL)
+        ActiveRecord::Base.connection.execute(<<~SQL.squish)
           CREATE TRIGGER existing_trigger BEFORE INSERT ON users FOR EACH ROW EXECUTE FUNCTION existing_function();
         SQL
       rescue StandardError => _e
@@ -754,13 +754,13 @@ RSpec.describe PgSqlTriggers::Migrator do
       described_class.ensure_migrations_table!
     end
 
-    it "performs pre-apply comparison" do
+    it "performs pre-apply comparison before migration" do
       allow(PgSqlTriggers::SQL::KillSwitch).to receive(:check!).and_return(true)
       # Use real PreApplyComparator
       expect { described_class.run_up }.not_to raise_error
     end
 
-    it "logs differences when found" do
+    it "logs differences when pre-apply comparison finds them" do
       allow(PgSqlTriggers::SQL::KillSwitch).to receive(:check!).and_return(true)
       # Use real PreApplyComparator - it will log if differences are found
       expect { described_class.run_up }.not_to raise_error

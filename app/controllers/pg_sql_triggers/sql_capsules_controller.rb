@@ -69,11 +69,10 @@ module PgSqlTriggers
 
       if result[:success]
         flash[:notice] = result[:message]
-        redirect_to sql_capsule_path(id: params[:id])
       else
         flash[:alert] = result[:message]
-        redirect_to sql_capsule_path(id: params[:id])
       end
+      redirect_to sql_capsule_path(id: params[:id])
     rescue PgSqlTriggers::KillSwitchError => e
       flash[:alert] = "Kill switch blocked execution: #{e.message}"
       redirect_to sql_capsule_path(id: params[:id])
@@ -147,7 +146,7 @@ module PgSqlTriggers
     end
 
     def load_capsule
-      return unless params[:id].present?
+      return if params[:id].blank?
 
       @capsule = PgSqlTriggers::SQL::Executor.send(
         :load_capsule_from_registry,

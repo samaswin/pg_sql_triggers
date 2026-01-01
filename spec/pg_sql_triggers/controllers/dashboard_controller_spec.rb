@@ -11,15 +11,13 @@ RSpec.describe PgSqlTriggers::DashboardController, type: :controller do
     controller.prepend_view_path(engine_view_path) if controller.respond_to?(:prepend_view_path)
     # Create test triggers
     create(:trigger_registry, :enabled, :dsl_source,
-      trigger_name: "enabled_trigger",
-      table_name: "users",
-      checksum: "abc"
-    )
+           trigger_name: "enabled_trigger",
+           table_name: "users",
+           checksum: "abc")
     create(:trigger_registry, :disabled, :dsl_source,
-      trigger_name: "disabled_trigger",
-      table_name: "posts",
-      checksum: "def"
-    )
+           trigger_name: "disabled_trigger",
+           table_name: "posts",
+           checksum: "def")
   end
 
   describe "GET #index" do

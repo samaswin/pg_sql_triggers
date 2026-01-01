@@ -56,7 +56,9 @@ FactoryBot.define do
       checksum { "old_checksum_123" }
       after(:create) do |registry|
         # Ensure database has different function body
+        # rubocop:disable Rails/SkipsModelValidations
         registry.update_column(:checksum, "different_checksum")
+        # rubocop:enable Rails/SkipsModelValidations
       end
     end
 
@@ -106,7 +108,7 @@ FactoryBot.define do
       definition do
         {
           "timing" => "after",
-          "events" => ["insert", "update"],
+          "events" => %w[insert update],
           "for_each" => "row",
           "function" => "trigger_function_name"
         }.to_json

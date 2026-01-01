@@ -118,6 +118,21 @@ RSpec/MultipleExpectations:
 RSpec/SpecFilePathFormat:
   Enabled: false
 
+RSpec/AnyInstance:
+  Enabled: false
+
+RSpec/LetSetup:
+  Enabled: false
+
+RSpec/NestedGroups:
+  Enabled: false
+
+RSpec/VerifiedDoubles:
+  Enabled: false
+
+RSpec/RepeatedExample:
+  Enabled: false
+
 # Capybara
 Capybara/RSpec/PredicateMatcher:
   Enabled: false

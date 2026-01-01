@@ -45,7 +45,6 @@ RSpec.describe "Kill Switch Integration", type: :integration do
         drop_test_table(:users)
       end
 
-      # rubocop:disable RSpec/NestedGroups
       context "when in production environment" do
         before do
           allow(Rails).to receive(:env).and_return(ActiveSupport::StringInquirer.new("production"))

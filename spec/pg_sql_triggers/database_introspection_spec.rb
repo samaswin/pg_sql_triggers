@@ -51,13 +51,14 @@ RSpec.describe PgSqlTriggers::DatabaseIntrospection do
       # We'll use a transaction that we rollback to simulate a connection issue
       original_execute = ActiveRecord::Base.connection.method(:execute)
       call_count = 0
-      
+
       allow(ActiveRecord::Base.connection).to receive(:execute) do |sql, *args|
         call_count += 1
         # Raise error on the specific query used by list_tables
         if sql.to_s.include?("FROM information_schema.tables") && sql.to_s.include?("table_schema = 'public'")
-          raise StandardError.new("Connection error")
+          raise StandardError, "Connection error"
         end
+
         original_execute.call(sql, *args)
       end
 
@@ -173,10 +174,9 @@ RSpec.describe PgSqlTriggers::DatabaseIntrospection do
   describe "#tables_with_triggers" do
     before do
       create(:trigger_registry, :enabled, :dsl_source,
-        trigger_name: "registry_trigger",
-        table_name: "test_users",
-        checksum: "abc"
-      )
+             trigger_name: "registry_trigger",
+             table_name: "test_users",
+             checksum: "abc")
 
       ActiveRecord::Base.connection.execute("CREATE OR REPLACE FUNCTION db_trigger_function() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql;")
       ActiveRecord::Base.connection.execute("CREATE TRIGGER db_trigger BEFORE INSERT ON test_posts FOR EACH ROW EXECUTE FUNCTION db_trigger_function();")
@@ -210,12 +210,11 @@ RSpec.describe PgSqlTriggers::DatabaseIntrospection do
     it "handles errors when fetching database triggers" do
       # Use real database error scenario by intercepting the specific SQL query
       original_execute = ActiveRecord::Base.connection.method(:execute)
-      
+
       allow(ActiveRecord::Base.connection).to receive(:execute) do |sql, *args|
         # Raise error on the specific query used by tables_with_triggers for database triggers
-        if sql.to_s.include?("FROM pg_trigger t") && sql.to_s.include?("JOIN pg_class c")
-          raise StandardError.new("Error")
-        end
+        raise StandardError, "Error" if sql.to_s.include?("FROM pg_trigger t") && sql.to_s.include?("JOIN pg_class c")
+
         original_execute.call(sql, *args)
       end
 
@@ -234,10 +233,9 @@ RSpec.describe PgSqlTriggers::DatabaseIntrospection do
   describe "#table_triggers" do
     before do
       create(:trigger_registry, :enabled, :dsl_source,
-        trigger_name: "registry_trigger",
-        table_name: "test_users",
-        checksum: "abc"
-      )
+             trigger_name: "registry_trigger",
+             table_name: "test_users",
+             checksum: "abc")
 
       ActiveRecord::Base.connection.execute("CREATE OR REPLACE FUNCTION db_trigger_function() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql;")
       ActiveRecord::Base.connection.execute("CREATE TRIGGER db_trigger BEFORE INSERT ON test_users FOR EACH ROW EXECUTE FUNCTION db_trigger_function();")
@@ -262,12 +260,11 @@ RSpec.describe PgSqlTriggers::DatabaseIntrospection do
     it "handles errors when fetching database triggers" do
       # Use real database error scenario by intercepting the specific SQL query
       original_execute = ActiveRecord::Base.connection.method(:execute)
-      
+
       allow(ActiveRecord::Base.connection).to receive(:execute) do |sql, *args|
         # Raise error on the specific query used by table_triggers for database triggers
-        if sql.to_s.include?("FROM pg_trigger t") && sql.to_s.include?("c.relname =")
-          raise StandardError.new("Error")
-        end
+        raise StandardError, "Error" if sql.to_s.include?("FROM pg_trigger t") && sql.to_s.include?("c.relname =")
+
         original_execute.call(sql, *args)
       end
 

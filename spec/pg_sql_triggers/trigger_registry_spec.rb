@@ -123,10 +123,10 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
     it "delegates to Drift.detect" do
       # Create a real trigger in the database to get in_sync state
       create_users_table
-      ActiveRecord::Base.connection.execute(<<~SQL)
+      ActiveRecord::Base.connection.execute(<<~SQL.squish)
         CREATE OR REPLACE FUNCTION test_function() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql;
       SQL
-      ActiveRecord::Base.connection.execute(<<~SQL)
+      ActiveRecord::Base.connection.execute(<<~SQL.squish)
         CREATE TRIGGER test_trigger BEFORE INSERT ON users FOR EACH ROW EXECUTE FUNCTION test_function();
       SQL
 
@@ -146,10 +146,10 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
     context "when trigger exists in database" do
       before do
         create_users_table
-        ActiveRecord::Base.connection.execute(<<~SQL)
+        ActiveRecord::Base.connection.execute(<<~SQL.squish)
           CREATE OR REPLACE FUNCTION test_function() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql;
         SQL
-        ActiveRecord::Base.connection.execute(<<~SQL)
+        ActiveRecord::Base.connection.execute(<<~SQL.squish)
           CREATE TRIGGER test_trigger BEFORE INSERT ON users FOR EACH ROW EXECUTE FUNCTION test_function();
         SQL
       end
@@ -183,10 +183,10 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
     context "when trigger exists in database" do
       before do
         create_users_table
-        ActiveRecord::Base.connection.execute(<<~SQL)
+        ActiveRecord::Base.connection.execute(<<~SQL.squish)
           CREATE OR REPLACE FUNCTION test_function() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql;
         SQL
-        ActiveRecord::Base.connection.execute(<<~SQL)
+        ActiveRecord::Base.connection.execute(<<~SQL.squish)
           CREATE TRIGGER test_trigger BEFORE INSERT ON users FOR EACH ROW EXECUTE FUNCTION test_function();
         SQL
       end
@@ -229,7 +229,7 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
           registry.disable!(confirmation: "custom_confirmation")
         end.to raise_error(PgSqlTriggers::KillSwitchError)
       end
-      
+
       # With kill switch disabled, operation should proceed even with confirmation
       with_kill_switch_disabled do
         expect { registry.disable!(confirmation: "custom_confirmation") }.not_to raise_error
@@ -250,12 +250,10 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
       with_kill_switch_disabled do
         # Simulate database error during trigger disable
         allow(ActiveRecord::Base.connection).to receive(:execute).and_wrap_original do |original_method, sql, *args|
-          if sql.to_s.match?(/ALTER TABLE.*DISABLE TRIGGER/i)
-            raise ActiveRecord::StatementInvalid.new("Error")
-          end
+          raise ActiveRecord::StatementInvalid, "Error" if sql.to_s.match?(/ALTER TABLE.*DISABLE TRIGGER/i)
+
           original_method.call(sql, *args)
         end
-        # rubocop:disable RSpec/AnyInstance
         allow_any_instance_of(PgSqlTriggers::DatabaseIntrospection).to receive(:trigger_exists?).and_return(true)
         # rubocop:enable RSpec/AnyInstance
         expect { registry.disable! }.not_to raise_error
@@ -272,10 +270,10 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
     it "delegates to Drift::Detector.detect" do
       # Create a real trigger in the database to test drift detection
       create_users_table
-      ActiveRecord::Base.connection.execute(<<~SQL)
+      ActiveRecord::Base.connection.execute(<<~SQL.squish)
         CREATE OR REPLACE FUNCTION test_function() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql;
       SQL
-      ActiveRecord::Base.connection.execute(<<~SQL)
+      ActiveRecord::Base.connection.execute(<<~SQL.squish)
         CREATE TRIGGER test_trigger BEFORE INSERT ON users FOR EACH ROW EXECUTE FUNCTION test_function();
       SQL
 
@@ -295,10 +293,10 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
     it "returns true when drift_state is drifted" do
       # Create a trigger with mismatched checksum to get drifted state
       create_users_table
-      ActiveRecord::Base.connection.execute(<<~SQL)
+      ActiveRecord::Base.connection.execute(<<~SQL.squish)
         CREATE OR REPLACE FUNCTION test_function() RETURNS TRIGGER AS $$ BEGIN RETURN OLD; END; $$ LANGUAGE plpgsql;
       SQL
-      ActiveRecord::Base.connection.execute(<<~SQL)
+      ActiveRecord::Base.connection.execute(<<~SQL.squish)
         CREATE TRIGGER test_trigger BEFORE INSERT ON users FOR EACH ROW EXECUTE FUNCTION test_function();
       SQL
 
@@ -316,10 +314,10 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
       create_users_table
       # Update registry with matching function body
       registry.update!(function_body: "CREATE OR REPLACE FUNCTION test_function() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql;")
-      ActiveRecord::Base.connection.execute(<<~SQL)
+      ActiveRecord::Base.connection.execute(<<~SQL.squish)
         CREATE OR REPLACE FUNCTION test_function() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql;
       SQL
-      ActiveRecord::Base.connection.execute(<<~SQL)
+      ActiveRecord::Base.connection.execute(<<~SQL.squish)
         CREATE TRIGGER test_trigger BEFORE INSERT ON users FOR EACH ROW EXECUTE FUNCTION test_function();
       SQL
 
@@ -338,10 +336,10 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
     it "returns true when drift_state is in_sync" do
       create_users_table
       registry.update!(function_body: "CREATE OR REPLACE FUNCTION test_function() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql;")
-      ActiveRecord::Base.connection.execute(<<~SQL)
+      ActiveRecord::Base.connection.execute(<<~SQL.squish)
         CREATE OR REPLACE FUNCTION test_function() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql;
       SQL
-      ActiveRecord::Base.connection.execute(<<~SQL)
+      ActiveRecord::Base.connection.execute(<<~SQL.squish)
         CREATE TRIGGER test_trigger BEFORE INSERT ON users FOR EACH ROW EXECUTE FUNCTION test_function();
       SQL
 
@@ -356,10 +354,10 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
     it "returns false when drift_state is not in_sync" do
       create_users_table
       # Create trigger that doesn't match
-      ActiveRecord::Base.connection.execute(<<~SQL)
+      ActiveRecord::Base.connection.execute(<<~SQL.squish)
         CREATE OR REPLACE FUNCTION test_function() RETURNS TRIGGER AS $$ BEGIN RETURN OLD; END; $$ LANGUAGE plpgsql;
       SQL
-      ActiveRecord::Base.connection.execute(<<~SQL)
+      ActiveRecord::Base.connection.execute(<<~SQL.squish)
         CREATE TRIGGER test_trigger BEFORE INSERT ON users FOR EACH ROW EXECUTE FUNCTION test_function();
       SQL
 
@@ -387,10 +385,10 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
 
     it "returns false when drift_state is not dropped" do
       create_users_table
-      ActiveRecord::Base.connection.execute(<<~SQL)
+      ActiveRecord::Base.connection.execute(<<~SQL.squish)
         CREATE OR REPLACE FUNCTION test_function() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql;
       SQL
-      ActiveRecord::Base.connection.execute(<<~SQL)
+      ActiveRecord::Base.connection.execute(<<~SQL.squish)
         CREATE TRIGGER test_trigger BEFORE INSERT ON users FOR EACH ROW EXECUTE FUNCTION test_function();
       SQL
 
@@ -422,7 +420,7 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
           registry.enable!(confirmation: "custom_confirmation")
         end.to raise_error(PgSqlTriggers::KillSwitchError)
       end
-      
+
       # With kill switch disabled, operation should proceed even with confirmation
       with_kill_switch_disabled do
         expect { registry.enable!(confirmation: "custom_confirmation") }.not_to raise_error
@@ -442,9 +440,8 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
       with_kill_switch_disabled do
         # Simulate database error during trigger enable
         allow(ActiveRecord::Base.connection).to receive(:execute).and_wrap_original do |original_method, sql, *args|
-          if sql.to_s.match?(/ALTER TABLE.*ENABLE TRIGGER/i)
-            raise ActiveRecord::StatementInvalid.new("Error")
-          end
+          raise ActiveRecord::StatementInvalid, "Error" if sql.to_s.match?(/ALTER TABLE.*ENABLE TRIGGER/i)
+
           original_method.call(sql, *args)
         end
         # rubocop:disable RSpec/AnyInstance
@@ -461,12 +458,12 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
   describe "#drop!" do
     # Use unique trigger name to avoid conflicts with other tests
     let(:trigger_name) { "test_trigger_drop_#{SecureRandom.hex(4)}" }
-    
+
     let(:registry) do
       create(:trigger_registry, :enabled, :with_function_body,
-        trigger_name: trigger_name,
-        table_name: "test_table",
-        function_body: "CREATE OR REPLACE FUNCTION test_function() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql;")
+             trigger_name: trigger_name,
+             table_name: "test_table",
+             function_body: "CREATE OR REPLACE FUNCTION test_function() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql;")
     end
 
     let(:actor) { { type: "User", id: 1 } }
@@ -499,11 +496,11 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
     context "with valid reason and confirmation" do
       it "drops the trigger from database" do
         with_kill_switch_disabled do
-        # Verify trigger exists before drop
-        introspection = PgSqlTriggers::DatabaseIntrospection.new
-        expect(introspection.trigger_exists?(trigger_name)).to be true
+          # Verify trigger exists before drop
+          introspection = PgSqlTriggers::DatabaseIntrospection.new
+          expect(introspection.trigger_exists?(trigger_name)).to be true
 
-        registry.drop!(reason: "No longer needed", actor: actor)
+          registry.drop!(reason: "No longer needed", actor: actor)
 
           # Verify trigger was actually dropped from database
           expect(introspection.trigger_exists?(trigger_name)).to be false
@@ -512,8 +509,8 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
 
       it "removes registry entry" do
         with_kill_switch_disabled do
-        # Ensure registry exists before drop
-        registry.reload
+          # Ensure registry exists before drop
+          registry.reload
 
           expect do
             registry.drop!(reason: "Cleanup", actor: actor)
@@ -551,7 +548,7 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
             registry.drop!(reason: "Test", confirmation: "DROP TRIGGER", actor: actor)
           end.to raise_error(PgSqlTriggers::KillSwitchError)
         end
-        
+
         # With kill switch disabled, confirmation parameter is accepted but not required
         with_kill_switch_disabled do
           expect { registry.drop!(reason: "Test", confirmation: "DROP TRIGGER", actor: actor) }.not_to raise_error
@@ -672,7 +669,7 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
           # With kill switch disabled, operation should proceed
           expect { registry.drop!(reason: "Test", actor: actor) }.not_to raise_error
         end
-        
+
         with_kill_switch_protecting(Rails.env, confirmation_required: true) do
           # With kill switch protecting current environment, operation should be blocked
           expect { registry.drop!(reason: "Test", actor: actor) }.to raise_error(PgSqlTriggers::KillSwitchError)
@@ -692,12 +689,12 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
     # Use unique trigger name to avoid conflicts with other tests
     let(:trigger_name) { "test_trigger_re_execute_#{SecureRandom.hex(4)}" }
     let(:function_name) { "test_function_re_execute_#{SecureRandom.hex(4)}" }
-    
+
     let(:registry) do
       create(:trigger_registry, :enabled, :with_function_body,
-        trigger_name: trigger_name,
-        table_name: "test_table",
-        function_body: "CREATE OR REPLACE FUNCTION #{function_name}() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql; CREATE TRIGGER #{trigger_name} BEFORE INSERT ON test_table FOR EACH ROW EXECUTE FUNCTION #{function_name}();")
+             trigger_name: trigger_name,
+             table_name: "test_table",
+             function_body: "CREATE OR REPLACE FUNCTION #{function_name}() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql; CREATE TRIGGER #{trigger_name} BEFORE INSERT ON test_table FOR EACH ROW EXECUTE FUNCTION #{function_name}();")
     end
 
     let(:actor) { { type: "User", id: 1 } }
@@ -729,11 +726,11 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
     context "with valid reason and confirmation" do
       it "recreates trigger successfully" do
         with_kill_switch_disabled do
-        # Verify trigger exists before re-execute
-        introspection = PgSqlTriggers::DatabaseIntrospection.new
-        expect(introspection.trigger_exists?(trigger_name)).to be true
+          # Verify trigger exists before re-execute
+          introspection = PgSqlTriggers::DatabaseIntrospection.new
+          expect(introspection.trigger_exists?(trigger_name)).to be true
 
-        registry.re_execute!(reason: "Fix drift", actor: actor)
+          registry.re_execute!(reason: "Fix drift", actor: actor)
 
           # Verify trigger still exists after re-execute (it was dropped and recreated)
           expect(introspection.trigger_exists?(trigger_name)).to be true
@@ -781,7 +778,7 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
             registry.re_execute!(reason: "Fix drift", confirmation: "RE-EXECUTE", actor: actor)
           end.to raise_error(PgSqlTriggers::KillSwitchError)
         end
-        
+
         # With kill switch disabled, confirmation parameter is accepted but not required
         with_kill_switch_disabled do
           expect { registry.re_execute!(reason: "Fix drift", confirmation: "RE-EXECUTE", actor: actor) }.not_to raise_error
@@ -888,7 +885,7 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
         # This simulates database errors like syntax errors, permission issues, etc.
         # Construct the expected function_body string to avoid accessing registry before it's created
         expected_function_body = "CREATE OR REPLACE FUNCTION #{function_name}() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql; CREATE TRIGGER #{trigger_name} BEFORE INSERT ON test_table FOR EACH ROW EXECUTE FUNCTION #{function_name}();"
-        
+
         allow(ActiveRecord::Base.connection).to receive(:execute).and_wrap_original do |original_method, sql, *args|
           if sql.to_s.include?(expected_function_body)
             raise ActiveRecord::StatementInvalid, "PG::Error: simulated SQL error"
@@ -926,7 +923,7 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
           # With kill switch disabled, operation should proceed
           expect { registry.re_execute!(reason: "Fix", actor: actor) }.not_to raise_error
         end
-        
+
         with_kill_switch_protecting(Rails.env, confirmation_required: true) do
           # With kill switch protecting current environment, operation should be blocked
           expect { registry.re_execute!(reason: "Fix", actor: actor) }.to raise_error(PgSqlTriggers::KillSwitchError)
@@ -965,20 +962,20 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
 
       it "warns when drop fails but continues" do
         with_kill_switch_disabled do
-        # Drop actual trigger so CREATE won't fail with "already exists"
-        ActiveRecord::Base.connection.execute("DROP TRIGGER IF EXISTS #{trigger_name} ON test_table")
+          # Drop actual trigger so CREATE won't fail with "already exists"
+          ActiveRecord::Base.connection.execute("DROP TRIGGER IF EXISTS #{trigger_name} ON test_table")
 
-        # Stub DatabaseIntrospection to say trigger exists so DROP is attempted
-        introspection = instance_double(PgSqlTriggers::DatabaseIntrospection)
-        allow(PgSqlTriggers::DatabaseIntrospection).to receive(:new).and_return(introspection)
-        allow(introspection).to receive(:trigger_exists?).with(trigger_name).and_return(true)
+          # Stub DatabaseIntrospection to say trigger exists so DROP is attempted
+          introspection = instance_double(PgSqlTriggers::DatabaseIntrospection)
+          allow(PgSqlTriggers::DatabaseIntrospection).to receive(:new).and_return(introspection)
+          allow(introspection).to receive(:trigger_exists?).with(trigger_name).and_return(true)
 
-        # Stub connection execute to fail for DROP TRIGGER but allow other operations
-        allow(ActiveRecord::Base.connection).to receive(:execute).and_wrap_original do |original_method, sql, *args|
-          raise StandardError, "Drop failed" if sql.to_s.match?(/DROP TRIGGER/i)
+          # Stub connection execute to fail for DROP TRIGGER but allow other operations
+          allow(ActiveRecord::Base.connection).to receive(:execute).and_wrap_original do |original_method, sql, *args|
+            raise StandardError, "Drop failed" if sql.to_s.match?(/DROP TRIGGER/i)
 
-          original_method.call(sql, *args)
-        end
+            original_method.call(sql, *args)
+          end
 
           # Use real logger - verify it doesn't raise errors
           # Should still attempt to recreate and succeed
@@ -991,11 +988,11 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
   describe "private methods" do
     let(:registry) do
       create(:trigger_registry, :with_function_body, :with_condition,
-        trigger_name: "test_trigger",
-        table_name: "test_table",
-        checksum: "abc123",
-        function_body: "CREATE FUNCTION test() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql;",
-        condition: "NEW.status = 'active'")
+             trigger_name: "test_trigger",
+             table_name: "test_table",
+             checksum: "abc123",
+             function_body: "CREATE FUNCTION test() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql;",
+             condition: "NEW.status = 'active'")
     end
 
     describe "#quote_identifier" do

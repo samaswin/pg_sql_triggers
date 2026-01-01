@@ -7,10 +7,9 @@ RSpec.describe PgSqlTriggers::TriggersController, type: :controller do
 
   let(:trigger) do
     create(:trigger_registry, :enabled, :dsl_source,
-      trigger_name: "test_trigger",
-      table_name: "test_table",
-      checksum: "abc123"
-    )
+           trigger_name: "test_trigger",
+           table_name: "test_table",
+           checksum: "abc123")
   end
 
   before do
@@ -22,10 +21,9 @@ RSpec.describe PgSqlTriggers::TriggersController, type: :controller do
   describe "POST #enable" do
     let(:disabled_trigger) do
       create(:trigger_registry, :disabled, :dsl_source,
-        trigger_name: "disabled_trigger",
-        table_name: "test_table",
-        checksum: "def456"
-      )
+             trigger_name: "disabled_trigger",
+             table_name: "test_table",
+             checksum: "def456")
     end
 
     context "when trigger is successfully enabled" do
@@ -96,7 +94,7 @@ RSpec.describe PgSqlTriggers::TriggersController, type: :controller do
 
     context "when kill switch blocks operation" do
       before do
-        allow_any_instance_of(PgSqlTriggers::TriggersController)
+        allow_any_instance_of(described_class)
           .to receive(:check_kill_switch)
           .and_raise(PgSqlTriggers::KillSwitchError.new("Kill switch is active"))
       end
@@ -187,7 +185,7 @@ RSpec.describe PgSqlTriggers::TriggersController, type: :controller do
 
     context "when kill switch blocks operation" do
       before do
-        allow_any_instance_of(PgSqlTriggers::TriggersController)
+        allow_any_instance_of(described_class)
           .to receive(:check_kill_switch)
           .and_raise(PgSqlTriggers::KillSwitchError.new("Kill switch is active"))
       end
@@ -285,7 +283,7 @@ RSpec.describe PgSqlTriggers::TriggersController, type: :controller do
 
   describe "error handling hierarchy" do
     it "handles KillSwitchError before StandardError" do
-      allow_any_instance_of(PgSqlTriggers::TriggersController)
+      allow_any_instance_of(described_class)
         .to receive(:check_kill_switch)
         .and_raise(PgSqlTriggers::KillSwitchError.new("Blocked"))
 
@@ -439,7 +437,7 @@ RSpec.describe PgSqlTriggers::TriggersController, type: :controller do
 
     context "when kill switch blocks operation" do
       before do
-        allow_any_instance_of(PgSqlTriggers::TriggersController)
+        allow_any_instance_of(described_class)
           .to receive(:check_kill_switch)
           .and_raise(PgSqlTriggers::KillSwitchError.new("Kill switch active"))
       end
@@ -574,7 +572,7 @@ RSpec.describe PgSqlTriggers::TriggersController, type: :controller do
 
     context "when kill switch blocks operation" do
       before do
-        allow_any_instance_of(PgSqlTriggers::TriggersController)
+        allow_any_instance_of(described_class)
           .to receive(:check_kill_switch)
           .and_raise(PgSqlTriggers::KillSwitchError.new("Kill switch active"))
       end

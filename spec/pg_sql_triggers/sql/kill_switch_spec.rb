@@ -158,7 +158,6 @@ RSpec.describe PgSqlTriggers::SQL::KillSwitch do
         ENV["KILL_SWITCH_OVERRIDE"] = "true"
       end
 
-      # rubocop:disable RSpec/NestedGroups
       context "when confirmation is required" do
         before do
           ENV["CONFIRMATION_TEXT"] = "EXECUTE MIGRATE_UP"

@@ -296,13 +296,12 @@ RSpec.describe PgSqlTriggers::SQL::Executor do
     before do
       # Create a capsule in the registry
       create(:trigger_registry, :enabled, :manual_sql_source, :production,
-        trigger_name: "sql_capsule_existing",
-        table_name: "manual_sql_execution",
-        version: Time.current.to_i,
-        checksum: "abc123",
-        function_body: "SELECT 42;",
-        condition: "Test capsule purpose"
-      )
+             trigger_name: "sql_capsule_existing",
+             table_name: "manual_sql_execution",
+             version: Time.current.to_i,
+             checksum: "abc123",
+             function_body: "SELECT 42;",
+             condition: "Test capsule purpose")
     end
 
     context "when capsule exists in registry" do

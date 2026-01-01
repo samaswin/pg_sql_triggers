@@ -12,10 +12,9 @@ RSpec.describe PgSqlTriggers::TablesController, type: :controller do
     ActiveRecord::Base.connection.execute("CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, name VARCHAR)")
 
     create(:trigger_registry, :enabled, :dsl_source,
-      trigger_name: "user_trigger",
-      table_name: "users",
-      checksum: "abc"
-    )
+           trigger_name: "user_trigger",
+           table_name: "users",
+           checksum: "abc")
   end
 
   after do
