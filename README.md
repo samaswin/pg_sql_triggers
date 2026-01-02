@@ -97,8 +97,37 @@ Multi-layered safety mechanism preventing accidental destructive operations in p
 ### Web Dashboard
 Visual interface for managing triggers, running migrations, and executing SQL capsules.
 
+### SQL Capsules
+Emergency SQL execution feature for critical operations with Admin permission requirements, kill switch protection, and comprehensive logging.
+
+### Drop & Re-Execute Flow
+Operational controls for trigger lifecycle management with drop and re-execute capabilities, drift comparison, and required reason logging.
+
 ### Permissions
 Three-tier permission system (Viewer, Operator, Admin) with customizable authorization.
+
+## Console API
+
+PgSqlTriggers provides a comprehensive console API for managing triggers programmatically:
+
+```ruby
+# Enable/disable triggers
+PgSqlTriggers::Registry.enable("users_email_validation", actor: current_user, confirmation: "EXECUTE TRIGGER_ENABLE")
+PgSqlTriggers::Registry.disable("users_email_validation", actor: current_user, confirmation: "EXECUTE TRIGGER_DISABLE")
+
+# Drop and re-execute triggers
+PgSqlTriggers::Registry.drop("old_trigger", actor: current_user, reason: "No longer needed", confirmation: "EXECUTE TRIGGER_DROP")
+PgSqlTriggers::Registry.re_execute("drifted_trigger", actor: current_user, reason: "Fix drift", confirmation: "EXECUTE TRIGGER_RE_EXECUTE")
+
+# Execute SQL capsules
+capsule = PgSqlTriggers::SQL::Capsule.new(
+  name: "emergency_fix",
+  environment: "production",
+  purpose: "Fix critical data issue",
+  sql: "UPDATE users SET status = 'active' WHERE id = 123"
+)
+PgSqlTriggers::SQL::Executor.execute(capsule, actor: current_user, confirmation: "EXECUTE SQL")
+```
 
 ## Examples
 

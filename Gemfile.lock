@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    pg_sql_triggers (1.1.1)
+    pg_sql_triggers (1.2.0)
       pg (>= 1.0)
       rails (>= 6.1)
 

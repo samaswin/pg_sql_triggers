@@ -114,6 +114,102 @@ end
 
 **Returns**: `true` if all triggers are valid
 
+### `PgSqlTriggers::Registry.enable(trigger_name, actor:, confirmation: nil)`
+
+Enables a trigger with permission and kill switch checks.
+
+```ruby
+# Enable trigger
+PgSqlTriggers::Registry.enable(
+  "users_email_validation",
+  actor: { type: "user", id: "admin@example.com" },
+  confirmation: "EXECUTE TRIGGER_ENABLE"
+)
+
+# With current user as actor
+actor = { type: "user", id: current_user.email }
+PgSqlTriggers::Registry.enable("billing_trigger", actor: actor, confirmation: "EXECUTE TRIGGER_ENABLE")
+```
+
+**Parameters**:
+- `trigger_name` (String): The name of the trigger to enable
+- `actor` (Hash): Information about who is performing the operation (requires `:type` and `:id` keys)
+- `confirmation` (String, optional): Kill switch confirmation text
+
+**Raises**: `PgSqlTriggers::PermissionError`, `PgSqlTriggers::KillSwitchError`, `ArgumentError`
+
+**Returns**: `true` on success
+
+### `PgSqlTriggers::Registry.disable(trigger_name, actor:, confirmation: nil)`
+
+Disables a trigger with permission and kill switch checks.
+
+```ruby
+# Disable trigger
+PgSqlTriggers::Registry.disable(
+  "users_email_validation",
+  actor: { type: "user", id: "admin@example.com" },
+  confirmation: "EXECUTE TRIGGER_DISABLE"
+)
+```
+
+**Parameters**:
+- `trigger_name` (String): The name of the trigger to disable
+- `actor` (Hash): Information about who is performing the operation
+- `confirmation` (String, optional): Kill switch confirmation text
+
+**Raises**: `PgSqlTriggers::PermissionError`, `PgSqlTriggers::KillSwitchError`, `ArgumentError`
+
+**Returns**: `true` on success
+
+### `PgSqlTriggers::Registry.drop(trigger_name, actor:, reason:, confirmation: nil)`
+
+Drops a trigger from the database and removes it from the registry.
+
+```ruby
+# Drop trigger
+PgSqlTriggers::Registry.drop(
+  "old_trigger",
+  actor: { type: "user", id: "admin@example.com" },
+  reason: "No longer needed in production",
+  confirmation: "EXECUTE TRIGGER_DROP"
+)
+```
+
+**Parameters**:
+- `trigger_name` (String): The name of the trigger to drop
+- `actor` (Hash): Information about who is performing the operation (Admin permission required)
+- `reason` (String): Required explanation for why the trigger is being dropped (logged for audit)
+- `confirmation` (String, optional): Kill switch confirmation text
+
+**Raises**: `PgSqlTriggers::PermissionError`, `PgSqlTriggers::KillSwitchError`, `ArgumentError`
+
+**Returns**: `true` on success
+
+### `PgSqlTriggers::Registry.re_execute(trigger_name, actor:, reason:, confirmation: nil)`
+
+Re-executes a trigger by dropping and recreating it from the registry definition. Useful for fixing drifted triggers.
+
+```ruby
+# Re-execute drifted trigger
+PgSqlTriggers::Registry.re_execute(
+  "drifted_trigger",
+  actor: { type: "user", id: "admin@example.com" },
+  reason: "Fix drift detected in production",
+  confirmation: "EXECUTE TRIGGER_RE_EXECUTE"
+)
+```
+
+**Parameters**:
+- `trigger_name` (String): The name of the trigger to re-execute
+- `actor` (Hash): Information about who is performing the operation (Admin permission required)
+- `reason` (String): Required explanation for why the trigger is being re-executed (logged for audit)
+- `confirmation` (String, optional): Kill switch confirmation text
+
+**Raises**: `PgSqlTriggers::PermissionError`, `PgSqlTriggers::KillSwitchError`, `ArgumentError`
+
+**Returns**: `true` on success
+
 ## Migrator API
 
 The Migrator API manages trigger migrations programmatically.
@@ -318,6 +414,124 @@ end
 
 **Returns**: Result of the block
 
+## SQL Capsule API
+
+The SQL Capsule API provides emergency SQL execution capabilities with safety checks.
+
+### `PgSqlTriggers::SQL::Capsule.new(name:, environment:, purpose:, sql:, created_at: nil)`
+
+Creates a new SQL capsule for emergency operations.
+
+```ruby
+capsule = PgSqlTriggers::SQL::Capsule.new(
+  name: "fix_user_permissions",
+  environment: "production",
+  purpose: "Emergency fix for user permission issue after deployment",
+  sql: "UPDATE users SET role = 'admin' WHERE email = 'admin@example.com';"
+)
+```
+
+**Parameters**:
+- `name` (String): Unique name for the capsule (alphanumeric, underscores, hyphens only)
+- `environment` (String): Target environment (e.g., "production", "staging")
+- `purpose` (String): Description of what the capsule does and why (required for audit trail)
+- `sql` (String): The SQL statement(s) to execute
+- `created_at` (Time, optional): Creation timestamp (defaults to current time)
+
+**Raises**: `ArgumentError` if validation fails
+
+### `capsule.checksum`
+
+Returns the SHA256 checksum of the SQL content.
+
+```ruby
+capsule = PgSqlTriggers::SQL::Capsule.new(name: "fix", ...)
+puts capsule.checksum
+# => "a3f5b8c9d2e..."
+```
+
+**Returns**: String (SHA256 hash)
+
+### `capsule.to_h`
+
+Converts the capsule to a hash for storage or serialization.
+
+```ruby
+capsule_data = capsule.to_h
+# => {
+#   name: "fix_user_permissions",
+#   environment: "production",
+#   purpose: "Emergency fix...",
+#   sql: "UPDATE users...",
+#   checksum: "a3f5b8c9d2e...",
+#   created_at: 2026-01-01 12:00:00 UTC
+# }
+```
+
+**Returns**: Hash
+
+## SQL Executor API
+
+The SQL Executor API handles safe execution of SQL capsules with comprehensive logging.
+
+### `PgSqlTriggers::SQL::Executor.execute(capsule, actor:, confirmation: nil, dry_run: false)`
+
+Executes a SQL capsule with safety checks and logging.
+
+```ruby
+capsule = PgSqlTriggers::SQL::Capsule.new(
+  name: "emergency_fix",
+  environment: "production",
+  purpose: "Fix critical data corruption",
+  sql: "UPDATE orders SET status = 'completed' WHERE id IN (123, 456);"
+)
+
+# Execute the capsule
+result = PgSqlTriggers::SQL::Executor.execute(
+  capsule,
+  actor: { type: "user", id: "admin@example.com" },
+  confirmation: "EXECUTE SQL"
+)
+
+if result[:success]
+  puts "SQL executed successfully"
+  puts "Rows affected: #{result[:data][:rows_affected]}"
+else
+  puts "Execution failed: #{result[:message]}"
+end
+```
+
+**Parameters**:
+- `capsule` (Capsule): The SQL capsule to execute
+- `actor` (Hash): Information about who is executing (Admin permission required)
+- `confirmation` (String, optional): Kill switch confirmation text
+- `dry_run` (Boolean): If true, validates without executing (default: false)
+
+**Returns**: Hash with `:success`, `:message`, and `:data` keys
+
+**Raises**: Permission and kill switch errors are returned in the result hash
+
+### `PgSqlTriggers::SQL::Executor.execute_capsule(capsule_name, actor:, confirmation: nil, dry_run: false)`
+
+Executes a previously stored SQL capsule by name from the registry.
+
+```ruby
+# Execute a capsule stored in the registry
+result = PgSqlTriggers::SQL::Executor.execute_capsule(
+  "emergency_fix",
+  actor: { type: "user", id: "admin@example.com" },
+  confirmation: "EXECUTE SQL"
+)
+```
+
+**Parameters**:
+- `capsule_name` (String): Name of the capsule in the registry
+- `actor` (Hash): Information about who is executing
+- `confirmation` (String, optional): Kill switch confirmation text
+- `dry_run` (Boolean): If true, validates without executing
+
+**Returns**: Hash with execution results
+
 ## DSL API
 
 The DSL API is used to define triggers in your application.
@@ -487,17 +701,51 @@ trigger.disable!(confirmation: "EXECUTE TRIGGER_DISABLE")
 
 **Returns**: `true` on success
 
-#### `drop!(confirmation: nil)`
+#### `drop!(reason:, confirmation: nil, actor: nil)`
 
-Drops the trigger from the database.
+Drops the trigger from the database and removes it from the registry.
 
 ```ruby
-trigger = PgSqlTriggers::TriggerRegistry.find_by(trigger_name: "users_email_validation")
-trigger.drop!(confirmation: "EXECUTE TRIGGER_DROP")
+trigger = PgSqlTriggers::TriggerRegistry.find_by(trigger_name: "old_trigger")
+
+# Drop with reason (required)
+trigger.drop!(
+  reason: "No longer needed in production",
+  confirmation: "EXECUTE TRIGGER_DROP",
+  actor: { type: "user", id: "admin@example.com" }
+)
 ```
 
 **Parameters**:
+- `reason` (String, required): Explanation for why the trigger is being dropped (logged for audit trail)
 - `confirmation` (String, optional): Kill switch confirmation text
+- `actor` (Hash, optional): Information about who is performing the operation
+
+**Raises**: `ArgumentError` if reason is blank, `PgSqlTriggers::KillSwitchError`
+
+**Returns**: `true` on success
+
+#### `re_execute!(reason:, confirmation: nil, actor: nil)`
+
+Re-executes the trigger by dropping and recreating it from the registry definition. Useful for fixing drifted triggers.
+
+```ruby
+trigger = PgSqlTriggers::TriggerRegistry.find_by(trigger_name: "drifted_trigger")
+
+# Re-execute to fix drift
+trigger.re_execute!(
+  reason: "Fix drift detected after manual database changes",
+  confirmation: "EXECUTE TRIGGER_RE_EXECUTE",
+  actor: { type: "user", id: "admin@example.com" }
+)
+```
+
+**Parameters**:
+- `reason` (String, required): Explanation for why the trigger is being re-executed (logged for audit trail)
+- `confirmation` (String, optional): Kill switch confirmation text
+- `actor` (Hash, optional): Information about who is performing the operation
+
+**Raises**: `ArgumentError` if reason is blank or function_body is missing, `PgSqlTriggers::KillSwitchError`, `StandardError`
 
 **Returns**: `true` on success
 
