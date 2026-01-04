@@ -3,7 +3,7 @@
 require "spec_helper"
 
 RSpec.describe PgSqlTriggers::Drift::Detector do
-  let(:trigger_name) { "test_trigger" }
+  let(:trigger_name) { "test_trigger_detector_#{SecureRandom.hex(4)}" }
   let(:table_name) { "users" }
   let(:function_name) { "test_function" }
   let(:function_body) { "CREATE OR REPLACE FUNCTION test_function() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql;" }

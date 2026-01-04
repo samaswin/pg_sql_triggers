@@ -118,7 +118,8 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
   end
 
   describe "#drift_state" do
-    let(:registry) { create(:trigger_registry, :enabled, trigger_name: "test_trigger", table_name: "users") }
+    let(:trigger_name) { "test_trigger_drift_state_#{SecureRandom.hex(4)}" }
+    let(:registry) { create(:trigger_registry, :enabled, trigger_name: trigger_name, table_name: "users") }
 
     it "delegates to Drift.detect" do
       # Create a real trigger in the database to get in_sync state
@@ -127,21 +128,22 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
         CREATE OR REPLACE FUNCTION test_function() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql;
       SQL
       ActiveRecord::Base.connection.execute(<<~SQL.squish)
-        CREATE TRIGGER test_trigger BEFORE INSERT ON users FOR EACH ROW EXECUTE FUNCTION test_function();
+        CREATE TRIGGER #{trigger_name} BEFORE INSERT ON users FOR EACH ROW EXECUTE FUNCTION test_function();
       SQL
 
       result = registry.drift_state
       expect(result).to be_a(String)
       expect([PgSqlTriggers::DRIFT_STATE_IN_SYNC, PgSqlTriggers::DRIFT_STATE_DRIFTED, PgSqlTriggers::DRIFT_STATE_UNKNOWN]).to include(result)
     ensure
-      ActiveRecord::Base.connection.execute("DROP TRIGGER IF EXISTS test_trigger ON users")
+      ActiveRecord::Base.connection.execute("DROP TRIGGER IF EXISTS #{trigger_name} ON users")
       ActiveRecord::Base.connection.execute("DROP FUNCTION IF EXISTS test_function()")
       drop_test_table(:users)
     end
   end
 
   describe "#enable!" do
-    let(:registry) { create(:trigger_registry, :disabled, trigger_name: "test_trigger", table_name: "users") }
+    let(:trigger_name) { "test_trigger_enable_#{SecureRandom.hex(4)}" }
+    let(:registry) { create(:trigger_registry, :disabled, trigger_name: trigger_name, table_name: "users") }
 
     context "when trigger exists in database" do
       before do
@@ -150,12 +152,12 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
           CREATE OR REPLACE FUNCTION test_function() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql;
         SQL
         ActiveRecord::Base.connection.execute(<<~SQL.squish)
-          CREATE TRIGGER test_trigger BEFORE INSERT ON users FOR EACH ROW EXECUTE FUNCTION test_function();
+          CREATE TRIGGER #{trigger_name} BEFORE INSERT ON users FOR EACH ROW EXECUTE FUNCTION test_function();
         SQL
       end
 
       after do
-        ActiveRecord::Base.connection.execute("DROP TRIGGER IF EXISTS test_trigger ON users")
+        ActiveRecord::Base.connection.execute("DROP TRIGGER IF EXISTS #{trigger_name} ON users")
         ActiveRecord::Base.connection.execute("DROP FUNCTION IF EXISTS test_function()")
         drop_test_table(:users)
       rescue StandardError => _e
@@ -178,7 +180,8 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
   end
 
   describe "#disable!" do
-    let(:registry) { create(:trigger_registry, :enabled, trigger_name: "test_trigger", table_name: "users") }
+    let(:trigger_name) { "test_trigger_disable_#{SecureRandom.hex(4)}" }
+    let(:registry) { create(:trigger_registry, :enabled, trigger_name: trigger_name, table_name: "users") }
 
     context "when trigger exists in database" do
       before do
@@ -187,12 +190,12 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
           CREATE OR REPLACE FUNCTION test_function() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql;
         SQL
         ActiveRecord::Base.connection.execute(<<~SQL.squish)
-          CREATE TRIGGER test_trigger BEFORE INSERT ON users FOR EACH ROW EXECUTE FUNCTION test_function();
+          CREATE TRIGGER #{trigger_name} BEFORE INSERT ON users FOR EACH ROW EXECUTE FUNCTION test_function();
         SQL
       end
 
       after do
-        ActiveRecord::Base.connection.execute("DROP TRIGGER IF EXISTS test_trigger ON users")
+        ActiveRecord::Base.connection.execute("DROP TRIGGER IF EXISTS #{trigger_name} ON users")
         ActiveRecord::Base.connection.execute("DROP FUNCTION IF EXISTS test_function()")
         drop_test_table(:users)
       rescue StandardError => _e
@@ -266,7 +269,8 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
   end
 
   describe "#drift_result" do
-    let(:registry) { create(:trigger_registry, :enabled, trigger_name: "test_trigger", table_name: "users") }
+    let(:trigger_name) { "test_trigger_drift_result_#{SecureRandom.hex(4)}" }
+    let(:registry) { create(:trigger_registry, :enabled, trigger_name: trigger_name, table_name: "users") }
 
     it "delegates to Drift::Detector.detect" do
       # Create a real trigger in the database to test drift detection
@@ -275,21 +279,22 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
         CREATE OR REPLACE FUNCTION test_function() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql;
       SQL
       ActiveRecord::Base.connection.execute(<<~SQL.squish)
-        CREATE TRIGGER test_trigger BEFORE INSERT ON users FOR EACH ROW EXECUTE FUNCTION test_function();
+        CREATE TRIGGER #{trigger_name} BEFORE INSERT ON users FOR EACH ROW EXECUTE FUNCTION test_function();
       SQL
 
       result = registry.drift_result
       expect(result).to be_a(Hash)
       expect(result).to have_key(:state)
     ensure
-      ActiveRecord::Base.connection.execute("DROP TRIGGER IF EXISTS test_trigger ON users")
+      ActiveRecord::Base.connection.execute("DROP TRIGGER IF EXISTS #{trigger_name} ON users")
       ActiveRecord::Base.connection.execute("DROP FUNCTION IF EXISTS test_function()")
       drop_test_table(:users)
     end
   end
 
   describe "#drifted?" do
-    let(:registry) { create(:trigger_registry, :enabled, trigger_name: "test_trigger", table_name: "users") }
+    let(:trigger_name) { "test_trigger_drifted_#{SecureRandom.hex(4)}" }
+    let(:registry) { create(:trigger_registry, :enabled, trigger_name: trigger_name, table_name: "users") }
 
     it "returns true when drift_state is drifted" do
       # Create a trigger with mismatched checksum to get drifted state
@@ -298,14 +303,14 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
         CREATE OR REPLACE FUNCTION test_function() RETURNS TRIGGER AS $$ BEGIN RETURN OLD; END; $$ LANGUAGE plpgsql;
       SQL
       ActiveRecord::Base.connection.execute(<<~SQL.squish)
-        CREATE TRIGGER test_trigger BEFORE INSERT ON users FOR EACH ROW EXECUTE FUNCTION test_function();
+        CREATE TRIGGER #{trigger_name} BEFORE INSERT ON users FOR EACH ROW EXECUTE FUNCTION test_function();
       SQL
 
       # The drift_state will be determined by real drift detection
       result = registry.drifted?
       expect(result).to be_in([true, false])
     ensure
-      ActiveRecord::Base.connection.execute("DROP TRIGGER IF EXISTS test_trigger ON users")
+      ActiveRecord::Base.connection.execute("DROP TRIGGER IF EXISTS #{trigger_name} ON users")
       ActiveRecord::Base.connection.execute("DROP FUNCTION IF EXISTS test_function()")
       drop_test_table(:users)
     end
@@ -319,20 +324,21 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
         CREATE OR REPLACE FUNCTION test_function() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql;
       SQL
       ActiveRecord::Base.connection.execute(<<~SQL.squish)
-        CREATE TRIGGER test_trigger BEFORE INSERT ON users FOR EACH ROW EXECUTE FUNCTION test_function();
+        CREATE TRIGGER #{trigger_name} BEFORE INSERT ON users FOR EACH ROW EXECUTE FUNCTION test_function();
       SQL
 
       result = registry.drifted?
       expect(result).to be_in([true, false])
     ensure
-      ActiveRecord::Base.connection.execute("DROP TRIGGER IF EXISTS test_trigger ON users")
+      ActiveRecord::Base.connection.execute("DROP TRIGGER IF EXISTS #{trigger_name} ON users")
       ActiveRecord::Base.connection.execute("DROP FUNCTION IF EXISTS test_function()")
       drop_test_table(:users)
     end
   end
 
   describe "#in_sync?" do
-    let(:registry) { create(:trigger_registry, :enabled, trigger_name: "test_trigger", table_name: "users") }
+    let(:trigger_name) { "test_trigger_in_sync_#{SecureRandom.hex(4)}" }
+    let(:registry) { create(:trigger_registry, :enabled, trigger_name: trigger_name, table_name: "users") }
 
     it "returns true when drift_state is in_sync" do
       create_users_table
@@ -341,13 +347,13 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
         CREATE OR REPLACE FUNCTION test_function() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql;
       SQL
       ActiveRecord::Base.connection.execute(<<~SQL.squish)
-        CREATE TRIGGER test_trigger BEFORE INSERT ON users FOR EACH ROW EXECUTE FUNCTION test_function();
+        CREATE TRIGGER #{trigger_name} BEFORE INSERT ON users FOR EACH ROW EXECUTE FUNCTION test_function();
       SQL
 
       result = registry.in_sync?
       expect(result).to be_in([true, false])
     ensure
-      ActiveRecord::Base.connection.execute("DROP TRIGGER IF EXISTS test_trigger ON users")
+      ActiveRecord::Base.connection.execute("DROP TRIGGER IF EXISTS #{trigger_name} ON users")
       ActiveRecord::Base.connection.execute("DROP FUNCTION IF EXISTS test_function()")
       drop_test_table(:users)
     end
@@ -359,20 +365,21 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
         CREATE OR REPLACE FUNCTION test_function() RETURNS TRIGGER AS $$ BEGIN RETURN OLD; END; $$ LANGUAGE plpgsql;
       SQL
       ActiveRecord::Base.connection.execute(<<~SQL.squish)
-        CREATE TRIGGER test_trigger BEFORE INSERT ON users FOR EACH ROW EXECUTE FUNCTION test_function();
+        CREATE TRIGGER #{trigger_name} BEFORE INSERT ON users FOR EACH ROW EXECUTE FUNCTION test_function();
       SQL
 
       result = registry.in_sync?
       expect(result).to be_in([true, false])
     ensure
-      ActiveRecord::Base.connection.execute("DROP TRIGGER IF EXISTS test_trigger ON users")
+      ActiveRecord::Base.connection.execute("DROP TRIGGER IF EXISTS #{trigger_name} ON users")
       ActiveRecord::Base.connection.execute("DROP FUNCTION IF EXISTS test_function()")
       drop_test_table(:users)
     end
   end
 
   describe "#dropped?" do
-    let(:registry) { create(:trigger_registry, :enabled, trigger_name: "test_trigger", table_name: "users") }
+    let(:trigger_name) { "test_trigger_dropped_#{SecureRandom.hex(4)}" }
+    let(:registry) { create(:trigger_registry, :enabled, trigger_name: trigger_name, table_name: "users") }
 
     it "returns true when drift_state is dropped" do
       # Don't create trigger in DB - registry exists but trigger doesn't
@@ -390,20 +397,20 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
         CREATE OR REPLACE FUNCTION test_function() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql;
       SQL
       ActiveRecord::Base.connection.execute(<<~SQL.squish)
-        CREATE TRIGGER test_trigger BEFORE INSERT ON users FOR EACH ROW EXECUTE FUNCTION test_function();
+        CREATE TRIGGER #{trigger_name} BEFORE INSERT ON users FOR EACH ROW EXECUTE FUNCTION test_function();
       SQL
 
       result = registry.dropped?
       expect(result).to be_in([true, false])
     ensure
-      ActiveRecord::Base.connection.execute("DROP TRIGGER IF EXISTS test_trigger ON users")
+      ActiveRecord::Base.connection.execute("DROP TRIGGER IF EXISTS #{trigger_name} ON users")
       ActiveRecord::Base.connection.execute("DROP FUNCTION IF EXISTS test_function()")
       drop_test_table(:users)
     end
   end
 
   describe "#enable! edge cases" do
-    let(:registry) { create(:trigger_registry, :disabled, trigger_name: "test_trigger", table_name: "users") }
+    let(:registry) { create(:trigger_registry, :disabled, table_name: "users") }
 
     it "checks kill switch before enabling" do
       with_kill_switch_disabled do

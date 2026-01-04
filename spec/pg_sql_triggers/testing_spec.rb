@@ -3,13 +3,14 @@
 require "spec_helper"
 
 RSpec.describe PgSqlTriggers::Testing::SyntaxValidator do
+  let(:trigger_name) { "test_trigger_syntax_validator_#{SecureRandom.hex(4)}" }
   let(:registry) do
     create(:trigger_registry, :disabled, :dsl_source,
-           trigger_name: "test_trigger",
+           trigger_name: trigger_name,
            table_name: "test_users",
            checksum: "abc",
            definition: {
-             name: "test_trigger",
+             name: trigger_name,
              table_name: "test_users",
              function_name: "test_function",
              events: ["insert"],
@@ -236,13 +237,14 @@ RSpec.describe PgSqlTriggers::Testing::SyntaxValidator do
 end
 
 RSpec.describe PgSqlTriggers::Testing::DryRun do
+  let(:trigger_name) { "test_trigger_dry_run_#{SecureRandom.hex(4)}" }
   let(:registry) do
     create(:trigger_registry, :disabled, :dsl_source,
-           trigger_name: "test_trigger",
+           trigger_name: trigger_name,
            table_name: "test_users",
            checksum: "abc",
            definition: {
-             name: "test_trigger",
+             name: trigger_name,
              table_name: "test_users",
              function_name: "test_function",
              events: %w[insert update],
@@ -266,7 +268,7 @@ RSpec.describe PgSqlTriggers::Testing::DryRun do
       result = dry_run.generate_sql
       trigger_sql = result[:sql_parts].find { |p| p[:type] == "CREATE TRIGGER" }
       expect(trigger_sql).to be_present
-      expect(trigger_sql[:sql]).to include("CREATE TRIGGER test_trigger")
+      expect(trigger_sql[:sql]).to include("CREATE TRIGGER #{trigger_name}")
       expect(trigger_sql[:sql]).to include("BEFORE INSERT OR UPDATE ON test_users")
       expect(trigger_sql[:sql]).to include("FOR EACH ROW")
       expect(trigger_sql[:sql]).to include("EXECUTE FUNCTION test_function()")
@@ -283,7 +285,7 @@ RSpec.describe PgSqlTriggers::Testing::DryRun do
       expect(result[:estimated_impact]).to be_present
       expect(result[:estimated_impact][:tables_affected]).to include("test_users")
       expect(result[:estimated_impact][:functions_created]).to include("test_function")
-      expect(result[:estimated_impact][:triggers_created]).to include("test_trigger")
+      expect(result[:estimated_impact][:triggers_created]).to include(trigger_name)
     end
   end
 
@@ -298,13 +300,14 @@ RSpec.describe PgSqlTriggers::Testing::DryRun do
 end
 
 RSpec.describe PgSqlTriggers::Testing::SafeExecutor do
+  let(:trigger_name) { "test_trigger_safe_executor_#{SecureRandom.hex(4)}" }
   let(:registry) do
     create(:trigger_registry, :disabled, :dsl_source,
-           trigger_name: "test_trigger",
+           trigger_name: trigger_name,
            table_name: "test_users",
            checksum: "abc",
            definition: {
-             name: "test_trigger",
+             name: trigger_name,
              table_name: "test_users",
              function_name: "test_function",
              events: ["insert"],

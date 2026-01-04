@@ -6,9 +6,10 @@ require "fileutils"
 RSpec.describe PgSqlTriggers::Generator::Service do
   let(:tmp_dir) { Dir.mktmpdir }
   let(:rails_root) { Pathname.new(tmp_dir) }
+  let(:trigger_name) { "test_trigger_generator_#{SecureRandom.hex(4)}" }
   let(:form) do
     PgSqlTriggers::Generator::Form.new(
-      trigger_name: "test_trigger",
+      trigger_name: trigger_name,
       table_name: "users",
       function_name: "test_function",
       events: %w[insert update],
@@ -34,7 +35,7 @@ RSpec.describe PgSqlTriggers::Generator::Service do
     it "generates DSL trigger definition" do
       code = described_class.generate_dsl(form)
       expect(code).to include("PgSqlTriggers::DSL.pg_sql_trigger")
-      expect(code).to include('"test_trigger"')
+      expect(code).to include("\"#{trigger_name}\"")
       expect(code).to include("table :users")
       expect(code).to include("on :insert, :update")
       expect(code).to include("function :test_function")
@@ -406,7 +407,7 @@ RSpec.describe PgSqlTriggers::Generator::Service do
       result = described_class.create_trigger(form, actor: { type: "User", id: 1 })
 
       dsl_content = File.read(rails_root.join(result[:dsl_path]))
-      expect(dsl_content).to include('PgSqlTriggers::DSL.pg_sql_trigger "test_trigger"')
+      expect(dsl_content).to include("PgSqlTriggers::DSL.pg_sql_trigger \"#{trigger_name}\"")
       expect(dsl_content).to include("table :users")
       expect(dsl_content).to include("on :insert, :update")
       expect(dsl_content).to include("function :test_function")
@@ -416,7 +417,7 @@ RSpec.describe PgSqlTriggers::Generator::Service do
       result = described_class.create_trigger(form, actor: { type: "User", id: 1 })
 
       expect(result[:success]).to be true
-      registry = PgSqlTriggers::TriggerRegistry.find_by(trigger_name: "test_trigger")
+      registry = PgSqlTriggers::TriggerRegistry.find_by(trigger_name: trigger_name)
       expect(registry).to be_present
       expect(registry.table_name).to eq("users")
       expect(registry.source).to eq("dsl")
@@ -426,9 +427,9 @@ RSpec.describe PgSqlTriggers::Generator::Service do
     it "stores definition as JSON" do
       described_class.create_trigger(form, actor: { type: "User", id: 1 })
 
-      registry = PgSqlTriggers::TriggerRegistry.find_by(trigger_name: "test_trigger")
+      registry = PgSqlTriggers::TriggerRegistry.find_by(trigger_name: trigger_name)
       definition = JSON.parse(registry.definition)
-      expect(definition["name"]).to eq("test_trigger")
+      expect(definition["name"]).to eq(trigger_name)
       expect(definition["table_name"]).to eq("users")
       expect(definition["events"]).to eq(%w[insert update])
       expect(definition["timing"]).to eq("before")
@@ -439,7 +440,7 @@ RSpec.describe PgSqlTriggers::Generator::Service do
         form.timing = "after"
         described_class.create_trigger(form, actor: { type: "User", id: 1 })
 
-        registry = PgSqlTriggers::TriggerRegistry.find_by(trigger_name: "test_trigger")
+        registry = PgSqlTriggers::TriggerRegistry.find_by(trigger_name: trigger_name)
         expect(registry.timing).to eq("after") if PgSqlTriggers::TriggerRegistry.column_names.include?("timing")
       end
 
@@ -447,7 +448,7 @@ RSpec.describe PgSqlTriggers::Generator::Service do
         form.timing = "after"
         described_class.create_trigger(form, actor: { type: "User", id: 1 })
 
-        registry = PgSqlTriggers::TriggerRegistry.find_by(trigger_name: "test_trigger")
+        registry = PgSqlTriggers::TriggerRegistry.find_by(trigger_name: trigger_name)
         definition = JSON.parse(registry.definition)
         expect(definition["timing"]).to eq("after")
       end
@@ -495,7 +496,7 @@ RSpec.describe PgSqlTriggers::Generator::Service do
     it "calculates checksum" do
       described_class.create_trigger(form, actor: { type: "User", id: 1 })
 
-      registry = PgSqlTriggers::TriggerRegistry.find_by(trigger_name: "test_trigger")
+      registry = PgSqlTriggers::TriggerRegistry.find_by(trigger_name: trigger_name)
       expect(registry.checksum).to be_present
       expect(registry.checksum).not_to eq("placeholder")
     end
@@ -521,7 +522,7 @@ RSpec.describe PgSqlTriggers::Generator::Service do
         form.condition = "NEW.status = 'active'"
         described_class.create_trigger(form, actor: { type: "User", id: 1 })
 
-        registry = PgSqlTriggers::TriggerRegistry.find_by(trigger_name: "test_trigger")
+        registry = PgSqlTriggers::TriggerRegistry.find_by(trigger_name: trigger_name)
         expect(registry.condition).to eq("NEW.status = 'active'")
       end
 
@@ -529,7 +530,7 @@ RSpec.describe PgSqlTriggers::Generator::Service do
         form.condition = "NEW.id > 0"
         described_class.create_trigger(form, actor: { type: "User", id: 1 })
 
-        registry = PgSqlTriggers::TriggerRegistry.find_by(trigger_name: "test_trigger")
+        registry = PgSqlTriggers::TriggerRegistry.find_by(trigger_name: trigger_name)
         definition = JSON.parse(registry.definition)
         expect(definition["condition"]).to eq("NEW.id > 0")
       end
@@ -584,7 +585,7 @@ RSpec.describe PgSqlTriggers::Generator::Service do
       form.environments = %w[production staging]
       described_class.create_trigger(form, actor: { type: "User", id: 1 })
 
-      registry = PgSqlTriggers::TriggerRegistry.find_by(trigger_name: "test_trigger")
+      registry = PgSqlTriggers::TriggerRegistry.find_by(trigger_name: trigger_name)
       expect(registry.environment).to eq("production,staging")
     end
 
@@ -592,7 +593,7 @@ RSpec.describe PgSqlTriggers::Generator::Service do
       form.environments = []
       described_class.create_trigger(form, actor: { type: "User", id: 1 })
 
-      registry = PgSqlTriggers::TriggerRegistry.find_by(trigger_name: "test_trigger")
+      registry = PgSqlTriggers::TriggerRegistry.find_by(trigger_name: trigger_name)
       expect(registry.environment).to be_nil
     end
 
@@ -600,7 +601,7 @@ RSpec.describe PgSqlTriggers::Generator::Service do
       result = described_class.create_trigger(form, actor: { type: "User", id: 1 })
 
       expect(result[:metadata]).to be_present
-      expect(result[:metadata][:trigger_name]).to eq("test_trigger")
+      expect(result[:metadata][:trigger_name]).to eq(trigger_name)
       expect(result[:metadata][:table_name]).to eq("users")
       expect(result[:metadata][:events]).to eq(%w[insert update])
       expect(result[:metadata][:files_created]).to include(result[:migration_path], result[:dsl_path])
@@ -644,7 +645,7 @@ RSpec.describe PgSqlTriggers::Generator::Service do
 
       described_class.create_trigger(form, actor: { type: "User", id: 1 })
 
-      registry = PgSqlTriggers::TriggerRegistry.find_by(trigger_name: "test_trigger")
+      registry = PgSqlTriggers::TriggerRegistry.find_by(trigger_name: trigger_name)
       # Condition will be set if the column exists, nil otherwise
       expect(registry).to be_present
     end

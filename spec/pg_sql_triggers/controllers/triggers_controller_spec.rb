@@ -5,9 +5,10 @@ require "spec_helper"
 RSpec.describe PgSqlTriggers::TriggersController, type: :controller do
   routes { PgSqlTriggers::Engine.routes }
 
+  let(:trigger_name) { "test_trigger_controller_#{SecureRandom.hex(4)}" }
   let(:trigger) do
     create(:trigger_registry, :enabled, :dsl_source,
-           trigger_name: "test_trigger",
+           trigger_name: trigger_name,
            table_name: "test_table",
            checksum: "abc123")
   end
@@ -19,9 +20,11 @@ RSpec.describe PgSqlTriggers::TriggersController, type: :controller do
   end
 
   describe "POST #enable" do
+    let(:disabled_trigger_name) { "disabled_trigger_#{SecureRandom.hex(4)}" }
+    let(:function_name) { "disabled_trigger_function_#{SecureRandom.hex(4)}" }
     let(:disabled_trigger) do
       create(:trigger_registry, :disabled, :dsl_source,
-             trigger_name: "disabled_trigger",
+             trigger_name: disabled_trigger_name,
              table_name: "test_table",
              checksum: "def456",
              function_body: "BEGIN RETURN NEW; END;")
@@ -30,21 +33,20 @@ RSpec.describe PgSqlTriggers::TriggersController, type: :controller do
     before do
       # Set up test table and function for real trigger operations
       create_test_table(:test_table, columns: { name: :string })
-      function_name = "disabled_trigger_function"
       ActiveRecord::Base.connection.execute(<<~SQL.squish)
         CREATE OR REPLACE FUNCTION #{function_name}() RETURNS TRIGGER AS $$ 
         BEGIN RETURN NEW; END; 
         $$ LANGUAGE plpgsql;
       SQL
       ActiveRecord::Base.connection.execute(<<~SQL.squish)
-        CREATE TRIGGER disabled_trigger BEFORE INSERT ON test_table 
+        CREATE TRIGGER #{disabled_trigger_name} BEFORE INSERT ON test_table 
         FOR EACH ROW EXECUTE FUNCTION #{function_name}();
       SQL
     end
 
     after do
-      ActiveRecord::Base.connection.execute("DROP TRIGGER IF EXISTS disabled_trigger ON test_table")
-      ActiveRecord::Base.connection.execute("DROP FUNCTION IF EXISTS disabled_trigger_function()")
+      ActiveRecord::Base.connection.execute("DROP TRIGGER IF EXISTS #{disabled_trigger_name} ON test_table")
+      ActiveRecord::Base.connection.execute("DROP FUNCTION IF EXISTS #{function_name}()")
       drop_test_table(:test_table)
     rescue StandardError => _e
       # Ignore cleanup errors

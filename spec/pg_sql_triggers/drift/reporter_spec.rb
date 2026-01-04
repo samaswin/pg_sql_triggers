@@ -3,7 +3,7 @@
 require "spec_helper"
 
 RSpec.describe PgSqlTriggers::Drift::Reporter do
-  let(:trigger_name) { "test_trigger" }
+  let(:trigger_name) { "test_trigger_reporter_#{SecureRandom.hex(4)}" }
   let(:table_name) { "users" }
   let(:function_body) { "CREATE OR REPLACE FUNCTION test_function() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql;" }
   let(:condition) { "NEW.email IS NOT NULL" }

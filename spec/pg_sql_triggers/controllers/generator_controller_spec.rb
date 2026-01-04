@@ -6,10 +6,11 @@ require "fileutils"
 RSpec.describe PgSqlTriggers::GeneratorController, type: :controller do
   routes { PgSqlTriggers::Engine.routes }
 
+  let(:trigger_name) { "test_trigger_generator_controller_#{SecureRandom.hex(4)}" }
   let(:valid_params) do
     {
       pg_sql_triggers_generator_form: {
-        trigger_name: "test_trigger",
+        trigger_name: trigger_name,
         table_name: "users",
         function_name: "test_function",
         function_body: "CREATE OR REPLACE FUNCTION test_function() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql;",
@@ -52,8 +53,8 @@ RSpec.describe PgSqlTriggers::GeneratorController, type: :controller do
     FileUtils.rm_rf(tmp_dir)
 
     # Clean up registry entries
-    PgSqlTriggers::TriggerRegistry.where(trigger_name: "test_trigger").destroy_all
-    PgSqlTriggers::TriggerRegistry.where(trigger_name: "restored_trigger").destroy_all
+    PgSqlTriggers::TriggerRegistry.where(trigger_name: trigger_name).destroy_all if defined?(trigger_name)
+    PgSqlTriggers::TriggerRegistry.where("trigger_name LIKE ?", "restored_trigger_%").destroy_all
   end
 
   describe "GET #new" do
@@ -149,7 +150,7 @@ RSpec.describe PgSqlTriggers::GeneratorController, type: :controller do
           post :preview, params: valid_params
 
           expect(session[:generator_form_data]).to be_present
-          expect(session[:generator_form_data]["trigger_name"]).to eq("test_trigger")
+          expect(session[:generator_form_data]["trigger_name"]).to eq(trigger_name)
           expect(session[:generator_form_data]["table_name"]).to eq("users")
           expect(session[:generator_form_data]["function_name"]).to eq("test_function")
           expect(session[:generator_form_data]["events"]).to include("insert", "update")
@@ -198,7 +199,7 @@ RSpec.describe PgSqlTriggers::GeneratorController, type: :controller do
           post :preview, params: params_with_back
 
           expect(session[:generator_form_data]).to be_present
-          expect(session[:generator_form_data]["trigger_name"]).to eq("test_trigger")
+          expect(session[:generator_form_data]["trigger_name"]).to eq(trigger_name)
           expect(session[:generator_form_data]["table_name"]).to eq("users")
           expect(response).to redirect_to(new_generator_path)
         end
@@ -244,13 +245,13 @@ RSpec.describe PgSqlTriggers::GeneratorController, type: :controller do
           expect(flash[:notice]).to include("successfully")
 
           # Verify files were created
-          migration_files = Dir.glob(File.join(tmp_dir, "db/triggers/*_test_trigger.rb"))
-          dsl_files = Dir.glob(File.join(tmp_dir, "app/triggers/test_trigger.rb"))
+          migration_files = Dir.glob(File.join(tmp_dir, "db/triggers/*_#{trigger_name}.rb"))
+          dsl_files = Dir.glob(File.join(tmp_dir, "app/triggers/#{trigger_name}.rb"))
           expect(migration_files).not_to be_empty
           expect(dsl_files).not_to be_empty
 
           # Verify registry entry was created
-          registry = PgSqlTriggers::TriggerRegistry.find_by(trigger_name: "test_trigger")
+          registry = PgSqlTriggers::TriggerRegistry.find_by(trigger_name: trigger_name)
           expect(registry).to be_present
         end
       end
@@ -333,7 +334,7 @@ RSpec.describe PgSqlTriggers::GeneratorController, type: :controller do
             expect(flash[:notice]).to include("successfully")
 
             # Verify registry entry was created
-            registry = PgSqlTriggers::TriggerRegistry.find_by(trigger_name: "test_trigger")
+            registry = PgSqlTriggers::TriggerRegistry.find_by(trigger_name: trigger_name)
             expect(registry).to be_present
             expect(registry.condition).to eq("NEW.id > 0")
           end

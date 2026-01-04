@@ -181,8 +181,8 @@ RSpec.describe PgSqlTriggers::Registry::Manager do
     it "calls real drift detection and returns results" do
       # Create a real trigger in the database to test drift detection
       create_users_table
-      trigger_name = "test_diff_trigger"
-      function_name = "test_diff_function"
+      trigger_name = "test_diff_trigger_#{SecureRandom.hex(4)}"
+      function_name = "test_diff_function_#{SecureRandom.hex(4)}"
       function_body = "CREATE OR REPLACE FUNCTION #{function_name}() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql;"
 
       # Create registry entry
@@ -476,10 +476,11 @@ RSpec.describe PgSqlTriggers::Registry::Manager do
   end
 
   describe "console API permission enforcement" do
+    let(:trigger_name) { "test_trigger_permission_#{SecureRandom.hex(4)}" }
     let(:actor) { { type: "User", id: 1 } }
     let!(:trigger) do
       create(:trigger_registry, :disabled, :with_function_body,
-             trigger_name: "test_trigger",
+             trigger_name: trigger_name,
              table_name: "users",
              function_body: "CREATE OR REPLACE FUNCTION test_trigger_function() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql;")
     end
@@ -499,14 +500,14 @@ RSpec.describe PgSqlTriggers::Registry::Manager do
         it "enables the trigger" do
           # Use real enable! method
           expect do
-            PgSqlTriggers::Registry.enable("test_trigger", actor: actor)
+            PgSqlTriggers::Registry.enable(trigger_name, actor: actor)
           end.to change { trigger.reload.enabled }.from(false).to(true)
         end
 
         it "passes confirmation to enable!" do
           # Use real enable! method with confirmation
           expect do
-            PgSqlTriggers::Registry.enable("test_trigger", actor: actor, confirmation: "EXECUTE")
+            PgSqlTriggers::Registry.enable(trigger_name, actor: actor, confirmation: "EXECUTE")
           end.to change { trigger.reload.enabled }.from(false).to(true)
         end
       end
@@ -522,14 +523,14 @@ RSpec.describe PgSqlTriggers::Registry::Manager do
 
         it "raises PermissionError" do
           expect do
-            PgSqlTriggers::Registry.enable("test_trigger", actor: actor)
+            PgSqlTriggers::Registry.enable(trigger_name, actor: actor)
           end.to raise_error(PgSqlTriggers::PermissionError)
         end
 
         it "does not enable trigger" do
           expect do
             expect do
-              PgSqlTriggers::Registry.enable("test_trigger", actor: actor)
+              PgSqlTriggers::Registry.enable(trigger_name, actor: actor)
             end.to raise_error(PgSqlTriggers::PermissionError)
           end.not_to(change { trigger.reload.enabled })
         end
@@ -569,14 +570,14 @@ RSpec.describe PgSqlTriggers::Registry::Manager do
         it "disables the trigger" do
           # Use real disable! method
           expect do
-            PgSqlTriggers::Registry.disable("test_trigger", actor: actor)
+            PgSqlTriggers::Registry.disable(trigger_name, actor: actor)
           end.to change { trigger.reload.enabled }.from(true).to(false)
         end
 
         it "passes confirmation to disable!" do
           # Use real disable! method with confirmation
           expect do
-            PgSqlTriggers::Registry.disable("test_trigger", actor: actor, confirmation: "EXECUTE")
+            PgSqlTriggers::Registry.disable(trigger_name, actor: actor, confirmation: "EXECUTE")
           end.to change { trigger.reload.enabled }.from(true).to(false)
         end
       end
@@ -592,14 +593,14 @@ RSpec.describe PgSqlTriggers::Registry::Manager do
 
         it "raises PermissionError" do
           expect do
-            PgSqlTriggers::Registry.disable("test_trigger", actor: actor)
+            PgSqlTriggers::Registry.disable(trigger_name, actor: actor)
           end.to raise_error(PgSqlTriggers::PermissionError)
         end
 
         it "does not disable trigger" do
           expect do
             expect do
-              PgSqlTriggers::Registry.disable("test_trigger", actor: actor)
+              PgSqlTriggers::Registry.disable(trigger_name, actor: actor)
             end.to raise_error(PgSqlTriggers::PermissionError)
           end.not_to(change { trigger.reload.enabled })
         end
@@ -635,21 +636,21 @@ RSpec.describe PgSqlTriggers::Registry::Manager do
         it "drops the trigger" do
           # Use real drop! method
           expect do
-            PgSqlTriggers::Registry.drop("test_trigger", actor: actor, reason: "No longer needed")
+            PgSqlTriggers::Registry.drop(trigger_name, actor: actor, reason: "No longer needed")
           end.to change { PgSqlTriggers::TriggerRegistry.exists?(trigger.id) }.from(true).to(false)
         end
 
         it "passes confirmation to drop!" do
           # Use real drop! method with confirmation
           expect do
-            PgSqlTriggers::Registry.drop("test_trigger", actor: actor, reason: "Testing", confirmation: "DROP TRIGGER")
+            PgSqlTriggers::Registry.drop(trigger_name, actor: actor, reason: "Testing", confirmation: "DROP TRIGGER")
           end.to change { PgSqlTriggers::TriggerRegistry.exists?(trigger.id) }.from(true).to(false)
         end
 
         it "requires reason parameter" do
           # drop! method will raise ArgumentError if reason is missing
           expect do
-            PgSqlTriggers::Registry.drop("test_trigger", actor: actor, reason: nil)
+            PgSqlTriggers::Registry.drop(trigger_name, actor: actor, reason: nil)
           end.to raise_error(ArgumentError, /Reason is required/)
         end
       end
@@ -665,14 +666,14 @@ RSpec.describe PgSqlTriggers::Registry::Manager do
 
         it "raises PermissionError" do
           expect do
-            PgSqlTriggers::Registry.drop("test_trigger", actor: actor, reason: "Testing")
+            PgSqlTriggers::Registry.drop(trigger_name, actor: actor, reason: "Testing")
           end.to raise_error(PgSqlTriggers::PermissionError)
         end
 
         it "does not drop trigger" do
           expect do
             expect do
-              PgSqlTriggers::Registry.drop("test_trigger", actor: actor, reason: "Testing")
+              PgSqlTriggers::Registry.drop(trigger_name, actor: actor, reason: "Testing")
             end.to raise_error(PgSqlTriggers::PermissionError)
           end.not_to(change { PgSqlTriggers::TriggerRegistry.exists?(trigger.id) })
         end
@@ -708,21 +709,21 @@ RSpec.describe PgSqlTriggers::Registry::Manager do
         it "re-executes the trigger" do
           # Use real re_execute! method
           expect do
-            PgSqlTriggers::Registry.re_execute("test_trigger", actor: actor, reason: "Fix drift")
+            PgSqlTriggers::Registry.re_execute(trigger_name, actor: actor, reason: "Fix drift")
           end.not_to raise_error
         end
 
         it "passes confirmation to re_execute!" do
           # Use real re_execute! method with confirmation
           expect do
-            PgSqlTriggers::Registry.re_execute("test_trigger", actor: actor, reason: "Fix drift", confirmation: "RE-EXECUTE")
+            PgSqlTriggers::Registry.re_execute(trigger_name, actor: actor, reason: "Fix drift", confirmation: "RE-EXECUTE")
           end.not_to raise_error
         end
 
         it "requires reason parameter" do
           # re_execute! method will raise ArgumentError if reason is missing
           expect do
-            PgSqlTriggers::Registry.re_execute("test_trigger", actor: actor, reason: nil)
+            PgSqlTriggers::Registry.re_execute(trigger_name, actor: actor, reason: nil)
           end.to raise_error(ArgumentError, /Reason is required/)
         end
       end
@@ -738,13 +739,13 @@ RSpec.describe PgSqlTriggers::Registry::Manager do
 
         it "raises PermissionError" do
           expect do
-            PgSqlTriggers::Registry.re_execute("test_trigger", actor: actor, reason: "Fix drift")
+            PgSqlTriggers::Registry.re_execute(trigger_name, actor: actor, reason: "Fix drift")
           end.to raise_error(PgSqlTriggers::PermissionError)
         end
 
         it "does not re-execute trigger" do
           expect do
-            PgSqlTriggers::Registry.re_execute("test_trigger", actor: actor, reason: "Fix drift")
+            PgSqlTriggers::Registry.re_execute(trigger_name, actor: actor, reason: "Fix drift")
           end.to raise_error(PgSqlTriggers::PermissionError)
         end
       end
@@ -777,14 +778,14 @@ RSpec.describe PgSqlTriggers::Registry::Manager do
         # Verify that denying enable_trigger permission raises an error
         with_permission_checker(enable_trigger: false) do
           expect do
-            PgSqlTriggers::Registry.enable("test_trigger", actor: actor)
+            PgSqlTriggers::Registry.enable(trigger_name, actor: actor)
           end.to raise_error(PgSqlTriggers::PermissionError)
         end
 
         # Verify that allowing enable_trigger permission works
         with_permission_checker(enable_trigger: true) do
           expect do
-            PgSqlTriggers::Registry.enable("test_trigger", actor: actor)
+            PgSqlTriggers::Registry.enable(trigger_name, actor: actor)
           end.to change { trigger.reload.enabled }.from(false).to(true)
         end
       end
@@ -795,7 +796,7 @@ RSpec.describe PgSqlTriggers::Registry::Manager do
         # Verify that denying disable_trigger permission raises an error
         with_permission_checker(disable_trigger: false) do
           expect do
-            PgSqlTriggers::Registry.disable("test_trigger", actor: actor)
+            PgSqlTriggers::Registry.disable(trigger_name, actor: actor)
           end.to raise_error(PgSqlTriggers::PermissionError)
         end
 
@@ -803,7 +804,7 @@ RSpec.describe PgSqlTriggers::Registry::Manager do
         trigger.update!(enabled: true)
         with_permission_checker(disable_trigger: true) do
           expect do
-            PgSqlTriggers::Registry.disable("test_trigger", actor: actor)
+            PgSqlTriggers::Registry.disable(trigger_name, actor: actor)
           end.to change { trigger.reload.enabled }.from(true).to(false)
         end
       end
@@ -812,14 +813,14 @@ RSpec.describe PgSqlTriggers::Registry::Manager do
         # Verify that denying drop_trigger permission raises an error
         with_permission_checker(drop_trigger: false) do
           expect do
-            PgSqlTriggers::Registry.drop("test_trigger", actor: actor, reason: "Testing")
+            PgSqlTriggers::Registry.drop(trigger_name, actor: actor, reason: "Testing")
           end.to raise_error(PgSqlTriggers::PermissionError)
         end
 
         # Verify that allowing drop_trigger permission works
         with_permission_checker(drop_trigger: true) do
           expect do
-            PgSqlTriggers::Registry.drop("test_trigger", actor: actor, reason: "Testing")
+            PgSqlTriggers::Registry.drop(trigger_name, actor: actor, reason: "Testing")
           end.to change { PgSqlTriggers::TriggerRegistry.exists?(trigger.id) }.from(true).to(false)
         end
       end
@@ -828,14 +829,14 @@ RSpec.describe PgSqlTriggers::Registry::Manager do
         # Verify that denying drop_trigger permission raises an error for re_execute
         with_permission_checker(drop_trigger: false) do
           expect do
-            PgSqlTriggers::Registry.re_execute("test_trigger", actor: actor, reason: "Fix drift")
+            PgSqlTriggers::Registry.re_execute(trigger_name, actor: actor, reason: "Fix drift")
           end.to raise_error(PgSqlTriggers::PermissionError)
         end
 
         # Verify that allowing drop_trigger permission works for re_execute
         with_permission_checker(drop_trigger: true) do
           expect do
-            PgSqlTriggers::Registry.re_execute("test_trigger", actor: actor, reason: "Fix drift")
+            PgSqlTriggers::Registry.re_execute(trigger_name, actor: actor, reason: "Fix drift")
           end.not_to raise_error
         end
       end

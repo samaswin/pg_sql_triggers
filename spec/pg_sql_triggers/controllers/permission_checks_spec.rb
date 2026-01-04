@@ -3,9 +3,10 @@
 require "spec_helper"
 
 RSpec.describe "Permission checks across controllers", type: :controller do
+  let(:trigger_name) { "test_trigger_permission_checks_#{SecureRandom.hex(4)}" }
   let(:trigger) do
     create(:trigger_registry, :enabled, :dsl_source,
-           trigger_name: "test_trigger",
+           trigger_name: trigger_name,
            table_name: "test_table",
            checksum: "abc123")
   end
