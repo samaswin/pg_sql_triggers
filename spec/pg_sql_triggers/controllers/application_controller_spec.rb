@@ -94,6 +94,521 @@ RSpec.describe PgSqlTriggers::ApplicationController, type: :controller do
     end
   end
 
+  describe "PermissionChecking concern" do
+    describe "helper method declarations" do
+      it "exposes current_actor as a helper method" do
+        expect(controller.class._helper_methods).to include(:current_actor)
+      end
+
+      it "exposes can_view_triggers? as a helper method" do
+        expect(controller.class._helper_methods).to include(:can_view_triggers?)
+      end
+
+      it "exposes can_enable_disable_triggers? as a helper method" do
+        expect(controller.class._helper_methods).to include(:can_enable_disable_triggers?)
+      end
+
+      it "exposes can_drop_triggers? as a helper method" do
+        expect(controller.class._helper_methods).to include(:can_drop_triggers?)
+      end
+
+      it "exposes can_execute_sql? as a helper method" do
+        expect(controller.class._helper_methods).to include(:can_execute_sql?)
+      end
+
+      it "exposes can_generate_triggers? as a helper method" do
+        expect(controller.class._helper_methods).to include(:can_generate_triggers?)
+      end
+
+      it "exposes can_apply_triggers? as a helper method" do
+        expect(controller.class._helper_methods).to include(:can_apply_triggers?)
+      end
+    end
+
+    describe "#check_viewer_permission" do
+      let(:actor) { { type: "User", id: "123" } }
+      let(:environment) { "production" }
+
+      before do
+        allow(controller).to receive(:current_actor).and_return(actor)
+        allow(controller).to receive(:current_environment).and_return(environment)
+        allow(Rails.logger).to receive(:error)
+      end
+
+      context "when permission is granted" do
+        before do
+          allow(PgSqlTriggers::Permissions).to receive(:can?)
+            .with(actor, :view_triggers, environment: environment)
+            .and_return(true)
+        end
+
+        it "does not redirect" do
+          controller.send(:check_viewer_permission)
+          expect(response).not_to have_http_status(:redirect)
+        end
+
+        it "returns nil" do
+          result = controller.send(:check_viewer_permission)
+          expect(result).to be_nil
+        end
+      end
+
+      context "when permission is denied" do
+        before do
+          allow(PgSqlTriggers::Permissions).to receive(:can?)
+            .with(actor, :view_triggers, environment: environment)
+            .and_return(false)
+          allow(controller).to receive(:redirect_to)
+        end
+
+        it "redirects to root_path with alert message" do
+          controller.send(:check_viewer_permission)
+          expect(controller).to have_received(:redirect_to).with(
+            root_path,
+            alert: "Insufficient permissions. Viewer role required."
+          )
+        end
+      end
+
+      context "when permission check raises an error" do
+        let(:error) { StandardError.new("Permission system error") }
+
+        before do
+          allow(PgSqlTriggers::Permissions).to receive(:can?)
+            .with(actor, :view_triggers, environment: environment)
+            .and_raise(error)
+          allow(controller).to receive(:redirect_to)
+        end
+
+        it "logs the error" do
+          controller.send(:check_viewer_permission)
+          expect(Rails.logger).to have_received(:error).with(
+            /Permission check failed: Permission system error/
+          )
+        end
+
+        it "redirects to root_path with alert message" do
+          controller.send(:check_viewer_permission)
+          expect(controller).to have_received(:redirect_to).with(
+            root_path,
+            alert: "Insufficient permissions. Viewer role required."
+          )
+        end
+
+        it "handles the error gracefully" do
+          expect { controller.send(:check_viewer_permission) }.not_to raise_error
+        end
+      end
+    end
+
+    describe "#check_operator_permission" do
+      let(:actor) { { type: "User", id: "123" } }
+      let(:environment) { "production" }
+
+      before do
+        allow(controller).to receive(:current_actor).and_return(actor)
+        allow(controller).to receive(:current_environment).and_return(environment)
+        allow(Rails.logger).to receive(:error)
+      end
+
+      context "when permission is granted" do
+        before do
+          allow(PgSqlTriggers::Permissions).to receive(:can?)
+            .with(actor, :enable_trigger, environment: environment)
+            .and_return(true)
+        end
+
+        it "does not redirect" do
+          controller.send(:check_operator_permission)
+          expect(response).not_to have_http_status(:redirect)
+        end
+
+        it "returns nil" do
+          result = controller.send(:check_operator_permission)
+          expect(result).to be_nil
+        end
+      end
+
+      context "when permission is denied" do
+        before do
+          allow(PgSqlTriggers::Permissions).to receive(:can?)
+            .with(actor, :enable_trigger, environment: environment)
+            .and_return(false)
+          allow(controller).to receive(:redirect_to)
+        end
+
+        it "redirects to root_path with alert message" do
+          controller.send(:check_operator_permission)
+          expect(controller).to have_received(:redirect_to).with(
+            root_path,
+            alert: "Insufficient permissions. Operator role required."
+          )
+        end
+      end
+
+      context "when permission check raises an error" do
+        let(:error) { StandardError.new("Permission system error") }
+
+        before do
+          allow(PgSqlTriggers::Permissions).to receive(:can?)
+            .with(actor, :enable_trigger, environment: environment)
+            .and_raise(error)
+          allow(controller).to receive(:redirect_to)
+        end
+
+        it "logs the error" do
+          controller.send(:check_operator_permission)
+          expect(Rails.logger).to have_received(:error).with(
+            /Permission check failed: Permission system error/
+          )
+        end
+
+        it "redirects to root_path with alert message" do
+          controller.send(:check_operator_permission)
+          expect(controller).to have_received(:redirect_to).with(
+            root_path,
+            alert: "Insufficient permissions. Operator role required."
+          )
+        end
+
+        it "handles the error gracefully" do
+          expect { controller.send(:check_operator_permission) }.not_to raise_error
+        end
+      end
+    end
+
+    describe "#check_admin_permission" do
+      let(:actor) { { type: "User", id: "123" } }
+      let(:environment) { "production" }
+
+      before do
+        allow(controller).to receive(:current_actor).and_return(actor)
+        allow(controller).to receive(:current_environment).and_return(environment)
+        allow(Rails.logger).to receive(:error)
+      end
+
+      context "when permission is granted" do
+        before do
+          allow(PgSqlTriggers::Permissions).to receive(:can?)
+            .with(actor, :drop_trigger, environment: environment)
+            .and_return(true)
+        end
+
+        it "does not redirect" do
+          controller.send(:check_admin_permission)
+          expect(response).not_to have_http_status(:redirect)
+        end
+
+        it "returns nil" do
+          result = controller.send(:check_admin_permission)
+          expect(result).to be_nil
+        end
+      end
+
+      context "when permission is denied" do
+        before do
+          allow(PgSqlTriggers::Permissions).to receive(:can?)
+            .with(actor, :drop_trigger, environment: environment)
+            .and_return(false)
+          allow(controller).to receive(:redirect_to)
+        end
+
+        it "redirects to root_path with alert message" do
+          controller.send(:check_admin_permission)
+          expect(controller).to have_received(:redirect_to).with(
+            root_path,
+            alert: "Insufficient permissions. Admin role required."
+          )
+        end
+      end
+
+      context "when permission check raises an error" do
+        let(:error) { StandardError.new("Permission system error") }
+
+        before do
+          allow(PgSqlTriggers::Permissions).to receive(:can?)
+            .with(actor, :drop_trigger, environment: environment)
+            .and_raise(error)
+          allow(controller).to receive(:redirect_to)
+        end
+
+        it "logs the error" do
+          controller.send(:check_admin_permission)
+          expect(Rails.logger).to have_received(:error).with(
+            /Permission check failed: Permission system error/
+          )
+        end
+
+        it "redirects to root_path with alert message" do
+          controller.send(:check_admin_permission)
+          expect(controller).to have_received(:redirect_to).with(
+            root_path,
+            alert: "Insufficient permissions. Admin role required."
+          )
+        end
+
+        it "handles the error gracefully" do
+          expect { controller.send(:check_admin_permission) }.not_to raise_error
+        end
+      end
+    end
+
+    # Test PermissionChecking concern's can_* methods directly (not PermissionsHelper's overrides)
+    # by testing on a controller that only includes PermissionChecking
+    let(:permission_checking_controller_class) do
+      Class.new(ActionController::Base) do
+        include PgSqlTriggers::KillSwitchProtection
+        include PgSqlTriggers::PermissionChecking
+      end
+    end
+
+    describe "#can_view_triggers?" do
+      let(:test_controller) { permission_checking_controller_class.new }
+      let(:actor) { { type: "User", id: "123" } }
+      let(:environment) { "production" }
+
+      before do
+        allow(test_controller).to receive(:current_actor).and_return(actor)
+        allow(test_controller).to receive(:current_environment).and_return(environment)
+      end
+
+      context "when permission is granted" do
+        before do
+          allow(PgSqlTriggers::Permissions).to receive(:can?)
+            .with(actor, :view_triggers, environment: environment)
+            .and_return(true)
+        end
+
+        it "returns true" do
+          expect(test_controller.send(:can_view_triggers?)).to be true
+        end
+
+        it "calls Permissions.can? with correct arguments" do
+          test_controller.send(:can_view_triggers?)
+          expect(PgSqlTriggers::Permissions).to have_received(:can?)
+            .with(actor, :view_triggers, environment: environment)
+        end
+      end
+
+      context "when permission is denied" do
+        before do
+          allow(PgSqlTriggers::Permissions).to receive(:can?)
+            .with(actor, :view_triggers, environment: environment)
+            .and_return(false)
+        end
+
+        it "returns false" do
+          expect(test_controller.send(:can_view_triggers?)).to be false
+        end
+      end
+    end
+
+    describe "#can_enable_disable_triggers?" do
+      let(:test_controller) { permission_checking_controller_class.new }
+      let(:actor) { { type: "User", id: "123" } }
+      let(:environment) { "production" }
+
+      before do
+        allow(test_controller).to receive(:current_actor).and_return(actor)
+        allow(test_controller).to receive(:current_environment).and_return(environment)
+      end
+
+      context "when permission is granted" do
+        before do
+          allow(PgSqlTriggers::Permissions).to receive(:can?)
+            .with(actor, :enable_trigger, environment: environment)
+            .and_return(true)
+        end
+
+        it "returns true" do
+          expect(test_controller.send(:can_enable_disable_triggers?)).to be true
+        end
+
+        it "calls Permissions.can? with correct arguments" do
+          test_controller.send(:can_enable_disable_triggers?)
+          expect(PgSqlTriggers::Permissions).to have_received(:can?)
+            .with(actor, :enable_trigger, environment: environment)
+        end
+      end
+
+      context "when permission is denied" do
+        before do
+          allow(PgSqlTriggers::Permissions).to receive(:can?)
+            .with(actor, :enable_trigger, environment: environment)
+            .and_return(false)
+        end
+
+        it "returns false" do
+          expect(test_controller.send(:can_enable_disable_triggers?)).to be false
+        end
+      end
+    end
+
+    describe "#can_drop_triggers?" do
+      let(:test_controller) { permission_checking_controller_class.new }
+      let(:actor) { { type: "User", id: "123" } }
+      let(:environment) { "production" }
+
+      before do
+        allow(test_controller).to receive(:current_actor).and_return(actor)
+        allow(test_controller).to receive(:current_environment).and_return(environment)
+      end
+
+      context "when permission is granted" do
+        before do
+          allow(PgSqlTriggers::Permissions).to receive(:can?)
+            .with(actor, :drop_trigger, environment: environment)
+            .and_return(true)
+        end
+
+        it "returns true" do
+          expect(test_controller.send(:can_drop_triggers?)).to be true
+        end
+
+        it "calls Permissions.can? with correct arguments" do
+          test_controller.send(:can_drop_triggers?)
+          expect(PgSqlTriggers::Permissions).to have_received(:can?)
+            .with(actor, :drop_trigger, environment: environment)
+        end
+      end
+
+      context "when permission is denied" do
+        before do
+          allow(PgSqlTriggers::Permissions).to receive(:can?)
+            .with(actor, :drop_trigger, environment: environment)
+            .and_return(false)
+        end
+
+        it "returns false" do
+          expect(test_controller.send(:can_drop_triggers?)).to be false
+        end
+      end
+    end
+
+    describe "#can_execute_sql?" do
+      let(:test_controller) { permission_checking_controller_class.new }
+      let(:actor) { { type: "User", id: "123" } }
+      let(:environment) { "production" }
+
+      before do
+        allow(test_controller).to receive(:current_actor).and_return(actor)
+        allow(test_controller).to receive(:current_environment).and_return(environment)
+      end
+
+      context "when permission is granted" do
+        before do
+          allow(PgSqlTriggers::Permissions).to receive(:can?)
+            .with(actor, :execute_sql, environment: environment)
+            .and_return(true)
+        end
+
+        it "returns true" do
+          expect(test_controller.send(:can_execute_sql?)).to be true
+        end
+
+        it "calls Permissions.can? with correct arguments" do
+          test_controller.send(:can_execute_sql?)
+          expect(PgSqlTriggers::Permissions).to have_received(:can?)
+            .with(actor, :execute_sql, environment: environment)
+        end
+      end
+
+      context "when permission is denied" do
+        before do
+          allow(PgSqlTriggers::Permissions).to receive(:can?)
+            .with(actor, :execute_sql, environment: environment)
+            .and_return(false)
+        end
+
+        it "returns false" do
+          expect(test_controller.send(:can_execute_sql?)).to be false
+        end
+      end
+    end
+
+    describe "#can_generate_triggers?" do
+      let(:test_controller) { permission_checking_controller_class.new }
+      let(:actor) { { type: "User", id: "123" } }
+      let(:environment) { "production" }
+
+      before do
+        allow(test_controller).to receive(:current_actor).and_return(actor)
+        allow(test_controller).to receive(:current_environment).and_return(environment)
+      end
+
+      context "when permission is granted" do
+        before do
+          allow(PgSqlTriggers::Permissions).to receive(:can?)
+            .with(actor, :apply_trigger, environment: environment)
+            .and_return(true)
+        end
+
+        it "returns true" do
+          expect(test_controller.send(:can_generate_triggers?)).to be true
+        end
+
+        it "calls Permissions.can? with correct arguments" do
+          test_controller.send(:can_generate_triggers?)
+          expect(PgSqlTriggers::Permissions).to have_received(:can?)
+            .with(actor, :apply_trigger, environment: environment)
+        end
+      end
+
+      context "when permission is denied" do
+        before do
+          allow(PgSqlTriggers::Permissions).to receive(:can?)
+            .with(actor, :apply_trigger, environment: environment)
+            .and_return(false)
+        end
+
+        it "returns false" do
+          expect(test_controller.send(:can_generate_triggers?)).to be false
+        end
+      end
+    end
+
+    describe "#can_apply_triggers?" do
+      let(:test_controller) { permission_checking_controller_class.new }
+      let(:actor) { { type: "User", id: "123" } }
+      let(:environment) { "production" }
+
+      before do
+        allow(test_controller).to receive(:current_actor).and_return(actor)
+        allow(test_controller).to receive(:current_environment).and_return(environment)
+      end
+
+      context "when permission is granted" do
+        before do
+          allow(PgSqlTriggers::Permissions).to receive(:can?)
+            .with(actor, :apply_trigger, environment: environment)
+            .and_return(true)
+        end
+
+        it "returns true" do
+          expect(test_controller.send(:can_apply_triggers?)).to be true
+        end
+
+        it "calls Permissions.can? with correct arguments" do
+          test_controller.send(:can_apply_triggers?)
+          expect(PgSqlTriggers::Permissions).to have_received(:can?)
+            .with(actor, :apply_trigger, environment: environment)
+        end
+      end
+
+      context "when permission is denied" do
+        before do
+          allow(PgSqlTriggers::Permissions).to receive(:can?)
+            .with(actor, :apply_trigger, environment: environment)
+            .and_return(false)
+        end
+
+        it "returns false" do
+          expect(test_controller.send(:can_apply_triggers?)).to be false
+        end
+      end
+    end
+  end
+
   describe "helper methods" do
     it "exposes current_environment as a helper method" do
       # Helper methods are available in views, but we can test the method directly

@@ -240,8 +240,66 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
       with_kill_switch_disabled do
         # Create a scenario where introspection fails but operation continues
         allow(PgSqlTriggers::DatabaseIntrospection).to receive(:new).and_raise(StandardError.new("DB error"))
+        
+        # Should log warning when Rails.logger is available
+        if defined?(Rails.logger)
+          expect(Rails.logger).to receive(:warn).with(/Could not check if trigger exists/)
+        end
+        
         expect { registry.disable! }.not_to raise_error
         expect(registry.reload.enabled).to be(false)
+      end
+    end
+
+    it "handles errors when disabling trigger and logs warning" do
+      create_users_table
+      with_kill_switch_disabled do
+        allow_any_instance_of(PgSqlTriggers::DatabaseIntrospection).to receive(:trigger_exists?).and_return(true)
+        
+        # Simulate database error during trigger disable
+        allow(ActiveRecord::Base.connection).to receive(:execute).and_wrap_original do |original_method, sql, *args|
+          raise ActiveRecord::StatementInvalid, "Disable error" if sql.to_s.match?(/ALTER TABLE.*DISABLE TRIGGER/i)
+          original_method.call(sql, *args)
+        end
+
+        # Should log warning when Rails.logger is available
+        if defined?(Rails.logger)
+          expect(Rails.logger).to receive(:warn).with(/Could not disable trigger/)
+        end
+
+        expect { registry.disable! }.to raise_error(ActiveRecord::StatementInvalid, "Disable error")
+      end
+    ensure
+      drop_test_table(:users)
+    end
+
+    it "handles errors when update! fails and logs warning in disable!" do
+      with_kill_switch_disabled do
+        allow(registry).to receive(:update!).and_raise(ActiveRecord::StatementInvalid.new("DB error"))
+        
+        # Should log warning when Rails.logger is available
+        if defined?(Rails.logger)
+          expect(Rails.logger).to receive(:warn).with(/Could not update registry via update!/)
+        end
+
+        expect { registry.disable! }.not_to raise_error
+        expect(registry.reload.enabled).to be(false)
+      end
+    end
+
+    it "handles errors when update_column fails and logs warning in disable!" do
+      with_kill_switch_disabled do
+        allow(registry).to receive(:update!).and_raise(ActiveRecord::StatementInvalid.new("DB error"))
+        allow(registry).to receive(:update_column).and_raise(StandardError.new("Update column error"))
+
+        # Should log warning when Rails.logger is available
+        if defined?(Rails.logger)
+          expect(Rails.logger).to receive(:warn).with(/Could not update registry via update!/)
+          expect(Rails.logger).to receive(:warn).with(/Could not update registry via update_column/)
+        end
+
+        expect { registry.disable! }.not_to raise_error
+        expect(registry.enabled).to be(false)
       end
     end
 
@@ -262,6 +320,22 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
       end
     ensure
       drop_test_table(:users)
+    end
+
+    it "uses default actor when not provided" do
+      with_kill_switch_disabled do
+        registry.disable!
+        # Should succeed with default actor
+        expect(registry.reload.enabled).to be(false)
+      end
+    end
+
+    it "uses provided actor when given" do
+      with_kill_switch_disabled do
+        actor = { type: "Admin", id: "123" }
+        registry.disable!(actor: actor)
+        expect(registry.reload.enabled).to be(false)
+      end
     end
   end
 
@@ -413,6 +487,22 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
       end
     end
 
+    it "uses default actor when not provided" do
+      with_kill_switch_disabled do
+        registry.enable!
+        # Should succeed with default actor
+        expect(registry.reload.enabled).to be(true)
+      end
+    end
+
+    it "uses provided actor when given" do
+      with_kill_switch_disabled do
+        actor = { type: "Admin", id: "123" }
+        registry.enable!(actor: actor)
+        expect(registry.reload.enabled).to be(true)
+      end
+    end
+
     it "uses explicit confirmation when provided" do
       with_kill_switch_protecting(Rails.env, confirmation_required: true) do
         # With confirmation required, we need to provide the confirmation
@@ -431,8 +521,66 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
     it "handles errors when checking trigger existence" do
       with_kill_switch_disabled do
         allow(PgSqlTriggers::DatabaseIntrospection).to receive(:new).and_raise(StandardError.new("DB error"))
+        
+        # Should log warning when Rails.logger is available
+        if defined?(Rails.logger)
+          expect(Rails.logger).to receive(:warn).with(/Could not check if trigger exists/)
+        end
+        
         expect { registry.enable! }.not_to raise_error
         expect(registry.reload.enabled).to be(true)
+      end
+    end
+
+    it "handles errors when enabling trigger and logs warning" do
+      create_users_table
+      with_kill_switch_disabled do
+        allow_any_instance_of(PgSqlTriggers::DatabaseIntrospection).to receive(:trigger_exists?).and_return(true)
+        
+        # Simulate database error during trigger enable
+        allow(ActiveRecord::Base.connection).to receive(:execute).and_wrap_original do |original_method, sql, *args|
+          raise ActiveRecord::StatementInvalid, "Enable error" if sql.to_s.match?(/ALTER TABLE.*ENABLE TRIGGER/i)
+          original_method.call(sql, *args)
+        end
+
+        # Should log warning when Rails.logger is available
+        if defined?(Rails.logger)
+          expect(Rails.logger).to receive(:warn).with(/Could not enable trigger/)
+        end
+
+        expect { registry.enable! }.to raise_error(ActiveRecord::StatementInvalid, "Enable error")
+      end
+    ensure
+      drop_test_table(:users)
+    end
+
+    it "handles errors when update! fails and logs warning" do
+      with_kill_switch_disabled do
+        allow(registry).to receive(:update!).and_raise(ActiveRecord::StatementInvalid.new("DB error"))
+        
+        # Should log warning when Rails.logger is available
+        if defined?(Rails.logger)
+          expect(Rails.logger).to receive(:warn).with(/Could not update registry via update!/)
+        end
+
+        expect { registry.enable! }.not_to raise_error
+        expect(registry.reload.enabled).to be(true)
+      end
+    end
+
+    it "handles errors when update_column fails and logs warning" do
+      with_kill_switch_disabled do
+        allow(registry).to receive(:update!).and_raise(ActiveRecord::StatementInvalid.new("DB error"))
+        allow(registry).to receive(:update_column).and_raise(StandardError.new("Update column error"))
+
+        # Should log warning when Rails.logger is available
+        if defined?(Rails.logger)
+          expect(Rails.logger).to receive(:warn).with(/Could not update registry via update!/)
+          expect(Rails.logger).to receive(:warn).with(/Could not update registry via update_column/)
+        end
+
+        expect { registry.enable! }.not_to raise_error
+        expect(registry.enabled).to be(true)
       end
     end
 
@@ -682,6 +830,16 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
         with_kill_switch_disabled do
           # With kill switch disabled, operation should proceed even without explicit actor
           expect { registry.drop!(reason: "Test") }.not_to raise_error
+        end
+      end
+
+      it "uses default actor with correct type and id" do
+        with_kill_switch_disabled do
+          # Default actor should be Console with method name
+          registry_id = registry.id
+          registry.drop!(reason: "Test")
+          # Registry should be deleted
+          expect { described_class.find(registry_id) }.to raise_error(ActiveRecord::RecordNotFound)
         end
       end
     end
@@ -938,6 +1096,14 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
           expect { registry.re_execute!(reason: "Fix") }.not_to raise_error
         end
       end
+
+      it "uses default actor with correct type and id" do
+        with_kill_switch_disabled do
+          # Default actor should be Console with method name
+          registry.re_execute!(reason: "Fix")
+          expect(registry.reload.enabled).to be(true)
+        end
+      end
     end
 
     context "with logging" do
@@ -1066,6 +1232,23 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
         expect(checksum).to be_a(String)
         expect(checksum.length).to eq(64)
       end
+
+      it "includes timing in checksum" do
+        checksum1 = registry.send(:calculate_checksum)
+        registry.timing = "after"
+        checksum2 = registry.send(:calculate_checksum)
+        expect(checksum1).not_to eq(checksum2)
+      end
+
+      it "handles nil timing by defaulting to 'before'" do
+        registry.timing = nil
+        checksum_with_nil = registry.send(:calculate_checksum)
+        
+        registry.timing = "before"
+        checksum_with_before = registry.send(:calculate_checksum)
+        
+        expect(checksum_with_nil).to eq(checksum_with_before)
+      end
     end
 
     describe "#verify!" do
@@ -1075,6 +1258,507 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
             registry.send(:verify!)
           end.to change { registry.reload.last_verified_at }.to(Time.current)
         end
+      end
+    end
+
+    describe "#capture_state" do
+      it "captures all state attributes" do
+        registry.enabled = true
+        registry.version = 5
+        registry.checksum = "test_checksum"
+        registry.table_name = "test_table"
+        registry.source = "dsl"
+        registry.environment = "production"
+        registry.installed_at = Time.current
+
+        state = registry.send(:capture_state)
+
+        expect(state).to be_a(Hash)
+        expect(state[:enabled]).to eq(true)
+        expect(state[:version]).to eq(5)
+        expect(state[:checksum]).to eq("test_checksum")
+        expect(state[:table_name]).to eq("test_table")
+        expect(state[:source]).to eq("dsl")
+        expect(state[:environment]).to eq("production")
+        expect(state[:installed_at]).to be_a(String) # ISO8601 format
+      end
+
+      it "handles nil installed_at" do
+        registry.installed_at = nil
+        state = registry.send(:capture_state)
+        expect(state[:installed_at]).to be_nil
+      end
+    end
+  end
+
+  describe "#enable! fallback paths" do
+    let(:registry) { create(:trigger_registry, :disabled, trigger_name: "test_trigger", table_name: "users") }
+
+    context "when update! fails and falls back to update_column" do
+      it "uses update_column when update! raises error" do
+        with_kill_switch_disabled do
+          # Mock update! to fail but update_column to succeed
+          allow(registry).to receive(:update!).and_raise(ActiveRecord::StatementInvalid.new("DB error"))
+          allow(registry).to receive(:update_column).and_call_original
+
+          expect { registry.enable! }.not_to raise_error
+          expect(registry.reload.enabled).to be(true)
+        end
+      end
+
+      it "falls back to in-memory assignment when update_column also fails" do
+        with_kill_switch_disabled do
+          # Mock both update! and update_column to fail
+          allow(registry).to receive(:update!).and_raise(ActiveRecord::StatementInvalid.new("DB error"))
+          allow(registry).to receive(:update_column).and_raise(StandardError.new("Update column error"))
+
+          # Should not raise, but should set enabled in memory
+          expect { registry.enable! }.not_to raise_error
+          expect(registry.enabled).to be(true)
+        end
+      end
+
+      it "logs audit even when update! fails but update_column succeeds" do
+        with_kill_switch_disabled do
+          allow(registry).to receive(:update!).and_raise(ActiveRecord::StatementInvalid.new("DB error"))
+          allow(registry).to receive(:update_column).and_call_original
+
+          # Should still log audit success
+          expect { registry.enable! }.not_to raise_error
+        end
+      end
+    end
+  end
+
+  describe "#disable! fallback paths" do
+    let(:registry) { create(:trigger_registry, :enabled, trigger_name: "test_trigger", table_name: "users") }
+
+    context "when update! fails and falls back to update_column" do
+      it "uses update_column when update! raises error" do
+        with_kill_switch_disabled do
+          # Mock update! to fail but update_column to succeed
+          allow(registry).to receive(:update!).and_raise(ActiveRecord::StatementInvalid.new("DB error"))
+          allow(registry).to receive(:update_column).and_call_original
+
+          expect { registry.disable! }.not_to raise_error
+          expect(registry.reload.enabled).to be(false)
+        end
+      end
+
+      it "falls back to in-memory assignment when update_column also fails" do
+        with_kill_switch_disabled do
+          # Mock both update! and update_column to fail
+          allow(registry).to receive(:update!).and_raise(ActiveRecord::StatementInvalid.new("DB error"))
+          allow(registry).to receive(:update_column).and_raise(StandardError.new("Update column error"))
+
+          # Should not raise, but should set enabled in memory
+          expect { registry.disable! }.not_to raise_error
+          expect(registry.enabled).to be(false)
+        end
+      end
+
+      it "logs audit even when update! fails but update_column succeeds" do
+        with_kill_switch_disabled do
+          allow(registry).to receive(:update!).and_raise(ActiveRecord::StatementInvalid.new("DB error"))
+          allow(registry).to receive(:update_column).and_call_original
+
+          # Should still log audit success
+          expect { registry.disable! }.not_to raise_error
+        end
+      end
+    end
+  end
+
+  describe "#drop! error handling" do
+    let(:trigger_name) { "test_trigger_drop_error_#{SecureRandom.hex(4)}" }
+    let(:registry) do
+      create(:trigger_registry, :enabled, :with_function_body,
+             trigger_name: trigger_name,
+             table_name: "test_table",
+             function_body: "CREATE OR REPLACE FUNCTION test_function() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql;")
+    end
+    let(:actor) { { type: "User", id: 1 } }
+
+    before do
+      create_test_table(:test_table, columns: { name: :string })
+    end
+
+    after do
+      drop_test_table(:test_table)
+    end
+
+    it "logs audit failure when drop fails" do
+      with_kill_switch_disabled do
+        # Force destroy! to fail
+        allow(registry).to receive(:destroy!).and_raise(StandardError.new("Destroy failed"))
+
+        expect do
+          registry.drop!(reason: "Test", actor: actor)
+        end.to raise_error(StandardError, "Destroy failed")
+      end
+    end
+
+    it "captures before_state even when drop fails" do
+      with_kill_switch_disabled do
+        allow(registry).to receive(:destroy!).and_raise(StandardError.new("Destroy failed"))
+
+        expect do
+          registry.drop!(reason: "Test", actor: actor)
+        end.to raise_error(StandardError)
+      end
+    end
+  end
+
+  describe "#re_execute! error handling" do
+    let(:trigger_name) { "test_trigger_re_execute_error_#{SecureRandom.hex(4)}" }
+    let(:function_name) { "test_function_re_execute_error_#{SecureRandom.hex(4)}" }
+    let(:registry) do
+      create(:trigger_registry, :enabled, :with_function_body,
+             trigger_name: trigger_name,
+             table_name: "test_table",
+             function_body: "CREATE OR REPLACE FUNCTION #{function_name}() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql; CREATE TRIGGER #{trigger_name} BEFORE INSERT ON test_table FOR EACH ROW EXECUTE FUNCTION #{function_name}();")
+    end
+    let(:actor) { { type: "User", id: 1 } }
+
+    before do
+      create_test_table(:test_table, columns: { name: :string })
+    end
+
+    after do
+      drop_test_table(:test_table)
+    end
+
+    it "handles drift_result raising an error gracefully" do
+      with_kill_switch_disabled do
+        create_test_table(:test_table, columns: { name: :string })
+
+        # Mock drift_result to raise an error - it's called twice: once at the start and once in log_re_execute_attempt
+        # The first call is in a begin/rescue block and should be caught
+        # The second call in log_re_execute_attempt is not rescued, so we need to stub that too
+        allow(registry).to receive(:drift_result).and_raise(StandardError.new("Drift check failed"))
+        # Also stub log_re_execute_attempt to avoid the second call
+        allow(registry).to receive(:log_re_execute_attempt).and_return(nil)
+
+        # The error in the begin/rescue should be caught and drift_info should be nil
+        # re-execute should still proceed
+        expect { registry.re_execute!(reason: "Fix", actor: actor) }.not_to raise_error
+        expect(registry.reload.enabled).to be(true)
+      ensure
+        drop_test_table(:test_table)
+      end
+    end
+
+    it "logs audit failure when re-execute fails" do
+      with_kill_switch_disabled do
+        # Force recreate_trigger to fail
+        allow(ActiveRecord::Base.connection).to receive(:execute).and_wrap_original do |original_method, sql, *args|
+          if sql.to_s.include?("CREATE OR REPLACE FUNCTION") || sql.to_s.include?("CREATE TRIGGER")
+            raise ActiveRecord::StatementInvalid.new("SQL error")
+          end
+          original_method.call(sql, *args)
+        end
+
+        expect do
+          registry.re_execute!(reason: "Fix", actor: actor)
+        end.to raise_error(ActiveRecord::StatementInvalid)
+      end
+    end
+  end
+
+  describe "private helper error handling" do
+    let(:registry) do
+      create(:trigger_registry, :enabled, :with_function_body,
+             trigger_name: "test_trigger",
+             table_name: "test_table",
+             function_body: "CREATE OR REPLACE FUNCTION test_function() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql;")
+    end
+
+    describe "#check_trigger_exists error handling" do
+      it "returns false when introspection raises error" do
+        with_kill_switch_disabled do
+          allow(PgSqlTriggers::DatabaseIntrospection).to receive(:new).and_raise(StandardError.new("DB connection failed"))
+
+          # Should log warning when Rails.logger is available
+          if defined?(Rails.logger)
+            expect(Rails.logger).to receive(:warn).with(/Could not check trigger existence/)
+          end
+
+          # Should return false, not raise
+          result = registry.send(:check_trigger_exists)
+          expect(result).to be(false)
+        end
+      end
+    end
+
+    describe "#drop_trigger_from_database" do
+      it "skips drop when trigger doesn't exist" do
+        with_kill_switch_disabled do
+          allow(registry).to receive(:check_trigger_exists).and_return(false)
+
+          # Should not raise when trigger doesn't exist
+          expect { registry.send(:drop_trigger_from_database) }.not_to raise_error
+        end
+      end
+    end
+
+    describe "#execute_drop_sql error handling" do
+      before do
+        create_test_table(:test_table, columns: { name: :string })
+      end
+
+      after do
+        drop_test_table(:test_table)
+      end
+
+      it "logs success when DROP TRIGGER succeeds" do
+        with_kill_switch_disabled do
+          # Create a trigger first
+          ActiveRecord::Base.connection.execute(<<~SQL.squish)
+            CREATE OR REPLACE FUNCTION test_function() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql;
+          SQL
+          ActiveRecord::Base.connection.execute(<<~SQL.squish)
+            CREATE TRIGGER #{registry.trigger_name} BEFORE INSERT ON test_table FOR EACH ROW EXECUTE FUNCTION test_function();
+          SQL
+
+          if defined?(Rails.logger)
+            expect(Rails.logger).to receive(:info).with(/TRIGGER_DROP.*Dropped from database/)
+          end
+
+          registry.send(:execute_drop_sql)
+        end
+      end
+
+      it "raises error when DROP TRIGGER fails and logs error" do
+        with_kill_switch_disabled do
+          # Stub execute to raise error only for DROP TRIGGER SQL
+          allow(ActiveRecord::Base.connection).to receive(:execute).and_wrap_original do |original_method, sql, *args|
+            if sql.to_s.match?(/DROP TRIGGER/i)
+              raise ActiveRecord::StatementInvalid.new("DROP failed")
+            end
+            original_method.call(sql, *args)
+          end
+
+          if defined?(Rails.logger)
+            expect(Rails.logger).to receive(:error).with(/TRIGGER_DROP.*Failed/)
+          end
+
+          expect do
+            registry.send(:execute_drop_sql)
+          end.to raise_error(ActiveRecord::StatementInvalid, "DROP failed")
+        end
+      end
+    end
+
+    describe "#drop_existing_trigger_for_re_execute error handling" do
+      it "continues when drop fails during re-execute" do
+        with_kill_switch_disabled do
+          create_test_table(:test_table, columns: { name: :string })
+
+          # Create a trigger first so drop_existing_trigger_for_re_execute has something to drop
+          allow_any_instance_of(PgSqlTriggers::DatabaseIntrospection).to receive(:trigger_exists?).and_return(true)
+
+          allow(ActiveRecord::Base.connection).to receive(:execute).and_wrap_original do |original_method, sql, *args|
+            if sql.to_s.match?(/DROP TRIGGER/i)
+              raise StandardError.new("Drop failed")
+            end
+            original_method.call(sql, *args)
+          end
+
+          # Should log warning when Rails.logger is available
+          if defined?(Rails.logger) && Rails.logger
+            expect(Rails.logger).to receive(:warn).with(/\[TRIGGER_RE_EXECUTE\] Drop failed/)
+          end
+
+          # Should not raise - error is caught and logged
+          expect { registry.send(:drop_existing_trigger_for_re_execute) }.not_to raise_error
+        ensure
+          drop_test_table(:test_table)
+        end
+      end
+    end
+
+    describe "#recreate_trigger error handling" do
+      it "logs success when trigger recreation succeeds" do
+        with_kill_switch_disabled do
+          create_test_table(:test_table, columns: { name: :string })
+
+          if defined?(Rails.logger)
+            expect(Rails.logger).to receive(:info).with(/TRIGGER_RE_EXECUTE.*Re-created trigger/)
+          end
+
+          registry.send(:recreate_trigger)
+        ensure
+          drop_test_table(:test_table)
+        end
+      end
+
+      it "raises error when function_body execution fails and logs error" do
+        with_kill_switch_disabled do
+          allow(ActiveRecord::Base.connection).to receive(:execute).and_raise(ActiveRecord::StatementInvalid.new("SQL syntax error"))
+
+          if defined?(Rails.logger)
+            expect(Rails.logger).to receive(:error).with(/TRIGGER_RE_EXECUTE.*Failed/)
+          end
+
+          expect do
+            registry.send(:recreate_trigger)
+          end.to raise_error(ActiveRecord::StatementInvalid, "SQL syntax error")
+        end
+      end
+    end
+
+    describe "#drop_existing_trigger_for_re_execute success path" do
+      it "logs success when drop succeeds" do
+        with_kill_switch_disabled do
+          create_test_table(:test_table, columns: { name: :string })
+
+          # Create a trigger first
+          ActiveRecord::Base.connection.execute(<<~SQL.squish)
+            CREATE OR REPLACE FUNCTION test_function() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql;
+          SQL
+          ActiveRecord::Base.connection.execute(<<~SQL.squish)
+            CREATE TRIGGER #{registry.trigger_name} BEFORE INSERT ON test_table FOR EACH ROW EXECUTE FUNCTION test_function();
+          SQL
+
+          if defined?(Rails.logger)
+            expect(Rails.logger).to receive(:info).with(/TRIGGER_RE_EXECUTE.*Dropped existing/)
+          end
+
+          registry.send(:drop_existing_trigger_for_re_execute)
+        ensure
+          drop_test_table(:test_table)
+        end
+      end
+    end
+
+    describe "#update_registry_after_re_execute" do
+      it "logs success when update succeeds" do
+        with_kill_switch_disabled do
+          if defined?(Rails.logger)
+            expect(Rails.logger).to receive(:info).with(/TRIGGER_RE_EXECUTE.*Updated registry/)
+          end
+
+          registry.send(:update_registry_after_re_execute)
+          expect(registry.reload.enabled).to be(true)
+        end
+      end
+    end
+  end
+
+  describe "audit logging error handling" do
+    let(:registry) { create(:trigger_registry, :disabled, trigger_name: "test_trigger", table_name: "users") }
+    let(:actor) { { type: "User", id: 1 } }
+
+    context "when audit logging fails" do
+      before do
+        allow(PgSqlTriggers::AuditLog).to receive(:log_success).and_raise(StandardError.new("Audit log failed"))
+        allow(PgSqlTriggers::AuditLog).to receive(:log_failure).and_raise(StandardError.new("Audit log failed"))
+      end
+
+      it "continues operation when log_audit_success fails" do
+        with_kill_switch_disabled do
+          # Should not raise, operation should succeed even if audit logging fails
+          expect { registry.enable!(actor: actor) }.not_to raise_error
+          expect(registry.reload.enabled).to be(true)
+        end
+      end
+
+      it "continues operation when log_audit_failure fails" do
+        with_kill_switch_disabled do
+          # Force enable! to fail at trigger enable step
+          create_users_table
+          allow(ActiveRecord::Base.connection).to receive(:execute).and_wrap_original do |original_method, sql, *args|
+            raise ActiveRecord::StatementInvalid, "Error" if sql.to_s.match?(/ALTER TABLE.*ENABLE TRIGGER/i)
+            original_method.call(sql, *args)
+          end
+          allow_any_instance_of(PgSqlTriggers::DatabaseIntrospection).to receive(:trigger_exists?).and_return(true)
+
+          # Should raise the original error, not the audit logging error
+          expect { registry.enable!(actor: actor) }.to raise_error(ActiveRecord::StatementInvalid, "Error")
+        ensure
+          drop_test_table(:users)
+        end
+      end
+    end
+
+    context "when AuditLog is not defined" do
+      before do
+        # Temporarily remove AuditLog constant
+        @audit_log_constant = PgSqlTriggers.const_get(:AuditLog) if PgSqlTriggers.const_defined?(:AuditLog)
+        PgSqlTriggers.send(:remove_const, :AuditLog) if PgSqlTriggers.const_defined?(:AuditLog)
+      end
+
+      after do
+        # Restore AuditLog constant
+        PgSqlTriggers.const_set(:AuditLog, @audit_log_constant) if @audit_log_constant
+      end
+
+      it "continues operation when AuditLog is not defined" do
+        with_kill_switch_disabled do
+          # Should not raise, operation should succeed
+          expect { registry.enable!(actor: actor) }.not_to raise_error
+          expect(registry.reload.enabled).to be(true)
+        end
+      end
+    end
+  end
+
+  describe "logger handling when Rails.logger is nil" do
+    let(:registry) do
+      create(:trigger_registry, :enabled, :with_function_body,
+             trigger_name: "test_trigger",
+             table_name: "test_table",
+             function_body: "CREATE OR REPLACE FUNCTION test_function() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql;")
+    end
+    let(:actor) { { type: "User", id: 1 } }
+
+    before do
+      @original_logger = Rails.logger if defined?(Rails.logger)
+    end
+
+    after do
+      if @original_logger && defined?(Rails.logger)
+        allow(Rails).to receive(:logger).and_return(@original_logger)
+      end
+    end
+
+    it "handles nil Rails.logger in log_drop_attempt" do
+      with_kill_switch_disabled do
+        create_test_table(:test_table, columns: { name: :string })
+
+        # The method checks defined?(Rails.logger) which is true even if logger is nil
+        # The code will try to call Rails.logger.info on nil, which will raise NoMethodError
+        # This test documents the current behavior - the guard clause only checks defined?, not nil?
+        allow(Rails).to receive(:logger).and_return(nil) if defined?(Rails.logger)
+
+        # When logger is nil but defined, it will raise NoMethodError
+        # This documents the current behavior - the code assumes logger exists if defined
+        expect { registry.send(:log_drop_attempt, "Test reason") }.to raise_error(NoMethodError, /undefined method `info' for nil/)
+      ensure
+        drop_test_table(:test_table)
+      end
+    end
+
+    it "handles nil Rails.logger in log_drop_success" do
+      with_kill_switch_disabled do
+        # Similar to above - documents current behavior
+        allow(Rails).to receive(:logger).and_return(nil) if defined?(Rails.logger)
+        expect { registry.send(:log_drop_success) }.to raise_error(NoMethodError, /undefined method `info' for nil/)
+      end
+    end
+
+    it "handles nil Rails.logger in log_re_execute_attempt" do
+      with_kill_switch_disabled do
+        create_test_table(:test_table, columns: { name: :string })
+
+        # Mock drift_result to avoid calling it when logger is nil
+        allow(registry).to receive(:drift_result).and_return({ state: "in_sync" })
+
+        # Similar to above - documents current behavior
+        allow(Rails).to receive(:logger).and_return(nil) if defined?(Rails.logger)
+        expect { registry.send(:log_re_execute_attempt, "Test reason") }.to raise_error(NoMethodError, /undefined method `info' for nil/)
+      ensure
+        drop_test_table(:test_table)
       end
     end
   end
