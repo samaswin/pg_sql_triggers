@@ -41,7 +41,13 @@ module PgSqlTriggers
     #
     # @raise [ActionController::RedirectError] Redirects if permission denied
     def check_viewer_permission
-      unless PgSqlTriggers::Permissions.can?(current_actor, :view_triggers, environment: current_environment)
+      can_access = begin
+        PgSqlTriggers::Permissions.can?(current_actor, :view_triggers, environment: current_environment)
+      rescue StandardError => e
+        Rails.logger.error("Permission check failed: #{e.message}\n#{e.backtrace.join("\n")}")
+        false
+      end
+      unless can_access
         redirect_to root_path, alert: "Insufficient permissions. Viewer role required."
       end
     end
@@ -50,7 +56,13 @@ module PgSqlTriggers
     #
     # @raise [ActionController::RedirectError] Redirects if permission denied
     def check_operator_permission
-      unless PgSqlTriggers::Permissions.can?(current_actor, :enable_trigger, environment: current_environment)
+      can_access = begin
+        PgSqlTriggers::Permissions.can?(current_actor, :enable_trigger, environment: current_environment)
+      rescue StandardError => e
+        Rails.logger.error("Permission check failed: #{e.message}\n#{e.backtrace.join("\n")}")
+        false
+      end
+      unless can_access
         redirect_to root_path, alert: "Insufficient permissions. Operator role required."
       end
     end
@@ -59,7 +71,13 @@ module PgSqlTriggers
     #
     # @raise [ActionController::RedirectError] Redirects if permission denied
     def check_admin_permission
-      unless PgSqlTriggers::Permissions.can?(current_actor, :drop_trigger, environment: current_environment)
+      can_access = begin
+        PgSqlTriggers::Permissions.can?(current_actor, :drop_trigger, environment: current_environment)
+      rescue StandardError => e
+        Rails.logger.error("Permission check failed: #{e.message}\n#{e.backtrace.join("\n")}")
+        false
+      end
+      unless can_access
         redirect_to root_path, alert: "Insufficient permissions. Admin role required."
       end
     end

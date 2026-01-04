@@ -32,14 +32,16 @@ RSpec.describe PgSqlTriggers::TriggersController, type: :controller do
       end
 
       it "enables the trigger" do
-        expect_any_instance_of(PgSqlTriggers::TriggerRegistry).to receive(:enable!).with(confirmation: nil)
+        expect_any_instance_of(PgSqlTriggers::TriggerRegistry).to receive(:enable!).with(
+          hash_including(confirmation: nil, actor: { type: "User", id: "unknown" })
+        )
         post :enable, params: { id: disabled_trigger.id }
       end
 
       it "passes confirmation text to enable!" do
         expect_any_instance_of(PgSqlTriggers::TriggerRegistry)
           .to receive(:enable!)
-          .with(confirmation: "EXECUTE TRIGGER_ENABLE")
+          .with(hash_including(confirmation: "EXECUTE TRIGGER_ENABLE", actor: { type: "User", id: "unknown" }))
         post :enable, params: { id: disabled_trigger.id, confirmation_text: "EXECUTE TRIGGER_ENABLE" }
       end
 
@@ -123,14 +125,16 @@ RSpec.describe PgSqlTriggers::TriggersController, type: :controller do
       end
 
       it "disables the trigger" do
-        expect_any_instance_of(PgSqlTriggers::TriggerRegistry).to receive(:disable!).with(confirmation: nil)
+        expect_any_instance_of(PgSqlTriggers::TriggerRegistry).to receive(:disable!).with(
+          hash_including(confirmation: nil, actor: { type: "User", id: "unknown" })
+        )
         post :disable, params: { id: trigger.id }
       end
 
       it "passes confirmation text to disable!" do
         expect_any_instance_of(PgSqlTriggers::TriggerRegistry)
           .to receive(:disable!)
-          .with(confirmation: "EXECUTE TRIGGER_DISABLE")
+          .with(hash_including(confirmation: "EXECUTE TRIGGER_DISABLE", actor: { type: "User", id: "unknown" }))
         post :disable, params: { id: trigger.id, confirmation_text: "EXECUTE TRIGGER_DISABLE" }
       end
 
@@ -210,7 +214,9 @@ RSpec.describe PgSqlTriggers::TriggersController, type: :controller do
   describe "permission checks" do
     context "when user lacks permissions" do
       before do
-        allow(PgSqlTriggers::Permissions).to receive(:can?).with(anything, :enable_trigger).and_return(false)
+        allow(PgSqlTriggers::Permissions).to receive(:can?) do |actor, action, options|
+          action == :enable_trigger ? false : true
+        end
       end
 
       it "blocks enable action" do
@@ -221,6 +227,9 @@ RSpec.describe PgSqlTriggers::TriggersController, type: :controller do
       end
 
       it "blocks disable action" do
+        allow(PgSqlTriggers::Permissions).to receive(:can?) do |actor, action, options|
+          action == :enable_trigger ? false : true
+        end
         post :disable, params: { id: trigger.id }
         expect(flash[:alert]).to match(/Insufficient permissions/)
         expect(flash[:alert]).to include("Operator role required")
@@ -401,7 +410,9 @@ RSpec.describe PgSqlTriggers::TriggersController, type: :controller do
 
     context "when user lacks view permission" do
       before do
-        allow(PgSqlTriggers::Permissions).to receive(:can?).with(anything, :view_triggers).and_return(false)
+        allow(PgSqlTriggers::Permissions).to receive(:can?) do |actor, action, options|
+          action == :view_triggers ? false : true
+        end
       end
 
       it "redirects to root with alert" do
@@ -562,7 +573,9 @@ RSpec.describe PgSqlTriggers::TriggersController, type: :controller do
 
     context "when user lacks drop permission" do
       before do
-        allow(PgSqlTriggers::Permissions).to receive(:can?).with(anything, :drop_trigger).and_return(false)
+        allow(PgSqlTriggers::Permissions).to receive(:can?) do |actor, action, options|
+          action == :drop_trigger ? false : true
+        end
       end
 
       it "redirects to root with alert" do
@@ -697,7 +710,9 @@ RSpec.describe PgSqlTriggers::TriggersController, type: :controller do
 
     context "when user lacks admin permission" do
       before do
-        allow(PgSqlTriggers::Permissions).to receive(:can?).with(anything, :drop_trigger).and_return(false)
+        allow(PgSqlTriggers::Permissions).to receive(:can?) do |actor, action, options|
+          action == :drop_trigger ? false : true
+        end
       end
 
       it "redirects to root with alert" do

@@ -10,9 +10,9 @@ module PgSqlTriggers
     attr_reader :error_code, :recovery_suggestion, :context
 
     def initialize(message = nil, error_code: nil, recovery_suggestion: nil, context: {})
+      @context = context || {}
       @error_code = error_code || default_error_code
       @recovery_suggestion = recovery_suggestion || default_recovery_suggestion
-      @context = context || {}
       super(message || default_message)
     end
 
@@ -100,8 +100,9 @@ module PgSqlTriggers
     end
 
     def default_recovery_suggestion
-      operation = context[:operation] || "this operation"
-      environment = context[:environment] || "this environment"
+      ctx = @context || {}
+      operation = ctx[:operation] || "this operation"
+      environment = ctx[:environment] || "this environment"
       "Kill switch is active for #{environment}. " \
       "To override, provide the required confirmation text. " \
       "For CLI/rake tasks, use: KILL_SWITCH_OVERRIDE=true CONFIRMATION_TEXT=\"...\" rake your:task"

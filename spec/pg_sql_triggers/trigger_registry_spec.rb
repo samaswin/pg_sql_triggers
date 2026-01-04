@@ -256,8 +256,9 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
         end
         allow_any_instance_of(PgSqlTriggers::DatabaseIntrospection).to receive(:trigger_exists?).and_return(true)
         # rubocop:enable RSpec/AnyInstance
-        expect { registry.disable! }.not_to raise_error
-        expect(registry.reload.enabled).to be(false)
+        expect { registry.disable! }.to raise_error(ActiveRecord::StatementInvalid, "Error")
+        # Registry should not be updated when database operation fails
+        expect(registry.reload.enabled).to be(true)
       end
     ensure
       drop_test_table(:users)
@@ -447,8 +448,9 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
         # rubocop:disable RSpec/AnyInstance
         allow_any_instance_of(PgSqlTriggers::DatabaseIntrospection).to receive(:trigger_exists?).and_return(true)
         # rubocop:enable RSpec/AnyInstance
-        expect { registry.enable! }.not_to raise_error
-        expect(registry.reload.enabled).to be(true)
+        expect { registry.enable! }.to raise_error(ActiveRecord::StatementInvalid, "Error")
+        # Registry should not be updated when database operation fails
+        expect(registry.reload.enabled).to be(false)
       end
     ensure
       drop_test_table(:users)

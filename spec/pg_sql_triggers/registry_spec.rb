@@ -545,10 +545,10 @@ RSpec.describe PgSqlTriggers::Registry::Manager do
           end
         end
 
-        it "raises ArgumentError" do
+        it "raises NotFoundError" do
           expect do
             PgSqlTriggers::Registry.enable("nonexistent", actor: actor)
-          end.to raise_error(ArgumentError, /not found in registry/)
+          end.to raise_error(PgSqlTriggers::NotFoundError, /not found in registry/)
         end
       end
     end
@@ -615,10 +615,10 @@ RSpec.describe PgSqlTriggers::Registry::Manager do
           end
         end
 
-        it "raises ArgumentError" do
+        it "raises NotFoundError" do
           expect do
             PgSqlTriggers::Registry.disable("nonexistent", actor: actor)
-          end.to raise_error(ArgumentError, /not found in registry/)
+          end.to raise_error(PgSqlTriggers::NotFoundError, /not found in registry/)
         end
       end
     end
@@ -688,10 +688,10 @@ RSpec.describe PgSqlTriggers::Registry::Manager do
           end
         end
 
-        it "raises ArgumentError" do
+        it "raises NotFoundError" do
           expect do
             PgSqlTriggers::Registry.drop("nonexistent", actor: actor, reason: "Testing")
-          end.to raise_error(ArgumentError, /not found in registry/)
+          end.to raise_error(PgSqlTriggers::NotFoundError, /not found in registry/)
         end
       end
     end
@@ -759,10 +759,10 @@ RSpec.describe PgSqlTriggers::Registry::Manager do
           end
         end
 
-        it "raises ArgumentError" do
+        it "raises NotFoundError" do
           expect do
             PgSqlTriggers::Registry.re_execute("nonexistent", actor: actor, reason: "Fix drift")
-          end.to raise_error(ArgumentError, /not found in registry/)
+          end.to raise_error(PgSqlTriggers::NotFoundError, /not found in registry/)
         end
       end
     end

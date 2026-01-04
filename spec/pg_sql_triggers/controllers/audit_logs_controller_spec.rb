@@ -107,9 +107,9 @@ RSpec.describe PgSqlTriggers::AuditLogsController, type: :controller do
     it "combines multiple filters" do
       get :index, params: { trigger_name: "test_trigger_1", status: "success" }
       logs = assigns(:audit_logs)
-      expect(logs.count).to eq(1)
-      expect(logs.first.trigger_name).to eq("test_trigger_1")
-      expect(logs.first.status).to eq("success")
+      expect(logs.count).to eq(2)
+      expect(logs.map(&:trigger_name).uniq).to eq(["test_trigger_1"])
+      expect(logs.map(&:status).uniq).to eq(["success"])
     end
 
     it "paginates results" do

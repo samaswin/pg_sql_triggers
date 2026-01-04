@@ -4,10 +4,10 @@ module PgSqlTriggers
   # Controller for managing individual triggers via web UI
   # Provides actions to enable and disable triggers
   class TriggersController < ApplicationController
-    before_action :set_trigger, only: %i[show enable disable drop re_execute]
     before_action :check_viewer_permission, only: [:show]
     before_action :check_operator_permission, only: %i[enable disable]
     before_action :check_admin_permission, only: %i[drop re_execute]
+    before_action :set_trigger, only: %i[show enable disable drop re_execute]
 
     def show
       # Load trigger details and drift information

@@ -18,11 +18,8 @@ RSpec.describe "Permission checks across controllers", type: :controller do
     allow(Rails.logger).to receive(:error)
   end
 
-  describe "TriggersController", type: :controller do
+  describe PgSqlTriggers::TriggersController, type: :controller do
     routes { PgSqlTriggers::Engine.routes }
-
-    controller(PgSqlTriggers::TriggersController) do
-    end
 
     describe "viewer permissions" do
       context "when user has viewer permission" do
@@ -143,11 +140,8 @@ RSpec.describe "Permission checks across controllers", type: :controller do
     end
   end
 
-  describe "AuditLogsController", type: :controller do
+  describe PgSqlTriggers::AuditLogsController, type: :controller do
     routes { PgSqlTriggers::Engine.routes }
-
-    controller(PgSqlTriggers::AuditLogsController) do
-    end
 
     context "when user has viewer permission" do
       before do
@@ -175,11 +169,8 @@ RSpec.describe "Permission checks across controllers", type: :controller do
     end
   end
 
-  describe "DashboardController", type: :controller do
+  describe PgSqlTriggers::DashboardController, type: :controller do
     routes { PgSqlTriggers::Engine.routes }
-
-    controller(PgSqlTriggers::DashboardController) do
-    end
 
     context "when user has viewer permission" do
       before do
@@ -211,6 +202,7 @@ RSpec.describe "Permission checks across controllers", type: :controller do
     routes { PgSqlTriggers::Engine.routes }
 
     controller(PgSqlTriggers::TriggersController) do
+      # Keep controller() here since we're testing environment context specifically
     end
 
     before do
@@ -247,6 +239,7 @@ RSpec.describe "Permission checks across controllers", type: :controller do
     routes { PgSqlTriggers::Engine.routes }
 
     controller(PgSqlTriggers::TriggersController) do
+      # Keep controller() here since we're testing error handling specifically
     end
 
     context "when permission check raises an error" do

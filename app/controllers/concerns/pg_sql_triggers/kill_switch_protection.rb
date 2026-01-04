@@ -6,7 +6,7 @@ module PgSqlTriggers
 
     included do
       # Helper method available in views
-      helper_method :kill_switch_active?, :expected_confirmation_text
+      helper_method :kill_switch_active?, :expected_confirmation_text, :current_environment
     end
 
     # Checks if kill switch is active for the current environment.
