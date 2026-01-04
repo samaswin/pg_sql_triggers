@@ -1077,5 +1077,232 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
         end
       end
     end
+
+    describe "#capture_state" do
+      it "captures current state of trigger registry" do
+        state = registry.send(:capture_state)
+        expect(state).to be_a(Hash)
+        expect(state).to include(
+          enabled: registry.enabled,
+          version: registry.version,
+          checksum: registry.checksum,
+          table_name: registry.table_name,
+          source: registry.source,
+          environment: registry.environment
+        )
+      end
+
+      it "includes installed_at as ISO8601 string when present" do
+        registry.update!(installed_at: Time.current)
+        state = registry.send(:capture_state)
+        expect(state[:installed_at]).to be_a(String)
+        expect(state[:installed_at]).to match(/\d{4}-\d{2}-\d{2}T/)
+      end
+
+      it "handles nil installed_at" do
+        registry.update!(installed_at: nil)
+        state = registry.send(:capture_state)
+        expect(state[:installed_at]).to be_nil
+      end
+    end
+
+    describe "#log_audit_success" do
+      let(:actor) { { type: "User", id: 1 } }
+      let(:before_state) { { enabled: false } }
+      let(:after_state) { { enabled: true } }
+
+      before do
+        allow(PgSqlTriggers::AuditLog).to receive(:log_success)
+      end
+
+      it "logs successful operation" do
+        registry.send(:log_audit_success, :trigger_enable, actor,
+                      before_state: before_state, after_state: after_state)
+        expect(PgSqlTriggers::AuditLog).to have_received(:log_success).with(
+          hash_including(
+            operation: :trigger_enable,
+            trigger_name: registry.trigger_name,
+            actor: actor
+          )
+        )
+      end
+
+      it "includes reason when provided" do
+        registry.send(:log_audit_success, :trigger_drop, actor,
+                      reason: "No longer needed",
+                      before_state: before_state, after_state: after_state)
+        expect(PgSqlTriggers::AuditLog).to have_received(:log_success).with(
+          hash_including(reason: "No longer needed")
+        )
+      end
+
+      it "includes confirmation_text when provided" do
+        registry.send(:log_audit_success, :trigger_enable, actor,
+                      confirmation_text: "EXECUTE TRIGGER_ENABLE",
+                      before_state: before_state, after_state: after_state)
+        expect(PgSqlTriggers::AuditLog).to have_received(:log_success).with(
+          hash_including(confirmation_text: "EXECUTE TRIGGER_ENABLE")
+        )
+      end
+
+      it "includes diff when provided" do
+        registry.send(:log_audit_success, :trigger_re_execute, actor,
+                      diff: "old -> new",
+                      before_state: before_state, after_state: after_state)
+        expect(PgSqlTriggers::AuditLog).to have_received(:log_success).with(
+          hash_including(diff: "old -> new")
+        )
+      end
+
+      it "handles errors gracefully" do
+        allow(PgSqlTriggers::AuditLog).to receive(:log_success).and_raise(StandardError.new("Log failed"))
+        allow(Rails.logger).to receive(:error)
+        expect do
+          registry.send(:log_audit_success, :trigger_enable, actor,
+                        before_state: before_state, after_state: after_state)
+        end.not_to raise_error
+        expect(Rails.logger).to have_received(:error).with(match(/Failed to log audit entry/))
+      end
+
+      it "does nothing when AuditLog is not defined" do
+        allow(Object).to receive(:const_defined?).with("PgSqlTriggers::AuditLog").and_return(false)
+        expect do
+          registry.send(:log_audit_success, :trigger_enable, actor,
+                        before_state: before_state, after_state: after_state)
+        end.not_to raise_error
+      end
+    end
+
+    describe "#log_audit_failure" do
+      let(:actor) { { type: "User", id: 1 } }
+      let(:before_state) { { enabled: false } }
+
+      before do
+        allow(PgSqlTriggers::AuditLog).to receive(:log_failure)
+      end
+
+      it "logs failed operation" do
+        registry.send(:log_audit_failure, :trigger_enable, actor, "Error message",
+                      before_state: before_state)
+        expect(PgSqlTriggers::AuditLog).to have_received(:log_failure).with(
+          hash_including(
+            operation: :trigger_enable,
+            trigger_name: registry.trigger_name,
+            actor: actor,
+            error_message: "Error message"
+          )
+        )
+      end
+
+      it "includes reason when provided" do
+        registry.send(:log_audit_failure, :trigger_drop, actor, "Error",
+                      reason: "Cleanup",
+                      before_state: before_state)
+        expect(PgSqlTriggers::AuditLog).to have_received(:log_failure).with(
+          hash_including(reason: "Cleanup")
+        )
+      end
+
+      it "includes confirmation_text when provided" do
+        registry.send(:log_audit_failure, :trigger_enable, actor, "Error",
+                      confirmation_text: "EXECUTE TRIGGER_ENABLE",
+                      before_state: before_state)
+        expect(PgSqlTriggers::AuditLog).to have_received(:log_failure).with(
+          hash_including(confirmation_text: "EXECUTE TRIGGER_ENABLE")
+        )
+      end
+
+      it "handles errors gracefully" do
+        allow(PgSqlTriggers::AuditLog).to receive(:log_failure).and_raise(StandardError.new("Log failed"))
+        allow(Rails.logger).to receive(:error)
+        expect do
+          registry.send(:log_audit_failure, :trigger_enable, actor, "Error",
+                        before_state: before_state)
+        end.not_to raise_error
+        expect(Rails.logger).to have_received(:error).with(match(/Failed to log audit entry/))
+      end
+
+      it "does nothing when AuditLog is not defined" do
+        allow(Object).to receive(:const_defined?).with("PgSqlTriggers::AuditLog").and_return(false)
+        expect do
+          registry.send(:log_audit_failure, :trigger_enable, actor, "Error",
+                        before_state: before_state)
+        end.not_to raise_error
+      end
+    end
+
+    describe "#update_registry_after_re_execute" do
+      it "updates enabled and last_executed_at" do
+        freeze_time do
+          registry.update!(enabled: false)
+          registry.send(:update_registry_after_re_execute)
+          expect(registry.reload.enabled).to be true
+          expect(registry.last_executed_at).to be_within(1.second).of(Time.current)
+        end
+      end
+    end
+
+    describe "#drop_existing_trigger_for_re_execute" do
+      before do
+        create_test_table(:test_table, columns: { name: :string })
+        ActiveRecord::Base.connection.execute(<<~SQL.squish)
+          CREATE OR REPLACE FUNCTION test_function() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql;
+        SQL
+        ActiveRecord::Base.connection.execute(<<~SQL.squish)
+          CREATE TRIGGER #{registry.trigger_name} BEFORE INSERT ON test_table FOR EACH ROW EXECUTE FUNCTION test_function();
+        SQL
+      end
+
+      after do
+        drop_test_table(:test_table)
+      end
+
+      it "drops existing trigger if it exists" do
+        introspection = PgSqlTriggers::DatabaseIntrospection.new
+        expect(introspection.trigger_exists?(registry.trigger_name)).to be true
+        registry.send(:drop_existing_trigger_for_re_execute)
+        expect(introspection.trigger_exists?(registry.trigger_name)).to be false
+      end
+
+      it "does nothing if trigger doesn't exist" do
+        ActiveRecord::Base.connection.execute("DROP TRIGGER IF EXISTS #{registry.trigger_name} ON test_table")
+        expect do
+          registry.send(:drop_existing_trigger_for_re_execute)
+        end.not_to raise_error
+      end
+
+      it "handles errors gracefully" do
+        allow(ActiveRecord::Base.connection).to receive(:execute).and_raise(StandardError.new("DB error"))
+        allow(Rails.logger).to receive(:warn)
+        expect do
+          registry.send(:drop_existing_trigger_for_re_execute)
+        end.not_to raise_error
+        expect(Rails.logger).to have_received(:warn).with(match(/Drop failed/))
+      end
+    end
+
+    describe "#recreate_trigger" do
+      before do
+        create_test_table(:test_table, columns: { name: :string })
+        registry.update!(function_body: "CREATE OR REPLACE FUNCTION test_function() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql;")
+      end
+
+      after do
+        drop_test_table(:test_table)
+      end
+
+      it "executes function_body to recreate trigger" do
+        registry.send(:recreate_trigger)
+        result = ActiveRecord::Base.connection.execute("SELECT proname FROM pg_proc WHERE proname = 'test_function'")
+        expect(result.count).to eq(1)
+      end
+
+      it "raises error when function_body is invalid" do
+        registry.update!(function_body: "INVALID SQL")
+        expect do
+          registry.send(:recreate_trigger)
+        end.to raise_error(ActiveRecord::StatementInvalid)
+      end
+    end
   end
 end

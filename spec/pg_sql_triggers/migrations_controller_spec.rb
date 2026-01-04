@@ -337,5 +337,319 @@ RSpec.describe PgSqlTriggers::MigrationsController, type: :controller do
         end
       end
     end
+
+    context "when redoing a specific version that is current" do
+      before do
+        migration_content = <<~RUBY
+          class TestMigration < PgSqlTriggers::Migration
+            def up; execute "SELECT 1"; end
+            def down; execute "SELECT 2"; end
+          end
+        RUBY
+        File.write(migrations_path.join("20231215120001_test_migration.rb"), migration_content)
+        with_kill_switch_disabled do
+          PgSqlTriggers::Migrator.run_up
+        end
+      end
+
+      it "rolls back and reapplies the target version" do
+        with_kill_switch_disabled do
+          post :redo, params: { version: "20231215120001" }
+          expect(flash[:success]).to eq("Migration 20231215120001 redone successfully.")
+          expect(PgSqlTriggers::Migrator.current_version).to eq(20_231_215_120_001)
+        end
+      end
+    end
+
+    context "when redoing a specific version that is not current" do
+      before do
+        migration1_content = <<~RUBY
+          class TestMigration1 < PgSqlTriggers::Migration
+            def up; execute "SELECT 1"; end
+            def down; execute "SELECT 2"; end
+          end
+        RUBY
+        migration2_content = <<~RUBY
+          class TestMigration2 < PgSqlTriggers::Migration
+            def up; execute "SELECT 3"; end
+            def down; execute "SELECT 4"; end
+          end
+        RUBY
+        File.write(migrations_path.join("20231215120001_test_migration1.rb"), migration1_content)
+        File.write(migrations_path.join("20231215120002_test_migration2.rb"), migration2_content)
+        with_kill_switch_disabled do
+          PgSqlTriggers::Migrator.run_up
+        end
+      end
+
+      it "rolls back to before target and reapplies" do
+        with_kill_switch_disabled do
+          post :redo, params: { version: "20231215120001" }
+          expect(flash[:success]).to eq("Migration 20231215120001 redone successfully.")
+          expect(PgSqlTriggers::Migrator.current_version).to eq(20_231_215_120_001)
+        end
+      end
+    end
+
+    context "when target version is not applied yet" do
+      before do
+        migration_content = <<~RUBY
+          class TestMigration < PgSqlTriggers::Migration
+            def up; execute "SELECT 1"; end
+            def down; execute "SELECT 2"; end
+          end
+        RUBY
+        File.write(migrations_path.join("20231215120001_test_migration.rb"), migration_content)
+      end
+
+      it "just applies the target version" do
+        with_kill_switch_disabled do
+          post :redo, params: { version: "20231215120001" }
+          expect(flash[:success]).to eq("Migration 20231215120001 redone successfully.")
+          expect(PgSqlTriggers::Migrator.current_version).to eq(20_231_215_120_001)
+        end
+      end
+    end
+  end
+
+  describe "kill switch protection" do
+    describe "POST #up" do
+      it "checks kill switch before running migration" do
+        with_kill_switch_protecting(Rails.env, confirmation_required: true) do
+          expect(PgSqlTriggers::SQL::KillSwitch).to receive(:check!).and_raise(
+            PgSqlTriggers::KillSwitchError.new("Kill switch active")
+          )
+          post :up
+          expect(flash[:error]).to match(/kill switch|Kill switch/)
+        end
+      end
+
+      it "allows migration with confirmation" do
+        with_kill_switch_protecting(Rails.env, confirmation_required: true) do
+          allow(PgSqlTriggers::SQL::KillSwitch).to receive(:check!).and_return(true)
+          post :up, params: { confirmation_text: "EXECUTE UI_MIGRATION_UP" }
+          expect(flash[:success] || flash[:info]).to be_present
+        end
+      end
+    end
+
+    describe "POST #down" do
+      before do
+        migration_content = <<~RUBY
+          class TestMigration < PgSqlTriggers::Migration
+            def up; execute "SELECT 1"; end
+            def down; execute "SELECT 2"; end
+          end
+        RUBY
+        File.write(migrations_path.join("20231215120001_test_migration.rb"), migration_content)
+        with_kill_switch_disabled do
+          PgSqlTriggers::Migrator.run_up
+        end
+      end
+
+      it "checks kill switch before rolling back" do
+        with_kill_switch_protecting(Rails.env, confirmation_required: true) do
+          expect(PgSqlTriggers::SQL::KillSwitch).to receive(:check!).and_raise(
+            PgSqlTriggers::KillSwitchError.new("Kill switch active")
+          )
+          post :down
+          expect(flash[:error]).to match(/kill switch|Kill switch/)
+        end
+      end
+
+      it "allows rollback with confirmation" do
+        with_kill_switch_protecting(Rails.env, confirmation_required: true) do
+          allow(PgSqlTriggers::SQL::KillSwitch).to receive(:check!).and_return(true)
+          post :down, params: { confirmation_text: "EXECUTE UI_MIGRATION_DOWN" }
+          expect(flash[:success] || flash[:warning]).to be_present
+        end
+      end
+    end
+
+    describe "POST #redo" do
+      before do
+        migration_content = <<~RUBY
+          class TestMigration < PgSqlTriggers::Migration
+            def up; execute "SELECT 1"; end
+            def down; execute "SELECT 2"; end
+          end
+        RUBY
+        File.write(migrations_path.join("20231215120001_test_migration.rb"), migration_content)
+        with_kill_switch_disabled do
+          PgSqlTriggers::Migrator.run_up
+        end
+      end
+
+      it "checks kill switch before redoing" do
+        with_kill_switch_protecting(Rails.env, confirmation_required: true) do
+          expect(PgSqlTriggers::SQL::KillSwitch).to receive(:check!).and_raise(
+            PgSqlTriggers::KillSwitchError.new("Kill switch active")
+          )
+          post :redo
+          expect(flash[:error]).to match(/kill switch|Kill switch/)
+        end
+      end
+
+      it "allows redo with confirmation" do
+        with_kill_switch_protecting(Rails.env, confirmation_required: true) do
+          allow(PgSqlTriggers::SQL::KillSwitch).to receive(:check!).and_return(true)
+          post :redo, params: { confirmation_text: "EXECUTE UI_MIGRATION_REDO" }
+          expect(flash[:success]).to be_present
+        end
+      end
+    end
+  end
+
+  describe "permission checks" do
+    describe "before_action :check_operator_permission" do
+      it "allows action when user has operator permission" do
+        allow(PgSqlTriggers::Permissions).to receive(:can?).and_return(true)
+        post :up
+        expect(response).not_to redirect_to(root_path)
+      end
+
+      it "redirects when user lacks operator permission" do
+        allow(PgSqlTriggers::Permissions).to receive(:can?).and_return(false)
+        post :up
+        expect(response).to redirect_to(root_path)
+        expect(flash[:alert]).to include("Operator role required")
+      end
+    end
+  end
+
+  describe "private methods" do
+    describe "#redo_target_migration" do
+      before do
+        migration1_content = <<~RUBY
+          class TestMigration1 < PgSqlTriggers::Migration
+            def up; execute "SELECT 1"; end
+            def down; execute "SELECT 2"; end
+          end
+        RUBY
+        migration2_content = <<~RUBY
+          class TestMigration2 < PgSqlTriggers::Migration
+            def up; execute "SELECT 3"; end
+            def down; execute "SELECT 4"; end
+          end
+        RUBY
+        File.write(migrations_path.join("20231215120001_test_migration1.rb"), migration1_content)
+        File.write(migrations_path.join("20231215120002_test_migration2.rb"), migration2_content)
+      end
+
+      context "when target version is current version" do
+        before do
+          with_kill_switch_disabled do
+            PgSqlTriggers::Migrator.run_up
+          end
+        end
+
+        it "rolls back last migration and reapplies" do
+          with_kill_switch_disabled do
+            controller.send(:redo_target_migration, 20_231_215_120_002, 20_231_215_120_002)
+            expect(PgSqlTriggers::Migrator.current_version).to eq(20_231_215_120_002)
+          end
+        end
+      end
+
+      context "when target version is less than current" do
+        before do
+          with_kill_switch_disabled do
+            PgSqlTriggers::Migrator.run_up
+          end
+        end
+
+        it "rolls back to before target and reapplies" do
+          with_kill_switch_disabled do
+            controller.send(:redo_target_migration, 20_231_215_120_001, 20_231_215_120_002)
+            expect(PgSqlTriggers::Migrator.current_version).to eq(20_231_215_120_001)
+          end
+        end
+      end
+
+      context "when target version is greater than current" do
+        it "just applies the target version" do
+          with_kill_switch_disabled do
+            controller.send(:redo_target_migration, 20_231_215_120_002, 20_231_215_120_001)
+            expect(PgSqlTriggers::Migrator.current_version).to eq(20_231_215_120_002)
+          end
+        end
+      end
+    end
+
+    describe "#rollback_to_before_target" do
+      before do
+        migration1_content = <<~RUBY
+          class TestMigration1 < PgSqlTriggers::Migration
+            def up; execute "SELECT 1"; end
+            def down; execute "SELECT 2"; end
+          end
+        RUBY
+        migration2_content = <<~RUBY
+          class TestMigration2 < PgSqlTriggers::Migration
+            def up; execute "SELECT 3"; end
+            def down; execute "SELECT 4"; end
+          end
+        RUBY
+        File.write(migrations_path.join("20231215120001_test_migration1.rb"), migration1_content)
+        File.write(migrations_path.join("20231215120002_test_migration2.rb"), migration2_content)
+        with_kill_switch_disabled do
+          PgSqlTriggers::Migrator.run_up
+        end
+      end
+
+      context "when previous migration exists" do
+        it "rolls back to previous migration" do
+          with_kill_switch_disabled do
+            controller.send(:rollback_to_before_target, 20_231_215_120_002)
+            expect(PgSqlTriggers::Migrator.current_version).to eq(20_231_215_120_001)
+          end
+        end
+      end
+
+      context "when no previous migration exists" do
+        it "rolls back until below target" do
+          with_kill_switch_disabled do
+            controller.send(:rollback_to_before_target, 20_231_215_120_001)
+            expect(PgSqlTriggers::Migrator.current_version).to eq(0)
+          end
+        end
+      end
+    end
+
+    describe "#rollback_until_below_target" do
+      before do
+        migration1_content = <<~RUBY
+          class TestMigration1 < PgSqlTriggers::Migration
+            def up; execute "SELECT 1"; end
+            def down; execute "SELECT 2"; end
+          end
+        RUBY
+        migration2_content = <<~RUBY
+          class TestMigration2 < PgSqlTriggers::Migration
+            def up; execute "SELECT 3"; end
+            def down; execute "SELECT 4"; end
+          end
+        RUBY
+        File.write(migrations_path.join("20231215120001_test_migration1.rb"), migration1_content)
+        File.write(migrations_path.join("20231215120002_test_migration2.rb"), migration2_content)
+        with_kill_switch_disabled do
+          PgSqlTriggers::Migrator.run_up
+        end
+      end
+
+      it "rolls back until version is below target" do
+        with_kill_switch_disabled do
+          controller.send(:rollback_until_below_target, 20_231_215_120_001)
+          expect(PgSqlTriggers::Migrator.current_version).to be < 20_231_215_120_001
+        end
+      end
+
+      it "stops at version 0 if needed" do
+        with_kill_switch_disabled do
+          controller.send(:rollback_until_below_target, 20_231_215_120_001)
+          expect(PgSqlTriggers::Migrator.current_version).to eq(0)
+        end
+      end
+    end
   end
 end
