@@ -4,6 +4,7 @@ module PgSqlTriggers
   module Permissions
     class Checker
       def self.can?(actor, action, environment: nil)
+        return true if action.nil? # Handle nil action gracefully
         action_sym = action.to_sym
 
         # If custom permission checker is configured, use it

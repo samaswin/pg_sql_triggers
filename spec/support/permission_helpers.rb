@@ -11,6 +11,7 @@ module PermissionHelpers
 
     # Create a permission checker that uses the permission_map
     PgSqlTriggers.permission_checker = lambda do |_actor, action, _environment|
+      return true if action.nil? # Handle nil action gracefully
       action_sym = action.to_sym
       # Default to true if not specified (allow all by default in tests)
       permission_map.fetch(action_sym, true)
