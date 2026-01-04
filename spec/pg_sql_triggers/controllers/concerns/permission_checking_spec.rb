@@ -3,13 +3,8 @@
 require "spec_helper"
 
 RSpec.describe PgSqlTriggers::PermissionChecking, type: :controller, uses_database: false do
-  # Create a test controller class that includes the concern
-  controller_class = Class.new(PgSqlTriggers::ApplicationController) do
-    include PgSqlTriggers::KillSwitchProtection
-    include PgSqlTriggers::PermissionChecking
-  end
-
-  controller(controller_class) do
+  # ApplicationController already includes PermissionChecking
+  controller(PgSqlTriggers::ApplicationController) do
     def index
       render plain: "OK"
     end
@@ -19,7 +14,7 @@ RSpec.describe PgSqlTriggers::PermissionChecking, type: :controller, uses_databa
 
   before do
     routes.draw do
-      get "test_index", to: "anonymous#index"
+      get "test_index", to: "pg_sql_triggers/application#index"
     end
     allow(PgSqlTriggers::Permissions).to receive(:can?).and_return(true)
   end
@@ -65,6 +60,10 @@ RSpec.describe PgSqlTriggers::PermissionChecking, type: :controller, uses_databa
   end
 
   describe "#check_viewer_permission" do
+    before do
+      allow(controller).to receive(:root_path).and_return("/")
+    end
+
     context "when permission is granted" do
       before do
         allow(PgSqlTriggers::Permissions).to receive(:can?).and_return(true)
@@ -86,7 +85,7 @@ RSpec.describe PgSqlTriggers::PermissionChecking, type: :controller, uses_databa
       end
 
       it "redirects to root path with alert" do
-        expect(controller).to receive(:redirect_to).with(root_path, alert: "Insufficient permissions. Viewer role required.")
+        expect(controller).to receive(:redirect_to).with("/", alert: "Insufficient permissions. Viewer role required.")
         controller.send(:check_viewer_permission)
       end
     end
@@ -98,12 +97,13 @@ RSpec.describe PgSqlTriggers::PermissionChecking, type: :controller, uses_databa
       end
 
       it "logs the error" do
+        allow(controller).to receive(:redirect_to)
         expect(Rails.logger).to receive(:error).with(match(/Permission check failed/))
         controller.send(:check_viewer_permission)
       end
 
       it "redirects to root path" do
-        expect(controller).to receive(:redirect_to).with(root_path, alert: "Insufficient permissions. Viewer role required.")
+        expect(controller).to receive(:redirect_to).with("/", alert: "Insufficient permissions. Viewer role required.")
         controller.send(:check_viewer_permission)
       end
     end
@@ -120,6 +120,10 @@ RSpec.describe PgSqlTriggers::PermissionChecking, type: :controller, uses_databa
   end
 
   describe "#check_operator_permission" do
+    before do
+      allow(controller).to receive(:root_path).and_return("/")
+    end
+
     context "when permission is granted" do
       before do
         allow(PgSqlTriggers::Permissions).to receive(:can?).and_return(true)
@@ -137,7 +141,7 @@ RSpec.describe PgSqlTriggers::PermissionChecking, type: :controller, uses_databa
       end
 
       it "redirects to root path with alert" do
-        expect(controller).to receive(:redirect_to).with(root_path, alert: "Insufficient permissions. Operator role required.")
+        expect(controller).to receive(:redirect_to).with("/", alert: "Insufficient permissions. Operator role required.")
         controller.send(:check_operator_permission)
       end
     end
@@ -149,12 +153,13 @@ RSpec.describe PgSqlTriggers::PermissionChecking, type: :controller, uses_databa
       end
 
       it "logs the error" do
+        allow(controller).to receive(:redirect_to)
         expect(Rails.logger).to receive(:error).with(match(/Permission check failed/))
         controller.send(:check_operator_permission)
       end
 
       it "redirects to root path" do
-        expect(controller).to receive(:redirect_to).with(root_path, alert: "Insufficient permissions. Operator role required.")
+        expect(controller).to receive(:redirect_to).with("/", alert: "Insufficient permissions. Operator role required.")
         controller.send(:check_operator_permission)
       end
     end
@@ -170,6 +175,10 @@ RSpec.describe PgSqlTriggers::PermissionChecking, type: :controller, uses_databa
   end
 
   describe "#check_admin_permission" do
+    before do
+      allow(controller).to receive(:root_path).and_return("/")
+    end
+
     context "when permission is granted" do
       before do
         allow(PgSqlTriggers::Permissions).to receive(:can?).and_return(true)
@@ -187,7 +196,7 @@ RSpec.describe PgSqlTriggers::PermissionChecking, type: :controller, uses_databa
       end
 
       it "redirects to root path with alert" do
-        expect(controller).to receive(:redirect_to).with(root_path, alert: "Insufficient permissions. Admin role required.")
+        expect(controller).to receive(:redirect_to).with("/", alert: "Insufficient permissions. Admin role required.")
         controller.send(:check_admin_permission)
       end
     end
@@ -199,12 +208,13 @@ RSpec.describe PgSqlTriggers::PermissionChecking, type: :controller, uses_databa
       end
 
       it "logs the error" do
+        allow(controller).to receive(:redirect_to)
         expect(Rails.logger).to receive(:error).with(match(/Permission check failed/))
         controller.send(:check_admin_permission)
       end
 
       it "redirects to root path" do
-        expect(controller).to receive(:redirect_to).with(root_path, alert: "Insufficient permissions. Admin role required.")
+        expect(controller).to receive(:redirect_to).with("/", alert: "Insufficient permissions. Admin role required.")
         controller.send(:check_admin_permission)
       end
     end
@@ -269,10 +279,10 @@ RSpec.describe PgSqlTriggers::PermissionChecking, type: :controller, uses_databa
     end
 
     describe "#can_generate_triggers?" do
-      it "checks apply_trigger permission" do
+      it "checks generate_trigger permission" do
         expect(PgSqlTriggers::Permissions).to receive(:can?).with(
           controller.send(:current_actor),
-          :apply_trigger,
+          :generate_trigger,
           environment: "production"
         ).and_return(true)
         expect(controller.send(:can_generate_triggers?)).to be true

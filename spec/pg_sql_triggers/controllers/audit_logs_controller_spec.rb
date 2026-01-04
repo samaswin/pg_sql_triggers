@@ -12,6 +12,9 @@ RSpec.describe PgSqlTriggers::AuditLogsController, type: :controller do
 
     # Allow permissions by default
     allow(PgSqlTriggers::Permissions).to receive(:can?).and_return(true)
+
+    # Clean audit logs table before each test to prevent data persistence
+    PgSqlTriggers::AuditLog.delete_all
   end
 
   describe "GET #index" do

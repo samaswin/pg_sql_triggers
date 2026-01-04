@@ -179,6 +179,9 @@ RSpec.describe "Kill Switch Integration", type: :integration do
 
       after do
         FileUtils.rm_rf(migrations_dir)
+        # Clean up migration records
+        PgSqlTriggers::Migrator.ensure_migrations_table!
+        ActiveRecord::Base.connection.execute("TRUNCATE TABLE trigger_migrations")
       end
 
       # rubocop:disable RSpec/NestedGroups
@@ -196,7 +199,7 @@ RSpec.describe "Kill Switch Integration", type: :integration do
         it "blocks run_down without confirmation" do
           # Record a migration as having been run
           ActiveRecord::Base.connection.execute(
-            "INSERT INTO trigger_migrations (version) VALUES ('001')"
+            "INSERT INTO trigger_migrations (version) VALUES ('001') ON CONFLICT (version) DO NOTHING"
           )
 
           expect do
@@ -213,7 +216,7 @@ RSpec.describe "Kill Switch Integration", type: :integration do
         it "allows run_down with correct confirmation" do
           # Record a migration as having been run
           ActiveRecord::Base.connection.execute(
-            "INSERT INTO trigger_migrations (version) VALUES ('001')"
+            "INSERT INTO trigger_migrations (version) VALUES ('001') ON CONFLICT (version) DO NOTHING"
           )
 
           expect do
@@ -236,7 +239,7 @@ RSpec.describe "Kill Switch Integration", type: :integration do
         it "allows run_down without confirmation" do
           # Record a migration as having been run
           ActiveRecord::Base.connection.execute(
-            "INSERT INTO trigger_migrations (version) VALUES ('001')"
+            "INSERT INTO trigger_migrations (version) VALUES ('001') ON CONFLICT (version) DO NOTHING"
           )
 
           expect do
