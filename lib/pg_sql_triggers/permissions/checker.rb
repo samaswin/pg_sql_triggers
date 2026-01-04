@@ -24,7 +24,7 @@ module PgSqlTriggers
           required_level = Permissions::ACTIONS[action_sym] || "unknown"
           message = "Permission denied: #{action_sym} requires #{required_level} level access"
           recovery = "Contact your administrator to request #{required_level} level access for this operation."
-          
+
           raise PgSqlTriggers::PermissionError.new(
             message,
             error_code: "PERMISSION_DENIED",

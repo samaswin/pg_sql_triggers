@@ -104,7 +104,7 @@
                   <%= render 'pg_sql_triggers/triggers/re_execute_modal', trigger: trigger, drift_info: drift_info, redirect_to: table_path(@table_info[:table_name]) %>
                 <% end %>
               <% rescue StandardError %>
-                <% # Skip if drift detection fails %>
+                <%# Skip if drift detection fails %>
               <% end %>
 
               <%= render 'pg_sql_triggers/triggers/drop_modal', trigger: trigger, redirect_to: table_path(@table_info[:table_name]) %>

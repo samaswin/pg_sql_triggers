@@ -247,15 +247,15 @@ module PgSqlTriggers
       # Execute DROP TRIGGER in transaction
       ActiveRecord::Base.transaction do
         drop_trigger_from_database
-        trigger_name_before_destroy = trigger_name
+        trigger_name
         destroy!
         log_drop_success
         log_audit_success(:trigger_drop, actor, reason: reason, confirmation_text: confirmation,
-                          before_state: before_state, after_state: { status: "dropped" })
+                                                before_state: before_state, after_state: { status: "dropped" })
       end
     rescue StandardError => e
       log_audit_failure(:trigger_drop, actor, e.message, reason: reason,
-                        confirmation_text: confirmation, before_state: before_state)
+                                                         confirmation_text: confirmation, before_state: before_state)
       raise
     end
 
@@ -270,7 +270,11 @@ module PgSqlTriggers
     def re_execute!(reason:, confirmation: nil, actor: nil)
       actor ||= { type: "Console", id: "TriggerRegistry#re_execute!" }
       before_state = capture_state
-      drift_info = drift_result rescue nil
+      drift_info = begin
+        drift_result
+      rescue StandardError
+        nil
+      end
 
       # Check kill switch before re-executing trigger
       PgSqlTriggers::SQL::KillSwitch.check!(
@@ -294,11 +298,14 @@ module PgSqlTriggers
         after_state = capture_state
         diff = drift_info ? "#{drift_info[:expected_sql]} -> #{after_state[:function_body]}" : nil
         log_audit_success(:trigger_re_execute, actor, reason: reason, confirmation_text: confirmation,
-                          before_state: before_state, after_state: after_state, diff: diff)
+                                                      before_state: before_state, after_state: after_state, diff: diff)
       end
     rescue StandardError => e
-      log_audit_failure(:trigger_re_execute, actor, e.message, reason: reason,
-                        confirmation_text: confirmation, before_state: before_state)
+      log_audit_failure(
+        :trigger_re_execute, actor, e.message, reason: reason,
+                                               confirmation_text: confirmation,
+                                               before_state: before_state
+      )
       raise
     end
 
@@ -412,6 +419,7 @@ module PgSqlTriggers
       }
     end
 
+    # rubocop:disable Metrics/ParameterLists
     def log_audit_success(operation, actor, reason: nil, confirmation_text: nil,
                           before_state: nil, after_state: nil, diff: nil)
       return unless defined?(PgSqlTriggers::AuditLog)
@@ -448,6 +456,7 @@ module PgSqlTriggers
     rescue StandardError => e
       Rails.logger.error("Failed to log audit entry: #{e.message}") if defined?(Rails.logger)
     end
+    # rubocop:enable Metrics/ParameterLists
   end
   # rubocop:enable Metrics/ClassLength
 end

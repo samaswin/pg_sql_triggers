@@ -74,7 +74,7 @@ module PgSqlTriggers
     def default_recovery_suggestion
       if context[:required_role]
         "This operation requires #{context[:required_role]} level access. " \
-        "Contact your administrator to request appropriate permissions."
+          "Contact your administrator to request appropriate permissions."
       else
         "This operation requires elevated permissions. Contact your administrator."
       end
@@ -101,11 +101,11 @@ module PgSqlTriggers
 
     def default_recovery_suggestion
       ctx = @context || {}
-      operation = ctx[:operation] || "this operation"
+      ctx[:operation] || "this operation"
       environment = ctx[:environment] || "this environment"
       "Kill switch is active for #{environment}. " \
-      "To override, provide the required confirmation text. " \
-      "For CLI/rake tasks, use: KILL_SWITCH_OVERRIDE=true CONFIRMATION_TEXT=\"...\" rake your:task"
+        "To override, provide the required confirmation text. " \
+        "For CLI/rake tasks, use: KILL_SWITCH_OVERRIDE=true CONFIRMATION_TEXT=\"...\" rake your:task"
     end
   end
 
@@ -130,8 +130,8 @@ module PgSqlTriggers
     def default_recovery_suggestion
       trigger_name = context[:trigger_name] || "trigger"
       "Trigger '#{trigger_name}' has drifted. " \
-      "Run 'rake trigger:migrate' to sync the trigger, or use the re-execute feature " \
-      "to apply the current definition."
+        "Run 'rake trigger:migrate' to sync the trigger, or use the re-execute feature " \
+        "to apply the current definition."
     end
   end
 
@@ -209,9 +209,9 @@ module PgSqlTriggers
 
     def default_recovery_suggestion
       "Review the migration for unsafe operations. " \
-      "If you are certain the migration is safe, you can set " \
-      "PgSqlTriggers.configure { |c| c.allow_unsafe_migrations = true } " \
-      "or use the kill switch override mechanism."
+        "If you are certain the migration is safe, you can set " \
+        "PgSqlTriggers.configure { |c| c.allow_unsafe_migrations = true } " \
+        "or use the kill switch override mechanism."
     end
   end
 
@@ -236,11 +236,10 @@ module PgSqlTriggers
     def default_recovery_suggestion
       if context[:trigger_name]
         "Trigger '#{context[:trigger_name]}' not found. " \
-        "Verify the trigger name or create the trigger first using the generator or DSL."
+          "Verify the trigger name or create the trigger first using the generator or DSL."
       else
         "The requested resource was not found. Verify the identifier and try again."
       end
     end
   end
 end
-

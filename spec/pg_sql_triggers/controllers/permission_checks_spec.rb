@@ -3,7 +3,6 @@
 require "spec_helper"
 
 RSpec.describe "Permission checks across controllers", type: :controller do
-
   let(:trigger) do
     create(:trigger_registry, :enabled, :dsl_source,
            trigger_name: "test_trigger",
@@ -256,4 +255,3 @@ RSpec.describe "Permission checks across controllers", type: :controller do
     end
   end
 end
-

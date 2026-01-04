@@ -23,7 +23,6 @@ class CreatePgSqlTriggersAuditLog < ActiveRecord::Migration[6.1]
     add_index :pg_sql_triggers_audit_log, :status
     add_index :pg_sql_triggers_audit_log, :environment
     add_index :pg_sql_triggers_audit_log, :created_at
-    add_index :pg_sql_triggers_audit_log, [:trigger_name, :created_at]
+    add_index :pg_sql_triggers_audit_log, %i[trigger_name created_at]
   end
 end
-

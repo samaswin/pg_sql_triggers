@@ -157,7 +157,8 @@ module PgSqlTriggers
             "Invalid confirmation text. Expected: '#{expected}', got: '#{confirmation.strip}'",
             error_code: "KILL_SWITCH_CONFIRMATION_INVALID",
             recovery_suggestion: "Use the exact confirmation text: #{expected}",
-            context: { operation: operation, expected_confirmation: expected, provided_confirmation: confirmation.strip }
+            context: { operation: operation, expected_confirmation: expected,
+                       provided_confirmation: confirmation.strip }
           )
         end
 
@@ -301,15 +302,15 @@ module PgSqlTriggers
 
           recovery = <<~RECOVERY
             To override, provide the confirmation text: #{expected}
-            
+
             For CLI/rake tasks:
               KILL_SWITCH_OVERRIDE=true CONFIRMATION_TEXT="#{expected}" rake your:task
-            
+
             For console operations:
               PgSqlTriggers::SQL::KillSwitch.override(confirmation: "#{expected}") do
                 # your operation here
               end
-            
+
             For UI operations, enter the confirmation text in the modal.
           RECOVERY
 

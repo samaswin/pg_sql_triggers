@@ -64,4 +64,3 @@ module PgSqlTriggers
     end
   end
 end
-

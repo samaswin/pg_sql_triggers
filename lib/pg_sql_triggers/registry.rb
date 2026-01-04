@@ -19,16 +19,26 @@ module PgSqlTriggers
   #
   # @example Manage triggers
   #   # Enable a trigger
-  #   PgSqlTriggers::Registry.enable("users_email_validation", actor: current_user, confirmation: "EXECUTE TRIGGER_ENABLE")
+  #   PgSqlTriggers::Registry.enable("users_email_validation",
+  #                                   actor: current_user,
+  #                                   confirmation: "EXECUTE TRIGGER_ENABLE")
   #
   #   # Disable a trigger
-  #   PgSqlTriggers::Registry.disable("users_email_validation", actor: current_user, confirmation: "EXECUTE TRIGGER_DISABLE")
+  #   PgSqlTriggers::Registry.disable("users_email_validation",
+  #                                    actor: current_user,
+  #                                    confirmation: "EXECUTE TRIGGER_DISABLE")
   #
   #   # Drop a trigger
-  #   PgSqlTriggers::Registry.drop("old_trigger", actor: current_user, reason: "No longer needed", confirmation: "EXECUTE TRIGGER_DROP")
+  #   PgSqlTriggers::Registry.drop("old_trigger",
+  #                                 actor: current_user,
+  #                                 reason: "No longer needed",
+  #                                 confirmation: "EXECUTE TRIGGER_DROP")
   #
   #   # Re-execute a trigger
-  #   PgSqlTriggers::Registry.re_execute("drifted_trigger", actor: current_user, reason: "Fix drift", confirmation: "EXECUTE TRIGGER_RE_EXECUTE")
+  #   PgSqlTriggers::Registry.re_execute("drifted_trigger",
+  #                                       actor: current_user,
+  #                                       reason: "Fix drift",
+  #                                       confirmation: "EXECUTE TRIGGER_RE_EXECUTE")
   module Registry
     autoload :Manager, "pg_sql_triggers/registry/manager"
     autoload :Validator, "pg_sql_triggers/registry/validator"

@@ -15,7 +15,7 @@ RSpec.describe PgSqlTriggers::AuditLogsController, type: :controller do
   end
 
   describe "GET #index" do
-    let!(:audit_log1) do
+    let!(:successful_audit_log) do
       PgSqlTriggers::AuditLog.create!(
         trigger_name: "test_trigger_1",
         operation: "enable",
@@ -26,7 +26,7 @@ RSpec.describe PgSqlTriggers::AuditLogsController, type: :controller do
       )
     end
 
-    let!(:audit_log2) do
+    let!(:failed_audit_log) do
       PgSqlTriggers::AuditLog.create!(
         trigger_name: "test_trigger_2",
         operation: "disable",
@@ -38,7 +38,7 @@ RSpec.describe PgSqlTriggers::AuditLogsController, type: :controller do
       )
     end
 
-    let!(:audit_log3) do
+    let!(:recent_audit_log) do
       PgSqlTriggers::AuditLog.create!(
         trigger_name: "test_trigger_1",
         operation: "drop",
@@ -58,15 +58,15 @@ RSpec.describe PgSqlTriggers::AuditLogsController, type: :controller do
     it "sorts by created_at descending by default" do
       get :index
       logs = assigns(:audit_logs)
-      expect(logs.first.id).to eq(audit_log3.id)
-      expect(logs.last.id).to eq(audit_log1.id)
+      expect(logs.first.id).to eq(recent_audit_log.id)
+      expect(logs.last.id).to eq(successful_audit_log.id)
     end
 
     it "sorts by created_at ascending when sort=asc" do
       get :index, params: { sort: "asc" }
       logs = assigns(:audit_logs)
-      expect(logs.first.id).to eq(audit_log1.id)
-      expect(logs.last.id).to eq(audit_log3.id)
+      expect(logs.first.id).to eq(successful_audit_log.id)
+      expect(logs.last.id).to eq(recent_audit_log.id)
     end
 
     it "filters by trigger_name" do
@@ -185,9 +185,9 @@ RSpec.describe PgSqlTriggers::AuditLogsController, type: :controller do
       expect(response.content_type).to include("text/csv")
       csv = CSV.parse(response.body)
       expect(csv.first).to eq([
-        "ID", "Trigger Name", "Operation", "Status", "Environment",
-        "Actor Type", "Actor ID", "Reason", "Error Message", "Created At"
-      ])
+                                "ID", "Trigger Name", "Operation", "Status", "Environment",
+                                "Actor Type", "Actor ID", "Reason", "Error Message", "Created At"
+                              ])
     end
 
     it "includes audit log data in CSV" do
@@ -250,4 +250,3 @@ RSpec.describe PgSqlTriggers::AuditLogsController, type: :controller do
     end
   end
 end
-

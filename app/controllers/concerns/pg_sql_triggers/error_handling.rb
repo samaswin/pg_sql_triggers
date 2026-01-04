@@ -24,11 +24,11 @@ module PgSqlTriggers
       Rails.logger.error("#{error.class.name}: #{error.message}")
       Rails.logger.error(error.backtrace.join("\n")) if Rails.env.development? && error.respond_to?(:backtrace)
 
-      if error.is_a?(PgSqlTriggers::Error)
-        flash[:error] = format_error_for_flash(error)
-      else
-        flash[:error] = "An unexpected error occurred: #{error.message}"
-      end
+      flash[:error] = if error.is_a?(PgSqlTriggers::Error)
+                        format_error_for_flash(error)
+                      else
+                        "An unexpected error occurred: #{error.message}"
+                      end
     end
 
     # Handles kill switch errors with appropriate flash message and redirect.
@@ -54,4 +54,3 @@ module PgSqlTriggers
     end
   end
 end
-

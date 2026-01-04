@@ -47,9 +47,9 @@ module PgSqlTriggers
         Rails.logger.error("Permission check failed: #{e.message}\n#{e.backtrace.join("\n")}")
         false
       end
-      unless can_access
-        redirect_to root_path, alert: "Insufficient permissions. Viewer role required."
-      end
+      return if can_access
+
+      redirect_to root_path, alert: "Insufficient permissions. Viewer role required."
     end
 
     # Checks if current actor has operator permissions (enable/disable/apply).
@@ -62,9 +62,9 @@ module PgSqlTriggers
         Rails.logger.error("Permission check failed: #{e.message}\n#{e.backtrace.join("\n")}")
         false
       end
-      unless can_access
-        redirect_to root_path, alert: "Insufficient permissions. Operator role required."
-      end
+      return if can_access
+
+      redirect_to root_path, alert: "Insufficient permissions. Operator role required."
     end
 
     # Checks if current actor has admin permissions (drop/re-execute/execute SQL).
@@ -77,9 +77,9 @@ module PgSqlTriggers
         Rails.logger.error("Permission check failed: #{e.message}\n#{e.backtrace.join("\n")}")
         false
       end
-      unless can_access
-        redirect_to root_path, alert: "Insufficient permissions. Admin role required."
-      end
+      return if can_access
+
+      redirect_to root_path, alert: "Insufficient permissions. Admin role required."
     end
 
     # Permission helper methods for views
@@ -115,4 +115,3 @@ module PgSqlTriggers
     end
   end
 end
-

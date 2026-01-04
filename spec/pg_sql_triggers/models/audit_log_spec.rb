@@ -34,7 +34,7 @@ RSpec.describe PgSqlTriggers::AuditLog do
   end
 
   describe "scopes" do
-    let!(:log1) do
+    let!(:successful_enable_log) do
       described_class.create!(
         trigger_name: "trigger_1",
         operation: "enable",
@@ -43,7 +43,7 @@ RSpec.describe PgSqlTriggers::AuditLog do
       )
     end
 
-    let!(:log2) do
+    let!(:failed_disable_log) do
       described_class.create!(
         trigger_name: "trigger_2",
         operation: "disable",
@@ -52,7 +52,7 @@ RSpec.describe PgSqlTriggers::AuditLog do
       )
     end
 
-    let!(:log3) do
+    let!(:successful_drop_log) do
       described_class.create!(
         trigger_name: "trigger_1",
         operation: "drop",
@@ -65,8 +65,8 @@ RSpec.describe PgSqlTriggers::AuditLog do
       it "filters by trigger name" do
         logs = described_class.for_trigger("trigger_1")
         expect(logs.count).to eq(2)
-        expect(logs).to include(log1, log3)
-        expect(logs).not_to include(log2)
+        expect(logs).to include(successful_enable_log, successful_drop_log)
+        expect(logs).not_to include(failed_disable_log)
       end
     end
 
@@ -74,7 +74,7 @@ RSpec.describe PgSqlTriggers::AuditLog do
       it "filters by operation" do
         logs = described_class.for_operation("enable")
         expect(logs.count).to eq(1)
-        expect(logs).to include(log1)
+        expect(logs).to include(successful_enable_log)
       end
     end
 
@@ -82,7 +82,7 @@ RSpec.describe PgSqlTriggers::AuditLog do
       it "filters by environment" do
         logs = described_class.for_environment("test")
         expect(logs.count).to eq(2)
-        expect(logs).to include(log1, log3)
+        expect(logs).to include(successful_enable_log, successful_drop_log)
       end
     end
 
@@ -90,8 +90,8 @@ RSpec.describe PgSqlTriggers::AuditLog do
       it "returns only successful operations" do
         logs = described_class.successful
         expect(logs.count).to eq(2)
-        expect(logs).to include(log1, log3)
-        expect(logs).not_to include(log2)
+        expect(logs).to include(successful_enable_log, successful_drop_log)
+        expect(logs).not_to include(failed_disable_log)
       end
     end
 
@@ -99,15 +99,15 @@ RSpec.describe PgSqlTriggers::AuditLog do
       it "returns only failed operations" do
         logs = described_class.failed
         expect(logs.count).to eq(1)
-        expect(logs).to include(log2)
+        expect(logs).to include(failed_disable_log)
       end
     end
 
     describe ".recent" do
       it "orders by created_at descending" do
         logs = described_class.recent
-        expect(logs.first).to eq(log3)
-        expect(logs.last).to eq(log1)
+        expect(logs.first).to eq(successful_drop_log)
+        expect(logs.last).to eq(successful_enable_log)
       end
     end
   end
@@ -281,7 +281,7 @@ RSpec.describe PgSqlTriggers::AuditLog do
   end
 
   describe ".for_trigger_name" do
-    let!(:log1) do
+    let!(:enable_log) do
       described_class.create!(
         trigger_name: "trigger_1",
         operation: "enable",
@@ -289,7 +289,7 @@ RSpec.describe PgSqlTriggers::AuditLog do
       )
     end
 
-    let!(:log2) do
+    let!(:other_trigger_log) do
       described_class.create!(
         trigger_name: "trigger_2",
         operation: "disable",
@@ -297,7 +297,7 @@ RSpec.describe PgSqlTriggers::AuditLog do
       )
     end
 
-    let!(:log3) do
+    let!(:drop_log) do
       described_class.create!(
         trigger_name: "trigger_1",
         operation: "drop",
@@ -308,9 +308,8 @@ RSpec.describe PgSqlTriggers::AuditLog do
     it "returns logs for specific trigger ordered by recent" do
       logs = described_class.for_trigger_name("trigger_1")
       expect(logs.count).to eq(2)
-      expect(logs.first).to eq(log3) # Most recent first
-      expect(logs.last).to eq(log1)
+      expect(logs.first).to eq(drop_log) # Most recent first
+      expect(logs.last).to eq(enable_log)
     end
   end
 end
-

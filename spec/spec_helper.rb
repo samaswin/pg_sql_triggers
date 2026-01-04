@@ -186,7 +186,7 @@ RSpec.configure do |config|
       ActiveRecord::Base.connection.add_index "pg_sql_triggers_audit_log", :status
       ActiveRecord::Base.connection.add_index "pg_sql_triggers_audit_log", :environment
       ActiveRecord::Base.connection.add_index "pg_sql_triggers_audit_log", :created_at
-      ActiveRecord::Base.connection.add_index "pg_sql_triggers_audit_log", [:trigger_name, :created_at]
+      ActiveRecord::Base.connection.add_index "pg_sql_triggers_audit_log", %i[trigger_name created_at]
     end
 
     # Configure DatabaseCleaner

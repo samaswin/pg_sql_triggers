@@ -46,7 +46,5 @@ module PgSqlTriggers
         @per_page = 20
       end
     end
-
-    private
   end
 end

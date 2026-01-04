@@ -1,8 +1,8 @@
 # Code Coverage Report
 
-**Total Coverage: 93.02%**
+**Total Coverage: 92.96%**
 
-Covered: 2239 / 2407 lines
+Covered: 2246 / 2416 lines
 
 ---
 
@@ -57,7 +57,7 @@ Covered: 2239 / 2407 lines
 | `lib/pg_sql_triggers/testing/function_tester.rb` | 89.55% ⚠️ | 60 | 7 | 67 |
 | `app/models/pg_sql_triggers/trigger_registry.rb` | 88.44% ⚠️ | 153 | 20 | 173 |
 | `app/controllers/pg_sql_triggers/migrations_controller.rb` | 82.76% ⚠️ | 72 | 15 | 87 |
-| `app/controllers/concerns/pg_sql_triggers/permission_checking.rb` | 75.0% ⚠️ | 24 | 8 | 32 |
+| `app/controllers/concerns/pg_sql_triggers/permission_checking.rb` | 75.61% ⚠️ | 31 | 10 | 41 |
 | `lib/pg_sql_triggers/errors.rb` | 62.65% ❌ | 52 | 31 | 83 |
 | `app/helpers/pg_sql_triggers/permissions_helper.rb` | 56.25% ❌ | 9 | 7 | 16 |
 | `app/controllers/concerns/pg_sql_triggers/error_handling.rb` | 36.84% ❌ | 7 | 12 | 19 |

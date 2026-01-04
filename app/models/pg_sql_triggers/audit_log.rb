@@ -30,6 +30,7 @@ module PgSqlTriggers
       # @param before_state [Hash, nil] State before operation
       # @param after_state [Hash, nil] State after operation
       # @param diff [String, nil] Diff information
+      # rubocop:disable Metrics/ParameterLists
       def log_success(operation:, trigger_name: nil, actor: nil, environment: nil,
                       reason: nil, confirmation_text: nil, before_state: nil,
                       after_state: nil, diff: nil)
@@ -49,6 +50,7 @@ module PgSqlTriggers
         Rails.logger.error("Failed to log audit entry: #{e.message}") if defined?(Rails.logger)
         nil
       end
+      # rubocop:enable Metrics/ParameterLists
 
       # Log a failed operation
       #
@@ -60,8 +62,9 @@ module PgSqlTriggers
       # @param reason [String, nil] Reason for the operation (if provided before failure)
       # @param confirmation_text [String, nil] Confirmation text used
       # @param before_state [Hash, nil] State before operation
-      def log_failure(operation:, trigger_name: nil, actor: nil, environment: nil,
-                      error_message:, reason: nil, confirmation_text: nil, before_state: nil)
+      # rubocop:disable Metrics/ParameterLists
+      def log_failure(operation:, error_message:, trigger_name: nil, actor: nil, environment: nil, reason: nil,
+                      confirmation_text: nil, before_state: nil)
         create!(
           trigger_name: trigger_name,
           operation: operation.to_s,
@@ -77,6 +80,7 @@ module PgSqlTriggers
         Rails.logger.error("Failed to log audit entry: #{e.message}") if defined?(Rails.logger)
         nil
       end
+      # rubocop:enable Metrics/ParameterLists
 
       # Get audit log entries for a specific trigger
       #
@@ -100,4 +104,3 @@ module PgSqlTriggers
     end
   end
 end
-

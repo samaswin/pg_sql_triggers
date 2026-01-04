@@ -214,8 +214,8 @@ RSpec.describe PgSqlTriggers::TriggersController, type: :controller do
   describe "permission checks" do
     context "when user lacks permissions" do
       before do
-        allow(PgSqlTriggers::Permissions).to receive(:can?) do |actor, action, options|
-          action == :enable_trigger ? false : true
+        allow(PgSqlTriggers::Permissions).to receive(:can?) do |_actor, action, _options|
+          action != :enable_trigger
         end
       end
 
@@ -227,8 +227,8 @@ RSpec.describe PgSqlTriggers::TriggersController, type: :controller do
       end
 
       it "blocks disable action" do
-        allow(PgSqlTriggers::Permissions).to receive(:can?) do |actor, action, options|
-          action == :enable_trigger ? false : true
+        allow(PgSqlTriggers::Permissions).to receive(:can?) do |_actor, action, _options|
+          action != :enable_trigger
         end
         post :disable, params: { id: trigger.id }
         expect(flash[:alert]).to match(/Insufficient permissions/)
@@ -410,8 +410,8 @@ RSpec.describe PgSqlTriggers::TriggersController, type: :controller do
 
     context "when user lacks view permission" do
       before do
-        allow(PgSqlTriggers::Permissions).to receive(:can?) do |actor, action, options|
-          action == :view_triggers ? false : true
+        allow(PgSqlTriggers::Permissions).to receive(:can?) do |_actor, action, _options|
+          action != :view_triggers
         end
       end
 
@@ -573,8 +573,8 @@ RSpec.describe PgSqlTriggers::TriggersController, type: :controller do
 
     context "when user lacks drop permission" do
       before do
-        allow(PgSqlTriggers::Permissions).to receive(:can?) do |actor, action, options|
-          action == :drop_trigger ? false : true
+        allow(PgSqlTriggers::Permissions).to receive(:can?) do |_actor, action, _options|
+          action != :drop_trigger
         end
       end
 
@@ -710,8 +710,8 @@ RSpec.describe PgSqlTriggers::TriggersController, type: :controller do
 
     context "when user lacks admin permission" do
       before do
-        allow(PgSqlTriggers::Permissions).to receive(:can?) do |actor, action, options|
-          action == :drop_trigger ? false : true
+        allow(PgSqlTriggers::Permissions).to receive(:can?) do |_actor, action, _options|
+          action != :drop_trigger
         end
       end
 

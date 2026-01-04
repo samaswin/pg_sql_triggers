@@ -10,14 +10,10 @@ module PgSqlTriggers
       @audit_logs = PgSqlTriggers::AuditLog.all
 
       # Filter by trigger name
-      if params[:trigger_name].present?
-        @audit_logs = @audit_logs.for_trigger(params[:trigger_name])
-      end
+      @audit_logs = @audit_logs.for_trigger(params[:trigger_name]) if params[:trigger_name].present?
 
       # Filter by operation
-      if params[:operation].present?
-        @audit_logs = @audit_logs.for_operation(params[:operation])
-      end
+      @audit_logs = @audit_logs.for_operation(params[:operation]) if params[:operation].present?
 
       # Filter by status
       if params[:status].present? && %w[success failure].include?(params[:status])
@@ -25,14 +21,10 @@ module PgSqlTriggers
       end
 
       # Filter by environment
-      if params[:environment].present?
-        @audit_logs = @audit_logs.for_environment(params[:environment])
-      end
+      @audit_logs = @audit_logs.for_environment(params[:environment]) if params[:environment].present?
 
       # Filter by actor (search in JSONB field)
-      if params[:actor_id].present?
-        @audit_logs = @audit_logs.where("actor->>'id' = ?", params[:actor_id])
-      end
+      @audit_logs = @audit_logs.where("actor->>'id' = ?", params[:actor_id]) if params[:actor_id].present?
 
       # Sort by date (default: most recent first)
       sort_direction = params[:sort] == "asc" ? :asc : :desc
@@ -57,7 +49,8 @@ module PgSqlTriggers
       respond_to do |format|
         format.html
         format.csv do
-          send_data generate_csv, filename: "audit_logs_#{Time.current.strftime('%Y%m%d_%H%M%S')}.csv", type: "text/csv", disposition: "attachment"
+          send_data generate_csv, filename: "audit_logs_#{Time.current.strftime('%Y%m%d_%H%M%S')}.csv",
+                                  type: "text/csv", disposition: "attachment"
         end
       end
     end
@@ -73,7 +66,9 @@ module PgSqlTriggers
       # Apply filters
       audit_logs = audit_logs.for_trigger(params[:trigger_name]) if params[:trigger_name].present?
       audit_logs = audit_logs.for_operation(params[:operation]) if params[:operation].present?
-      audit_logs = audit_logs.where(status: params[:status]) if params[:status].present? && %w[success failure].include?(params[:status])
+      if params[:status].present? && %w[success failure].include?(params[:status])
+        audit_logs = audit_logs.where(status: params[:status])
+      end
       audit_logs = audit_logs.for_environment(params[:environment]) if params[:environment].present?
       audit_logs = audit_logs.where("actor->>'id' = ?", params[:actor_id]) if params[:actor_id].present?
 
@@ -105,4 +100,3 @@ module PgSqlTriggers
     end
   end
 end
-

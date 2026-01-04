@@ -2,6 +2,7 @@ PATH
   remote: .
   specs:
     pg_sql_triggers (1.3.0)
+      csv (>= 3.0)
       pg (>= 1.0)
       rails (>= 6.1)
 
@@ -96,6 +97,7 @@ GEM
     concurrent-ruby (1.3.6)
     connection_pool (3.0.2)
     crass (1.0.6)
+    csv (3.3.5)
     database_cleaner-active_record (2.2.2)
       activerecord (>= 5.a)
       database_cleaner-core (~> 2.0)
