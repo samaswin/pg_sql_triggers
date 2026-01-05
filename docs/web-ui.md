@@ -52,6 +52,65 @@ The dashboard provides a comprehensive view of your trigger ecosystem.
 - **○ Gray**: Disabled
 - **? Purple**: Unknown
 
+## Database Tables & Triggers
+
+The Database Tables & Triggers page provides a comprehensive view of all tables in your database and their associated triggers. This page helps you understand which tables have triggers and which don't, making it easier to manage your trigger ecosystem.
+
+### Accessing the Tables Page
+
+1. Click "View Tables" from the dashboard
+2. Or navigate directly to `/pg_sql_triggers/tables`
+
+### Statistics Overview
+
+The page displays three key statistics:
+- **Tables with Triggers**: Count of tables that have at least one trigger
+- **Tables without Triggers**: Count of tables that have no triggers
+- **Total Tables**: Total count of all tables in the database
+
+### Filtering Tables
+
+Use the filter controls to view different subsets of tables:
+- **All Tables**: Shows all tables regardless of trigger status
+- **With Triggers**: Shows only tables that have at least one trigger (default)
+- **Without Triggers**: Shows only tables that have no triggers
+
+The active filter is highlighted with a colored background. Click any filter button to switch views.
+
+### Pagination
+
+When you have many tables, the list is paginated for better performance:
+- **Default**: 20 tables per page
+- **Configurable**: Choose 10, 20, 50, or 100 tables per page
+- **Navigation**: Use Previous/Next buttons to move between pages
+- **Filter Preservation**: Your selected filter is preserved when navigating pages
+
+### Table Information
+
+Each table row displays:
+- **Table Name**: The name of the database table
+- **Trigger Count**: Number of triggers on the table (badge indicator)
+- **Trigger Names & Functions**: List of all triggers with their function names
+  - Registry triggers (blue border) - Triggers managed by pg_sql_triggers
+  - Database-only triggers (yellow border) - Triggers not in the registry
+- **Status**: Summary of enabled/disabled triggers
+- **Actions**: 
+  - "View Details" - Navigate to the table detail page
+  - "Create Trigger" - Generate a new trigger for this table
+
+### Table Detail Page
+
+Click "View Details" on any table to see:
+- **Table Columns**: Complete list of columns with data types and nullability
+- **Registered Triggers**: All triggers managed by pg_sql_triggers with full details
+- **Database Triggers**: Triggers that exist in the database but aren't in the registry
+
+From the table detail page, you can:
+- Enable/disable individual triggers (Operator+ permission)
+- Drop triggers (Admin permission)
+- Re-execute drifted triggers (Admin permission)
+- Create new triggers for the table
+
 ## Managing Triggers
 
 ### Viewing Trigger Details

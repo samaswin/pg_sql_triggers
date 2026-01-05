@@ -6,10 +6,34 @@ module PgSqlTriggers
 
     def index
       all_tables = PgSqlTriggers::DatabaseIntrospection.new.tables_with_triggers
-      # Only show tables that have at least one trigger
-      @tables_with_triggers = all_tables.select { |t| t[:trigger_count].positive? }
-      @total_tables = @tables_with_triggers.count
-      @tables_with_trigger_count = @tables_with_triggers.count
+
+      # Calculate statistics
+      @tables_with_trigger_count = all_tables.count { |t| t[:trigger_count].positive? }
+      @tables_without_trigger_count = all_tables.count { |t| t[:trigger_count].zero? }
+      @total_tables_count = all_tables.count
+
+      # Filter based on parameter
+      @filter = params[:filter] || "with_triggers"
+      filtered_tables = case @filter
+                        when "with_triggers"
+                          all_tables.select { |t| t[:trigger_count].positive? }
+                        when "without_triggers"
+                          all_tables.select { |t| t[:trigger_count].zero? }
+                        else # 'all'
+                          all_tables
+                        end
+
+      @total_tables = filtered_tables.count
+
+      # Pagination
+      @per_page = (params[:per_page] || 20).to_i
+      @per_page = [@per_page, 100].min # Cap at 100
+      @page = (params[:page] || 1).to_i
+      @total_pages = @total_tables.positive? ? (@total_tables.to_f / @per_page).ceil : 1
+      @page = @page.clamp(1, @total_pages) # Ensure page is within valid range
+
+      offset = (@page - 1) * @per_page
+      @tables_with_triggers = filtered_tables.slice(offset, @per_page) || []
     end
 
     def show

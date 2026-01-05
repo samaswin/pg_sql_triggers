@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.3.0]
+## [1.3.0] - 2026-01-05
 
 ### Added
 - **Enhanced Console API**: Added missing drift query methods to Registry API for consistency
@@ -106,6 +106,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Comprehensive view showing operation details, actor information, status, and error messages
   - Links to trigger detail pages from audit log entries
   - Navigation menu integration
+
+- **Enhanced Database Tables & Triggers Page**:
+  - Pagination support for tables list (default 20 per page, configurable up to 100)
+  - Filter functionality to view:
+    - All tables
+    - Tables with triggers only
+    - Tables without triggers only
+  - Enhanced statistics dashboard showing:
+    - Count of tables with triggers
+    - Count of tables without triggers
+    - Total tables count
+  - Filter controls with visual indicators for active filter
+  - Pagination controls preserve filter selection when navigating pages
+  - Context-aware empty state messages based on selected filter
 
 ### Changed
 - **Code Organization**: Refactored `ApplicationController` to use concerns instead of inline methods

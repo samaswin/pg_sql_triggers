@@ -9,11 +9,37 @@
     <div style="font-size: 2rem; font-weight: 600; color: #28a745;"><%= @tables_with_trigger_count %></div>
     <div style="color: #6c757d;">Tables with Triggers</div>
   </div>
+  <div style="background: white; padding: 1.5rem; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+    <div style="font-size: 2rem; font-weight: 600; color: #6c757d;"><%= @tables_without_trigger_count %></div>
+    <div style="color: #6c757d;">Tables without Triggers</div>
+  </div>
+  <div style="background: white; padding: 1.5rem; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+    <div style="font-size: 2rem; font-weight: 600; color: #007bff;"><%= @total_tables_count %></div>
+    <div style="color: #6c757d;">Total Tables</div>
+  </div>
+</div>
+
+<!-- Filter Controls -->
+<div style="background: white; padding: 1rem 1.5rem; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 2rem;">
+  <div style="display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap;">
+    <label style="color: #495057; font-weight: 600; font-size: 0.875rem;">Filter:</label>
+    <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+      <%= link_to "All Tables", tables_path(filter: 'all', page: 1, per_page: @per_page),
+          style: "padding: 0.5rem 1rem; background: #{@filter == 'all' ? '#007bff' : '#f8f9fa'}; color: #{@filter == 'all' ? 'white' : '#495057'}; text-decoration: none; border-radius: 4px; border: 1px solid #{@filter == 'all' ? '#007bff' : '#dee2e6'}; font-size: 0.875rem; font-weight: #{@filter == 'all' ? '600' : '400'};" %>
+      <%= link_to "With Triggers", tables_path(filter: 'with_triggers', page: 1, per_page: @per_page),
+          style: "padding: 0.5rem 1rem; background: #{@filter == 'with_triggers' ? '#28a745' : '#f8f9fa'}; color: #{@filter == 'with_triggers' ? 'white' : '#495057'}; text-decoration: none; border-radius: 4px; border: 1px solid #{@filter == 'with_triggers' ? '#28a745' : '#dee2e6'}; font-size: 0.875rem; font-weight: #{@filter == 'with_triggers' ? '600' : '400'};" %>
+      <%= link_to "Without Triggers", tables_path(filter: 'without_triggers', page: 1, per_page: @per_page),
+          style: "padding: 0.5rem 1rem; background: #{@filter == 'without_triggers' ? '#6c757d' : '#f8f9fa'}; color: #{@filter == 'without_triggers' ? 'white' : '#495057'}; text-decoration: none; border-radius: 4px; border: 1px solid #{@filter == 'without_triggers' ? '#6c757d' : '#dee2e6'}; font-size: 0.875rem; font-weight: #{@filter == 'without_triggers' ? '600' : '400'};" %>
+    </div>
+  </div>
 </div>
 
 <!-- Tables List -->
 <% if @tables_with_triggers.any? %>
   <div style="background: white; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); overflow: hidden;">
+    <div style="margin-bottom: 1rem; color: #6c757d; font-size: 0.875rem; padding: 1rem 1rem 0 1rem;">
+      Showing <%= (@page - 1) * @per_page + 1 %>-<%= [@page * @per_page, @total_tables].min %> of <%= @total_tables %> tables
+    </div>
     <table style="margin: 0;">
       <thead>
         <tr>
@@ -93,11 +119,58 @@
         <% end %>
       </tbody>
     </table>
+
+    <!-- Pagination Controls -->
+    <% if @total_pages > 1 %>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1rem; padding: 1rem; border-top: 1px solid #dee2e6;">
+        <div>
+          <% if @page > 1 %>
+            <%= link_to "← Previous", tables_path(filter: @filter, page: @page - 1, per_page: @per_page),
+                style: "padding: 0.5rem 1rem; background: #007bff; color: white; text-decoration: none; border-radius: 4px; margin-right: 0.5rem;" %>
+          <% end %>
+          <% if @page < @total_pages %>
+            <%= link_to "Next →", tables_path(filter: @filter, page: @page + 1, per_page: @per_page),
+                style: "padding: 0.5rem 1rem; background: #007bff; color: white; text-decoration: none; border-radius: 4px;" %>
+          <% end %>
+        </div>
+        <div style="color: #6c757d; font-size: 0.875rem;">
+          Page <%= @page %> of <%= @total_pages %>
+        </div>
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <label style="color: #6c757d; font-size: 0.875rem;">Per page:</label>
+          <select onchange="window.location.href='<%= tables_path %>?filter=<%= @filter %>&page=1&per_page=' + this.value"
+                  style="padding: 0.25rem 0.5rem; border: 1px solid #ced4da; border-radius: 4px;">
+            <option value="10" <%= 'selected' if @per_page == 10 %>>10</option>
+            <option value="20" <%= 'selected' if @per_page == 20 %>>20</option>
+            <option value="50" <%= 'selected' if @per_page == 50 %>>50</option>
+            <option value="100" <%= 'selected' if @per_page == 100 %>>100</option>
+          </select>
+        </div>
+      </div>
+    <% end %>
   </div>
 <% else %>
   <div style="background: #e7f3ff; border-left: 4px solid #007bff; padding: 1.5rem; border-radius: 4px;">
-    <h3 style="margin-top: 0;">No tables with triggers found</h3>
-    <p style="margin-bottom: 1rem;">No tables with triggers were found in the database. Create your first trigger to get started.</p>
-    <%= link_to "Generate New Trigger", new_generator_path, class: "btn btn-primary" %>
+    <h3 style="margin-top: 0;">
+      <% if @filter == 'with_triggers' %>
+        No tables with triggers found
+      <% elsif @filter == 'without_triggers' %>
+        No tables without triggers found
+      <% else %>
+        No tables found
+      <% end %>
+    </h3>
+    <p style="margin-bottom: 1rem;">
+      <% if @filter == 'with_triggers' %>
+        No tables with triggers were found in the database. Create your first trigger to get started.
+      <% elsif @filter == 'without_triggers' %>
+        All tables in the database have triggers.
+      <% else %>
+        No tables were found in the database.
+      <% end %>
+    </p>
+    <% if @filter == 'with_triggers' || @filter == 'all' %>
+      <%= link_to "Generate New Trigger", new_generator_path, class: "btn btn-primary" %>
+    <% end %>
   </div>
 <% end %>

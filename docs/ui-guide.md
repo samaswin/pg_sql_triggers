@@ -28,7 +28,7 @@ You can customize the mount path in your routes if needed.
 The main navigation includes:
 
 - **Dashboard**: Overview of all triggers
-- **Tables**: Browse triggers by table
+- **Tables**: Browse triggers by table (with pagination and filters)
 - **Generator**: Create new triggers via UI
 - **Audit Log**: View operation history
 
@@ -43,6 +43,27 @@ The dashboard provides an overview of your trigger ecosystem.
 - **Last Applied**: When triggers were last applied
 - **Quick Actions**: Enable/disable buttons (based on permissions)
 - **Drift Indicators**: Visual warnings for drifted triggers
+
+## Tables Page
+
+The Tables page shows all database tables and their triggers.
+
+### Key Features
+
+- **Statistics**: Count of tables with/without triggers
+- **Filtering**: View all tables, only with triggers, or only without triggers
+- **Pagination**: Navigate through large table lists (20 per page by default)
+- **Table Details**: Click "View Details" to see all triggers for a table
+- **Quick Actions**: Create triggers directly from the table list
+
+### Using Filters
+
+1. Click "View Tables" from dashboard
+2. Use filter buttons:
+   - **All Tables**: Shows everything
+   - **With Triggers**: Only tables that have triggers (default)
+   - **Without Triggers**: Only tables without triggers
+3. Filter selection is preserved when navigating pages
 
 ### Status Indicators
 
