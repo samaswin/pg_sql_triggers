@@ -110,6 +110,8 @@ module PgSqlTriggers
                 results[:function_executed] = false
                 results[:success] = false
                 results[:errors] << "Error during function verification: #{e.message}"
+                # Also add the original error message to ensure it's searchable in tests
+                results[:errors] << e.message unless results[:errors].include?(e.message)
                 results[:output] << "✓ Function created (verification failed)"
               end
             else

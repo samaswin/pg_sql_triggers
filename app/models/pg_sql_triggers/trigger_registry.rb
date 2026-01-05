@@ -395,9 +395,13 @@ module PgSqlTriggers
 
     def recreate_trigger
       ActiveRecord::Base.connection.execute(function_body)
-      Rails.logger.info "[TRIGGER_RE_EXECUTE] Re-created trigger" if defined?(Rails.logger)
+      if defined?(Rails) && Rails.respond_to?(:logger) && Rails.logger
+        Rails.logger.info "[TRIGGER_RE_EXECUTE] Re-created trigger"
+      end
     rescue ActiveRecord::StatementInvalid, StandardError => e
-      Rails.logger.error("[TRIGGER_RE_EXECUTE] Failed: #{e.message}") if defined?(Rails.logger)
+      if defined?(Rails) && Rails.respond_to?(:logger) && Rails.logger
+        Rails.logger.error("[TRIGGER_RE_EXECUTE] Failed: #{e.message}")
+      end
       raise
     end
 

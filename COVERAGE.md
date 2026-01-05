@@ -1,8 +1,8 @@
 # Code Coverage Report
 
-**Total Coverage: 92.96%**
+**Total Coverage: 95.99%**
 
-Covered: 2246 / 2416 lines
+Covered: 2319 / 2416 lines
 
 ---
 
@@ -30,17 +30,21 @@ Covered: 2246 / 2416 lines
 | `lib/pg_sql_triggers/testing.rb` | 100.0% ✅ | 6 | 0 | 6 |
 | `lib/pg_sql_triggers/testing/syntax_validator.rb` | 100.0% ✅ | 58 | 0 | 58 |
 | `lib/pg_sql_triggers/testing/dry_run.rb` | 100.0% ✅ | 24 | 0 | 24 |
-| `app/controllers/concerns/pg_sql_triggers/kill_switch_protection.rb` | 100.0% ✅ | 17 | 0 | 17 |
 | `app/models/pg_sql_triggers/audit_log.rb` | 100.0% ✅ | 28 | 0 | 28 |
-| `app/controllers/pg_sql_triggers/application_controller.rb` | 100.0% ✅ | 13 | 0 | 13 |
-| `app/controllers/pg_sql_triggers/audit_logs_controller.rb` | 100.0% ✅ | 47 | 0 | 47 |
-| `app/controllers/pg_sql_triggers/dashboard_controller.rb` | 100.0% ✅ | 27 | 0 | 27 |
+| `app/models/pg_sql_triggers/trigger_registry.rb` | 100.0% ✅ | 176 | 0 | 176 |
+| `app/controllers/concerns/pg_sql_triggers/error_handling.rb` | 100.0% ✅ | 19 | 0 | 19 |
+| `app/controllers/concerns/pg_sql_triggers/kill_switch_protection.rb` | 100.0% ✅ | 17 | 0 | 17 |
 | `app/models/pg_sql_triggers/application_record.rb` | 100.0% ✅ | 3 | 0 | 3 |
+| `app/controllers/pg_sql_triggers/application_controller.rb` | 100.0% ✅ | 13 | 0 | 13 |
+| `app/helpers/pg_sql_triggers/permissions_helper.rb` | 100.0% ✅ | 16 | 0 | 16 |
+| `app/controllers/pg_sql_triggers/dashboard_controller.rb` | 100.0% ✅ | 26 | 0 | 26 |
 | `config/initializers/pg_sql_triggers.rb` | 100.0% ✅ | 10 | 0 | 10 |
+| `lib/pg_sql_triggers/errors.rb` | 100.0% ✅ | 83 | 0 | 83 |
 | `app/controllers/pg_sql_triggers/triggers_controller.rb` | 100.0% ✅ | 75 | 0 | 75 |
 | `lib/pg_sql_triggers.rb` | 100.0% ✅ | 40 | 0 | 40 |
 | `lib/pg_sql_triggers/migrator/pre_apply_comparator.rb` | 99.19% ✅ | 122 | 1 | 123 |
 | `lib/pg_sql_triggers/drift/detector.rb` | 98.48% ✅ | 65 | 1 | 66 |
+| `app/controllers/pg_sql_triggers/audit_logs_controller.rb` | 97.73% ✅ | 43 | 1 | 44 |
 | `app/controllers/pg_sql_triggers/sql_capsules_controller.rb` | 97.14% ✅ | 68 | 2 | 70 |
 | `lib/generators/pg_sql_triggers/trigger_migration_generator.rb` | 96.3% ✅ | 26 | 1 | 27 |
 | `lib/pg_sql_triggers/sql/kill_switch.rb` | 96.04% ✅ | 97 | 4 | 101 |
@@ -54,13 +58,9 @@ Covered: 2246 / 2416 lines
 | `lib/pg_sql_triggers/registry.rb` | 91.84% ✅ | 45 | 4 | 49 |
 | `app/controllers/pg_sql_triggers/generator_controller.rb` | 91.49% ✅ | 86 | 8 | 94 |
 | `lib/pg_sql_triggers/sql.rb` | 90.91% ✅ | 10 | 1 | 11 |
-| `lib/pg_sql_triggers/testing/function_tester.rb` | 89.55% ⚠️ | 60 | 7 | 67 |
-| `app/models/pg_sql_triggers/trigger_registry.rb` | 88.44% ⚠️ | 153 | 20 | 173 |
+| `lib/pg_sql_triggers/testing/function_tester.rb` | 89.71% ⚠️ | 61 | 7 | 68 |
+| `app/controllers/concerns/pg_sql_triggers/permission_checking.rb` | 85.37% ⚠️ | 35 | 6 | 41 |
 | `app/controllers/pg_sql_triggers/migrations_controller.rb` | 82.76% ⚠️ | 72 | 15 | 87 |
-| `app/controllers/concerns/pg_sql_triggers/permission_checking.rb` | 75.61% ⚠️ | 31 | 10 | 41 |
-| `lib/pg_sql_triggers/errors.rb` | 62.65% ❌ | 52 | 31 | 83 |
-| `app/helpers/pg_sql_triggers/permissions_helper.rb` | 56.25% ❌ | 9 | 7 | 16 |
-| `app/controllers/concerns/pg_sql_triggers/error_handling.rb` | 36.84% ❌ | 7 | 12 | 19 |
 | `config/routes.rb` | 12.0% ❌ | 3 | 22 | 25 |
 
 ---
