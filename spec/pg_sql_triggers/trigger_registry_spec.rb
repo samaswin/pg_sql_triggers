@@ -1598,7 +1598,6 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
           drop_test_table(:test_table)
         end
       end
-
     end
 
     describe "#drop_existing_trigger_for_re_execute success path" do
