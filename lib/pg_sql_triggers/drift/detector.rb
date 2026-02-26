@@ -89,10 +89,10 @@ module PgSqlTriggers
           # DSL triggers don't store a function body — use empty string so the
           # checksum matches what Manager#calculate_checksum stores for them.
           function_body = if registry_entry.source == "dsl"
-                           ""
-                         else
-                           extract_function_body(db_trigger) || ""
-                         end
+                            ""
+                          else
+                            extract_function_body(db_trigger) || ""
+                          end
 
           # Extract condition from trigger definition
           condition = extract_trigger_condition(db_trigger)

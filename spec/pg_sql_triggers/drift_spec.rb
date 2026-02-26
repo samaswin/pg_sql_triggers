@@ -108,18 +108,4 @@ RSpec.describe PgSqlTriggers::Drift do
       expect(report).to include(trigger_name)
     end
   end
-
-  private
-
-  def calculate_checksum(trigger_name, table_name, version, function_body, condition, timing = "before")
-    require "digest"
-    Digest::SHA256.hexdigest([
-      trigger_name,
-      table_name,
-      version,
-      function_body || "",
-      condition || "",
-      timing || "before"
-    ].join)
-  end
 end
