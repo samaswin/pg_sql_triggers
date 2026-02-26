@@ -86,8 +86,11 @@ module PgSqlTriggers
 
         # Calculate checksum from DB trigger (must match registry algorithm)
         def calculate_db_checksum(registry_entry, db_trigger)
-          # Extract function body from the function definition
-          function_body = extract_function_body(db_trigger)
+          function_body = if registry_entry.source == "dsl"
+                            db_trigger["function_definition"] || ""
+                          else
+                            extract_function_body(db_trigger) || ""
+                          end
 
           # Extract condition from trigger definition
           condition = extract_trigger_condition(db_trigger)
@@ -97,21 +100,23 @@ module PgSqlTriggers
             registry_entry.trigger_name,
             registry_entry.table_name,
             registry_entry.version,
-            function_body || "",
-            condition || ""
+            function_body,
+            condition || "",
+            registry_entry.timing || "before"
           ].join)
         end
 
-        # Extract function body from pg_get_functiondef output
+        # Extract just the PL/pgSQL body from pg_get_functiondef output.
+        # pg_get_functiondef() returns the full CREATE OR REPLACE FUNCTION statement;
+        # we extract only the content between the dollar-quote delimiters so the
+        # comparison is format-agnostic (handles $$ and $function$ styles).
         def extract_function_body(db_trigger)
           function_def = db_trigger["function_definition"]
           return nil unless function_def
 
-          # The function definition includes CREATE OR REPLACE FUNCTION header
-          # We need to extract just the body for comparison
-          # For now, return the full definition
-          # TODO: Parse and extract just the body if needed
-          function_def
+          # Match any dollar-quoted string: $tag$body$tag$ (tag may be empty)
+          match = function_def.match(/\$([^$]*)\$(.*?)\$\1\$/m)
+          match ? match[2].strip : function_def.strip
         end
 
         # Extract WHEN condition from trigger definition

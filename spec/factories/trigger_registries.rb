@@ -65,12 +65,14 @@ FactoryBot.define do
     trait :in_sync do
       after(:build) do |registry|
         require "digest"
+        function_body_for_checksum = registry.function_body || ""
         registry.checksum = Digest::SHA256.hexdigest([
           registry.trigger_name,
           registry.table_name,
           registry.version,
-          registry.function_body || "",
-          registry.condition || ""
+          function_body_for_checksum,
+          registry.condition || "",
+          registry.timing || "before"
         ].join)
       end
     end

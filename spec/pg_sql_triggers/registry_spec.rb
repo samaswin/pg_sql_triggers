@@ -101,9 +101,10 @@ RSpec.describe PgSqlTriggers::Registry::Manager do
         expect(parsed["name"]).to eq("test_trigger")
       end
 
-      it "sets a placeholder checksum" do
+      it "sets a real SHA256 checksum even when function_body is absent" do
         registry = described_class.register(definition)
-        expect(registry.checksum).to eq("placeholder")
+        expect(registry.checksum).to be_present
+        expect(registry.checksum).to match(/\A[0-9a-f]{64}\z/)
       end
     end
 

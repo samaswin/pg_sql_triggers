@@ -7,6 +7,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **[Critical] Drift detector checksum excluded `timing` field** — `Drift::Detector#calculate_db_checksum`
+  was hashing without the `timing` attribute, while `TriggerRegistry#calculate_checksum` and
+  `Registry::Manager#calculate_checksum` both include it. Any trigger with a non-default timing
+  value (`"after"`) permanently showed as `DRIFTED` even when fully in sync.
+  ([lib/pg_sql_triggers/drift/detector.rb](lib/pg_sql_triggers/drift/detector.rb))
+
+- **[Critical] `extract_function_body` returned the full `CREATE FUNCTION` statement** —
+  `pg_get_functiondef()` returns the complete DDL including the `CREATE OR REPLACE FUNCTION`
+  header and language clause. The detector was hashing that entire string while the registry
+  stores only the PL/pgSQL body, so checksums never matched and every trigger appeared `DRIFTED`.
+  Fixed by extracting only the content between dollar-quote delimiters (`$$` / `$function$`).
+  ([lib/pg_sql_triggers/drift/detector.rb](lib/pg_sql_triggers/drift/detector.rb))
+
+- **[Critical] DSL triggers stored `"placeholder"` as checksum causing permanent false drift** —
+  `Registry::Manager#calculate_checksum` returned the literal string `"placeholder"` whenever
+  `function_body` was blank (the normal case for DSL-defined triggers). The drift detector then
+  computed a real SHA256 hash and compared it to `"placeholder"`, so all DSL triggers always
+  appeared `DRIFTED`. Fixed by computing a real checksum using `""` for `function_body`, and
+  teaching the detector to also use `""` for `function_body` when the registry source is `"dsl"`.
+  ([lib/pg_sql_triggers/registry/manager.rb](lib/pg_sql_triggers/registry/manager.rb),
+  [lib/pg_sql_triggers/drift/detector.rb](lib/pg_sql_triggers/drift/detector.rb))
+
+- **[Critical] `re_execute!` always raised for DSL-defined triggers** —
+  `TriggerRegistry#re_execute!` raised `StandardError` immediately when `function_body` was
+  blank, which is always the case for DSL triggers (the primary use path). Added a
+  `build_trigger_sql_from_definition` private helper that reconstructs a valid `CREATE TRIGGER`
+  SQL statement from the stored DSL definition JSON (`function_name`, `timing`, `events`,
+  `condition`). `re_execute!` now falls back to this reconstructed SQL when `function_body` is
+  absent, making the method functional for DSL triggers.
+  ([app/models/pg_sql_triggers/trigger_registry.rb](app/models/pg_sql_triggers/trigger_registry.rb))
+
+- **[High] `SafetyValidator#capture_sql` executed migration side effects during capture** —
+  `capture_sql` monkey-patched only the `execute` method, so any ActiveRecord migration helpers
+  (`add_column`, `create_table`, etc.) called by the migration ran for real as a side effect of
+  the safety check. Wrapped the migration invocation in
+  `ActiveRecord::Base.transaction { …; raise ActiveRecord::Rollback }` so all schema changes
+  are rolled back after SQL capture.
+  ([lib/pg_sql_triggers/migrator/safety_validator.rb](lib/pg_sql_triggers/migrator/safety_validator.rb))
+
+- **[Low] Dead `trigger_name` expression in `drop!`** — A bare `trigger_name` expression inside
+  the `drop!` transaction block was a no-op whose return value was silently discarded. Removed.
+  ([app/models/pg_sql_triggers/trigger_registry.rb](app/models/pg_sql_triggers/trigger_registry.rb))
+
 ## [1.3.0] - 2026-01-05
 
 ### Added

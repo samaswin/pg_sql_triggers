@@ -311,17 +311,4 @@ RSpec.describe PgSqlTriggers::Drift::Detector do
     end
   end
   # rubocop:enable RSpec/MultipleMemoizedHelpers
-
-  private
-
-  def calculate_checksum(trigger_name, table_name, version, function_body, condition)
-    require "digest"
-    Digest::SHA256.hexdigest([
-      trigger_name,
-      table_name,
-      version,
-      function_body || "",
-      condition || ""
-    ].join)
-  end
 end
