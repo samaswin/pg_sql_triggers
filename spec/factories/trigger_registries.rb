@@ -65,9 +65,7 @@ FactoryBot.define do
     trait :in_sync do
       after(:build) do |registry|
         require "digest"
-        # DSL triggers use "" for function_body in the checksum (matching
-        # Detector#calculate_db_checksum which ignores function_body for DSL source).
-        function_body_for_checksum = registry.source == "dsl" ? "" : (registry.function_body || "")
+        function_body_for_checksum = registry.function_body || ""
         registry.checksum = Digest::SHA256.hexdigest([
           registry.trigger_name,
           registry.table_name,

@@ -86,10 +86,8 @@ module PgSqlTriggers
 
         # Calculate checksum from DB trigger (must match registry algorithm)
         def calculate_db_checksum(registry_entry, db_trigger)
-          # DSL triggers don't store a function body — use empty string so the
-          # checksum matches what Manager#calculate_checksum stores for them.
           function_body = if registry_entry.source == "dsl"
-                            ""
+                            db_trigger["function_definition"] || ""
                           else
                             extract_function_body(db_trigger) || ""
                           end
