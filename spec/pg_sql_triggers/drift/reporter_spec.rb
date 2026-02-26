@@ -324,14 +324,15 @@ RSpec.describe PgSqlTriggers::Drift::Reporter do
 
   private
 
-  def calculate_checksum(trigger_name, table_name, version, function_body, condition)
+  def calculate_checksum(trigger_name, table_name, version, function_body, condition, timing = "before")
     require "digest"
     Digest::SHA256.hexdigest([
       trigger_name,
       table_name,
       version,
       function_body || "",
-      condition || ""
+      condition || "",
+      timing || "before"
     ].join)
   end
 end

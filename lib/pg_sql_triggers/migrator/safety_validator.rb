@@ -53,7 +53,12 @@ module PgSqlTriggers
 
         private
 
-        # Capture SQL that would be executed by the migration
+        # Capture SQL that would be executed by the migration.
+        # Runs the migration inside a transaction that is always rolled back so
+        # that any ActiveRecord migration helpers (add_column, create_table, …)
+        # that are called alongside explicit +execute+ calls produce no lasting
+        # side effects.  The singleton override of +execute+ still intercepts
+        # raw SQL strings before they reach the database.
         def capture_sql(migration_instance, direction)
           captured = []
 
@@ -62,8 +67,13 @@ module PgSqlTriggers
             captured << sql.to_s.strip
           end
 
-          # Call the migration method (up or down) to capture SQL
-          migration_instance.public_send(direction)
+          # Run inside a transaction and roll it back so that any AR helpers
+          # called by the migration (add_column, create_table, etc.) do not
+          # persist their side effects during the capture phase.
+          ActiveRecord::Base.transaction do
+            migration_instance.public_send(direction)
+            raise ActiveRecord::Rollback
+          end
 
           captured
         end

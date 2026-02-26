@@ -70,7 +70,8 @@ FactoryBot.define do
           registry.table_name,
           registry.version,
           registry.function_body || "",
-          registry.condition || ""
+          registry.condition || "",
+          registry.timing || "before"
         ].join)
       end
     end

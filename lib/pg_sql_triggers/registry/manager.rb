@@ -127,18 +127,17 @@ module PgSqlTriggers
         private
 
         def calculate_checksum(definition)
-          # DSL definitions don't have function_body, so use placeholder
-          # Generator forms have function_body, so calculate real checksum
           function_body_value = definition.respond_to?(:function_body) ? definition.function_body : nil
-          return "placeholder" if function_body_value.blank?
 
-          # Use field-concatenation algorithm (consistent with TriggerRegistry#calculate_checksum)
+          # Use field-concatenation algorithm (consistent with TriggerRegistry#calculate_checksum).
+          # DSL definitions have no function_body — use "" so the checksum is real and comparable
+          # with what Drift::Detector#calculate_db_checksum computes for DSL-source triggers.
           require "digest"
           Digest::SHA256.hexdigest([
             definition.name,
             definition.table_name,
             definition.version,
-            function_body_value,
+            function_body_value || "",
             definition.condition || "",
             definition.timing || "before"
           ].join)

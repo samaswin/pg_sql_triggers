@@ -247,7 +247,6 @@ module PgSqlTriggers
       # Execute DROP TRIGGER in transaction
       ActiveRecord::Base.transaction do
         drop_trigger_from_database
-        trigger_name
         destroy!
         log_drop_success
         log_audit_success(:trigger_drop, actor, reason: reason, confirmation_text: confirmation,
@@ -286,7 +285,6 @@ module PgSqlTriggers
 
       # Validate reason is provided
       raise ArgumentError, "Reason is required" if reason.nil? || reason.to_s.strip.empty?
-      raise StandardError, "Cannot re-execute: missing function_body" if function_body.blank?
 
       log_re_execute_attempt(reason)
 
@@ -394,7 +392,10 @@ module PgSqlTriggers
     end
 
     def recreate_trigger
-      ActiveRecord::Base.connection.execute(function_body)
+      sql = function_body.presence || build_trigger_sql_from_definition
+      raise StandardError, "Cannot re-execute: missing function_body" if sql.blank?
+
+      ActiveRecord::Base.connection.execute(sql)
       if defined?(Rails) && Rails.respond_to?(:logger) && Rails.logger
         Rails.logger.info "[TRIGGER_RE_EXECUTE] Re-created trigger"
       end
@@ -403,6 +404,31 @@ module PgSqlTriggers
         Rails.logger.error("[TRIGGER_RE_EXECUTE] Failed: #{e.message}")
       end
       raise
+    end
+
+    # Build a CREATE TRIGGER SQL statement from the stored DSL definition JSON.
+    # Used by re_execute! when function_body is absent (the normal case for DSL triggers).
+    def build_trigger_sql_from_definition
+      return nil if definition.blank?
+
+      defn = JSON.parse(definition)
+      fn_name = defn["function_name"]
+      return nil if fn_name.blank?
+
+      t_name    = table_name
+      timing_kw = (defn["timing"] || timing || "BEFORE").upcase
+      events    = Array(defn["events"]).map { |e| e.to_s.upcase }.join(" OR ")
+      events    = "INSERT" if events.blank?
+      cond      = defn["condition"] || condition
+
+      sql = "CREATE TRIGGER #{quote_identifier(trigger_name)} "
+      sql += "#{timing_kw} #{events} ON #{quote_identifier(t_name)} "
+      sql += "FOR EACH ROW "
+      sql += "WHEN (#{cond}) " if cond.present?
+      sql += "EXECUTE FUNCTION #{fn_name}();"
+      sql
+    rescue JSON::ParserError
+      nil
     end
 
     def update_registry_after_re_execute
