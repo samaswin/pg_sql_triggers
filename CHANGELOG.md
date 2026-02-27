@@ -7,6 +7,63 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **[Design] Eliminated N+1 queries in drift detection** — `Drift::Detector.detect_all` and
+  `detect_for_table` previously called `detect(trigger_name)` per registry entry, which issued a
+  `TriggerRegistry.find_by` and a `DbQueries.find_trigger` DB query for every row (N+1 pattern).
+  These methods now build an `index_by` hash from the bulk-fetched result of `DbQueries.all_triggers`
+  and map over pre-loaded registry entries, eliminating all per-entry lookups. A new private method
+  `detect_with_preloaded(registry_entry, db_trigger)` performs state computation with zero
+  additional queries.
+  ([lib/pg_sql_triggers/drift/detector.rb](lib/pg_sql_triggers/drift/detector.rb))
+
+- **[Design] Thread-safe registry cache** — `Registry::Manager._registry_cache` was stored in a
+  class-level instance variable mutated without synchronisation, creating a race condition on
+  multi-threaded Puma servers. A `REGISTRY_CACHE_MUTEX = Mutex.new` constant now guards all reads
+  and writes to `@_registry_cache` via `REGISTRY_CACHE_MUTEX.synchronize`.
+  ([lib/pg_sql_triggers/registry/manager.rb](lib/pg_sql_triggers/registry/manager.rb))
+
+- **[Design] Configurable PostgreSQL schema** — Every SQL query in `Drift::DbQueries` hard-coded
+  `n.nspname = 'public'`, making the gem unusable in applications that manage triggers in
+  non-public schemas. A new configuration attribute `PgSqlTriggers.db_schema` (default: `"public"`)
+  replaces all hard-coded schema literals; the value is passed as a bind parameter via a private
+  `schema_name` helper. Override in an initialiser:
+  `PgSqlTriggers.db_schema = "app"`.
+  ([lib/pg_sql_triggers.rb](lib/pg_sql_triggers.rb),
+  [lib/pg_sql_triggers/drift/db_queries.rb](lib/pg_sql_triggers/drift/db_queries.rb))
+
+- **[Design] Idiomatic DSL accessor methods** — `TriggerDefinition#version`, `#enabled`, and
+  `#timing` used a dual-purpose getter/setter pattern (`def version(v = nil)`) that silently
+  returned the current value when called with no argument, making typos invisible. Replaced with
+  standard `attr_accessor :version, :enabled` and a custom `timing=(val)` writer that converts to
+  string, matching the Ruby/Rails `attr_accessor` convention. DSL block syntax changes from
+  `version 1` to `self.version = 1` and `enabled true` to `self.enabled = true`.
+  ([lib/pg_sql_triggers/dsl/trigger_definition.rb](lib/pg_sql_triggers/dsl/trigger_definition.rb))
+
+- **[Design] `capture_state` now includes `function_body`** — The audit snapshot captured by
+  `TriggerRegistry#capture_state` (used in before/after diffs for all audit log entries) omitted
+  `function_body`, making it impossible to see the actual function content in audit trail diffs.
+  The field is now included in all captured state hashes.
+  ([app/models/pg_sql_triggers/trigger_registry.rb](app/models/pg_sql_triggers/trigger_registry.rb))
+
+### Deprecated
+
+- **`DSL::TriggerDefinition#when_env`** — Environment-specific trigger declarations cause schema
+  drift between environments and make triggers impossible to test fully outside production.
+  `when_env` now emits a `warn`-level deprecation message on every call and will be removed in a
+  future major version. Use application-level configuration to gate trigger behaviour by
+  environment instead.
+  ([lib/pg_sql_triggers/dsl/trigger_definition.rb](lib/pg_sql_triggers/dsl/trigger_definition.rb))
+
+### Removed
+
+- **Duplicate `trigger:migration` generator namespace** — Two generator namespaces existed for the
+  same task: `rails g pg_sql_triggers:trigger_migration` and `rails g trigger:migration`. The
+  `Trigger::Generators::MigrationGenerator` (`lib/generators/trigger/`) has been removed; use
+  `rails g pg_sql_triggers:trigger_migration` exclusively.
+  ([lib/generators/trigger/migration_generator.rb](lib/generators/trigger/migration_generator.rb))
+
 ### Fixed
 - **[Critical] Drift detector checksum excluded `timing` field** — `Drift::Detector#calculate_db_checksum`
   was hashing without the `timing` attribute, while `TriggerRegistry#calculate_checksum` and

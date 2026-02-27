@@ -9,8 +9,8 @@ RSpec.describe PgSqlTriggers::Registry do
       definition.table(:users)
       definition.on(:insert)
       definition.function(:test_function)
-      definition.version(1)
-      definition.enabled(false)
+      definition.version = 1
+      definition.enabled = false
       definition
     end
 
@@ -76,8 +76,8 @@ RSpec.describe PgSqlTriggers::Registry::Manager do
       definition.table(:users)
       definition.on(:insert)
       definition.function(:test_function)
-      definition.version(1)
-      definition.enabled(false)
+      definition.version = 1
+      definition.enabled = false
       definition.when_env(:production)
       definition
     end
@@ -345,8 +345,8 @@ RSpec.describe PgSqlTriggers::Registry::Manager do
         definition.table(:users)
         definition.on(:insert)
         definition.function(:test_function)
-        definition.version(1)
-        definition.enabled(false)
+        definition.version = 1
+        definition.enabled = false
         definition
       end
 
@@ -405,22 +405,22 @@ RSpec.describe PgSqlTriggers::Registry::Manager do
             d.table(:users)
             d.on(:insert)
             d.function(:func1)
-            d.version(1)
-            d.enabled(false)
+            d.version = 1
+            d.enabled = false
           end,
           PgSqlTriggers::DSL::TriggerDefinition.new("trigger2").tap do |d|
             d.table(:posts)
             d.on(:update)
             d.function(:func2)
-            d.version(1)
-            d.enabled(false)
+            d.version = 1
+            d.enabled = false
           end,
           PgSqlTriggers::DSL::TriggerDefinition.new("trigger3").tap do |d|
             d.table(:comments)
             d.on(:delete)
             d.function(:func3)
-            d.version(1)
-            d.enabled(false)
+            d.version = 1
+            d.enabled = false
           end
         ]
       end

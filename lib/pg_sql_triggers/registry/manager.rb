@@ -3,15 +3,19 @@
 module PgSqlTriggers
   module Registry
     class Manager
+      REGISTRY_CACHE_MUTEX = Mutex.new
+      private_constant :REGISTRY_CACHE_MUTEX
+
       class << self
-        # Request-level cache to avoid N+1 queries when loading multiple trigger files
-        # This cache is cleared after each request/transaction to ensure data consistency
+        # Request-level cache to avoid N+1 queries when loading multiple trigger files.
+        # Access to @_registry_cache is guarded by REGISTRY_CACHE_MUTEX so that
+        # concurrent threads cannot observe a partially-initialised hash.
         def _registry_cache
-          @_registry_cache ||= {}
+          REGISTRY_CACHE_MUTEX.synchronize { @_registry_cache ||= {} }
         end
 
         def _clear_registry_cache
-          @_registry_cache = {}
+          REGISTRY_CACHE_MUTEX.synchronize { @_registry_cache = {} }
         end
 
         # Batch load existing triggers into cache to avoid N+1 queries

@@ -1267,7 +1267,7 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
     end
 
     describe "#capture_state" do
-      it "captures all state attributes" do
+      it "captures all state attributes including function_body" do
         registry.enabled = true
         registry.version = 5
         registry.checksum = "test_checksum"
@@ -1286,6 +1286,7 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
         expect(state[:source]).to eq("dsl")
         expect(state[:environment]).to eq("production")
         expect(state[:installed_at]).to be_a(String) # ISO8601 format
+        expect(state).to have_key(:function_body)
       end
 
       it "handles nil installed_at" do

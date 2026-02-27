@@ -22,12 +22,12 @@ module PgSqlTriggers
             JOIN pg_namespace n ON c.relnamespace = n.oid
             JOIN pg_proc p ON t.tgfoid = p.oid
             WHERE NOT t.tgisinternal
-              AND n.nspname = 'public'
+              AND n.nspname = $1
               AND t.tgname NOT LIKE 'RI_%'
             ORDER BY c.relname, t.tgname;
           SQL
 
-          execute_query(sql)
+          execute_query(sql, [schema_name])
         end
 
         # Fetch single trigger
@@ -49,10 +49,10 @@ module PgSqlTriggers
             JOIN pg_proc p ON t.tgfoid = p.oid
             WHERE t.tgname = $1
               AND NOT t.tgisinternal
-              AND n.nspname = 'public';
+              AND n.nspname = $2;
           SQL
 
-          result = execute_query(sql, [trigger_name])
+          result = execute_query(sql, [trigger_name, schema_name])
           result.first
         end
 
@@ -75,12 +75,12 @@ module PgSqlTriggers
             JOIN pg_proc p ON t.tgfoid = p.oid
             WHERE c.relname = $1
               AND NOT t.tgisinternal
-              AND n.nspname = 'public'
+              AND n.nspname = $2
               AND t.tgname NOT LIKE 'RI_%'
             ORDER BY t.tgname;
           SQL
 
-          execute_query(sql, [table_name])
+          execute_query(sql, [table_name, schema_name])
         end
 
         # Fetch function body by function name
@@ -92,14 +92,18 @@ module PgSqlTriggers
             FROM pg_proc p
             JOIN pg_namespace n ON p.pronamespace = n.oid
             WHERE p.proname = $1
-              AND n.nspname = 'public';
+              AND n.nspname = $2;
           SQL
 
-          result = execute_query(sql, [function_name])
+          result = execute_query(sql, [function_name, schema_name])
           result.first
         end
 
         private
+
+        def schema_name
+          PgSqlTriggers.db_schema.to_s
+        end
 
         def execute_query(sql, params = [])
           if params.any?

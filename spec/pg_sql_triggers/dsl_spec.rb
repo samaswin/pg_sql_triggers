@@ -9,8 +9,8 @@ RSpec.describe PgSqlTriggers::DSL do
         table :users
         on :insert, :update
         function :test_function
-        version 1
-        enabled true
+        self.version = 1
+        self.enabled = true
       end
 
       expect(definition).to be_a(PgSqlTriggers::DSL::TriggerDefinition)
@@ -74,31 +74,33 @@ RSpec.describe PgSqlTriggers::DSL::TriggerDefinition do
     end
   end
 
-  describe "#version" do
+  describe "#version=" do
     it "sets the version" do
-      definition.version(5)
+      definition.version = 5
       expect(definition.version).to eq(5)
     end
   end
 
-  describe "#enabled" do
-    it "sets enabled status" do
-      definition.enabled(true)
+  describe "#enabled=" do
+    it "sets enabled status to true" do
+      definition.enabled = true
       expect(definition.enabled).to be(true)
+    end
 
-      definition.enabled(false)
+    it "sets enabled status to false" do
+      definition.enabled = false
       expect(definition.enabled).to be(false)
     end
   end
 
   describe "#when_env" do
     it "sets environments as strings" do
-      definition.when_env(:production, :staging)
+      expect { definition.when_env(:production, :staging) }.to output(/DEPRECATION/).to_stderr
       expect(definition.environments).to eq(%w[production staging])
     end
 
     it "handles single environment" do
-      definition.when_env(:production)
+      expect { definition.when_env(:production) }.to output(/DEPRECATION/).to_stderr
       expect(definition.environments).to eq(["production"])
     end
   end
@@ -110,19 +112,14 @@ RSpec.describe PgSqlTriggers::DSL::TriggerDefinition do
     end
   end
 
-  describe "#timing" do
+  describe "#timing=" do
     it "sets the timing" do
-      definition.timing("before")
+      definition.timing = "before"
       expect(definition.timing).to eq("before")
     end
 
-    it "returns current timing when called without argument" do
-      definition.timing("after")
-      expect(definition.timing).to eq("after")
-    end
-
     it "converts timing to string" do
-      definition.timing(:after)
+      definition.timing = :after
       expect(definition.timing).to eq("after")
     end
   end
@@ -132,9 +129,9 @@ RSpec.describe PgSqlTriggers::DSL::TriggerDefinition do
       definition.table(:users)
       definition.on(:insert)
       definition.function(:test_func)
-      definition.version(2)
-      definition.enabled(true)
-      definition.when_env(:production)
+      definition.version = 2
+      definition.enabled = true
+      expect { definition.when_env(:production) }.to output(/DEPRECATION/).to_stderr
       definition.when_condition("NEW.id > 0")
 
       hash = definition.to_h

@@ -36,6 +36,10 @@ module PgSqlTriggers
   mattr_accessor :allow_unsafe_migrations
   self.allow_unsafe_migrations = false
 
+  # PostgreSQL schema used by DbQueries. Override for non-public schemas.
+  mattr_accessor :db_schema
+  self.db_schema = "public"
+
   # Drift states
   DRIFT_STATE_IN_SYNC = "in_sync"
   DRIFT_STATE_DRIFTED = "drifted"
