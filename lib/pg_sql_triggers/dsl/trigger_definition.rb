@@ -3,7 +3,8 @@
 module PgSqlTriggers
   module DSL
     class TriggerDefinition
-      attr_accessor :name, :table_name, :events, :function_name, :environments, :condition
+      attr_accessor :name, :table_name, :events, :function_name, :environments, :condition, :version, :enabled
+      attr_reader :timing
 
       def initialize(name)
         @name = name
@@ -27,36 +28,19 @@ module PgSqlTriggers
         @function_name = function_name
       end
 
-      def version(version = nil)
-        if version.nil?
-          @version
-        else
-          @version = version
-        end
-      end
-
-      def enabled(enabled = nil)
-        if enabled.nil?
-          @enabled
-        else
-          @enabled = enabled
-        end
+      def timing=(val)
+        @timing = val.to_s
       end
 
       def when_env(*environments)
+        warn "[DEPRECATION] `when_env` is deprecated and will be removed in a future version. " \
+             "Environment-specific trigger behavior causes schema drift between environments. " \
+             "Use application-level configuration instead."
         @environments = environments.map(&:to_s)
       end
 
       def when_condition(condition_sql)
         @condition = condition_sql
-      end
-
-      def timing(timing_value = nil)
-        if timing_value.nil?
-          @timing
-        else
-          @timing = timing_value.to_s
-        end
       end
 
       def function_body

@@ -11,27 +11,7 @@ module PgSqlTriggers
         def detect(trigger_name)
           registry_entry = TriggerRegistry.find_by(trigger_name: trigger_name)
           db_trigger = DbQueries.find_trigger(trigger_name)
-
-          # State 1: DISABLED - Registry entry disabled
-          return disabled_state(registry_entry, db_trigger) if registry_entry&.enabled == false
-
-          # State 2: MANUAL_OVERRIDE - Marked as manual SQL
-          return manual_override_state(registry_entry, db_trigger) if registry_entry&.source == "manual_sql"
-
-          # State 3: DROPPED - Registry entry exists, DB trigger missing
-          return dropped_state(registry_entry) if registry_entry && !db_trigger
-
-          # State 4: UNKNOWN - DB trigger exists, no registry entry
-          return unknown_state(db_trigger) if !registry_entry && db_trigger
-
-          # State 5: DRIFTED - Checksum mismatch
-          if registry_entry && db_trigger
-            checksum_match = checksums_match?(registry_entry, db_trigger)
-            return drifted_state(registry_entry, db_trigger) unless checksum_match
-          end
-
-          # State 6: IN_SYNC - Everything matches
-          in_sync_state(registry_entry, db_trigger)
+          detect_with_preloaded(registry_entry, db_trigger)
         end
 
         # Detect drift for all triggers
@@ -39,13 +19,14 @@ module PgSqlTriggers
           registry_entries = TriggerRegistry.all.to_a
           db_triggers = DbQueries.all_triggers
 
-          # Check each registry entry
+          db_trigger_map = db_triggers.index_by { |t| t["trigger_name"] }
+
           results = registry_entries.map do |entry|
-            detect(entry.trigger_name)
+            detect_with_preloaded(entry, db_trigger_map[entry.trigger_name])
           end
 
           # Find unknown (external) triggers not in registry
-          registry_trigger_names = registry_entries.map(&:trigger_name)
+          registry_trigger_names = registry_entries.to_set(&:trigger_name)
           db_triggers.each do |db_trigger|
             next if registry_trigger_names.include?(db_trigger["trigger_name"])
 
@@ -60,13 +41,14 @@ module PgSqlTriggers
           registry_entries = TriggerRegistry.for_table(table_name).to_a
           db_triggers = DbQueries.find_triggers_for_table(table_name)
 
-          # Check each registry entry for this table
+          db_trigger_map = db_triggers.index_by { |t| t["trigger_name"] }
+
           results = registry_entries.map do |entry|
-            detect(entry.trigger_name)
+            detect_with_preloaded(entry, db_trigger_map[entry.trigger_name])
           end
 
           # Find unknown triggers on this table
-          registry_trigger_names = registry_entries.map(&:trigger_name)
+          registry_trigger_names = registry_entries.to_set(&:trigger_name)
           db_triggers.each do |db_trigger|
             next if registry_trigger_names.include?(db_trigger["trigger_name"])
 
@@ -77,6 +59,20 @@ module PgSqlTriggers
         end
 
         private
+
+        # Core state computation using pre-loaded data — no additional DB queries.
+        def detect_with_preloaded(registry_entry, db_trigger)
+          return disabled_state(registry_entry, db_trigger) if registry_entry&.enabled == false
+          return manual_override_state(registry_entry, db_trigger) if registry_entry&.source == "manual_sql"
+          return dropped_state(registry_entry) if registry_entry && !db_trigger
+          return unknown_state(db_trigger) if !registry_entry && db_trigger
+
+          if registry_entry && db_trigger && !checksums_match?(registry_entry, db_trigger)
+            return drifted_state(registry_entry, db_trigger)
+          end
+
+          in_sync_state(registry_entry, db_trigger)
+        end
 
         # Compare registry checksum with calculated DB checksum
         def checksums_match?(registry_entry, db_trigger)

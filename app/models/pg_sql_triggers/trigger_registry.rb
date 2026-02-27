@@ -445,7 +445,8 @@ module PgSqlTriggers
         table_name: table_name,
         source: source,
         environment: environment,
-        installed_at: installed_at&.iso8601
+        installed_at: installed_at&.iso8601,
+        function_body: function_body
       }
     end
 
