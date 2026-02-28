@@ -114,7 +114,7 @@ module PgSqlTriggers
       class << self
         include KillSwitchHelpers
 
-        private :validate_confirmation!, :kill_switch_enabled?, :protected_environment?,
+        private :kill_switch_enabled?, :protected_environment?,
                 :resolve_environment, :confirmation_required?, :expected_confirmation, :logger, :log
 
         def active?(environment: nil, operation: nil)
