@@ -10,6 +10,7 @@ FactoryBot.define do
     sequence(:checksum) { |n| "checksum_#{n}" }
     environment { "test" }
     timing { "before" }
+    for_each { "row" }
 
     trait :enabled do
       enabled { true }
@@ -72,7 +73,8 @@ FactoryBot.define do
           registry.version,
           function_body_for_checksum,
           registry.condition || "",
-          registry.timing || "before"
+          registry.timing || "before",
+          registry.for_each || "row"
         ].join)
       end
     end

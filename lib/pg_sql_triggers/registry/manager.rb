@@ -56,7 +56,8 @@ module PgSqlTriggers
             source: "dsl",
             environment: definition.environments.join(","),
             definition: definition.to_h.to_json,
-            checksum: checksum
+            checksum: checksum,
+            for_each: definition.for_each || "row"
           }
 
           if existing
@@ -143,7 +144,8 @@ module PgSqlTriggers
             definition.version,
             function_body_value || "",
             definition.condition || "",
-            definition.timing || "before"
+            definition.timing || "before",
+            definition.for_each || "row"
           ].join)
         end
       end

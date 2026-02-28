@@ -4,7 +4,7 @@ module PgSqlTriggers
   module DSL
     class TriggerDefinition
       attr_accessor :name, :table_name, :events, :function_name, :environments, :condition, :version, :enabled
-      attr_reader :timing
+      attr_reader :timing, :for_each
 
       def initialize(name)
         @name = name
@@ -14,6 +14,7 @@ module PgSqlTriggers
         @environments = []
         @condition = nil
         @timing = "before"
+        @for_each = "row"
       end
 
       def table(table_name)
@@ -30,6 +31,14 @@ module PgSqlTriggers
 
       def timing=(val)
         @timing = val.to_s
+      end
+
+      def for_each_row
+        @for_each = "row"
+      end
+
+      def for_each_statement
+        @for_each = "statement"
       end
 
       def when_env(*environments)
@@ -57,7 +66,8 @@ module PgSqlTriggers
           enabled: @enabled,
           environments: @environments,
           condition: @condition,
-          timing: @timing
+          timing: @timing,
+          for_each: @for_each
         }
       end
     end

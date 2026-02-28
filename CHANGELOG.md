@@ -7,7 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **[Feature 4.1] `FOR EACH ROW` / `FOR EACH STATEMENT` DSL support** — Every PostgreSQL trigger
+  requires a row-level or statement-level execution granularity, but the gem previously hard-coded
+  `FOR EACH ROW` with no way for callers to change it. Two new DSL methods, `for_each_row` and
+  `for_each_statement`, let trigger definitions declare the desired granularity explicitly. The
+  value defaults to `"row"` so all existing definitions continue to produce `FOR EACH ROW` triggers
+  without modification. The field is stored in a new `for_each` column on the registry table
+  (migration `20260228000001_add_for_each_to_pg_sql_triggers_registry.rb`), included in all three
+  checksum computations (`TriggerRegistry#calculate_checksum`, `Registry::Manager#calculate_checksum`,
+  and `Drift::Detector#calculate_db_checksum`), extracted from live trigger definitions via a new
+  `extract_trigger_for_each` helper, and validated by `Registry::Validator` (only `"row"` and
+  `"statement"` are accepted). The SQL reconstructed by `TriggerRegistry#build_trigger_sql_from_definition`
+  during `re_execute!` now honours the stored `for_each` value.
+  ([lib/pg_sql_triggers/dsl/trigger_definition.rb](lib/pg_sql_triggers/dsl/trigger_definition.rb),
+  [lib/pg_sql_triggers/registry/manager.rb](lib/pg_sql_triggers/registry/manager.rb),
+  [lib/pg_sql_triggers/registry/validator.rb](lib/pg_sql_triggers/registry/validator.rb),
+  [lib/pg_sql_triggers/drift/detector.rb](lib/pg_sql_triggers/drift/detector.rb),
+  [app/models/pg_sql_triggers/trigger_registry.rb](app/models/pg_sql_triggers/trigger_registry.rb),
+  [db/migrate/20260228000001_add_for_each_to_pg_sql_triggers_registry.rb](db/migrate/20260228000001_add_for_each_to_pg_sql_triggers_registry.rb))
+
 ### Changed
+
+- **[Refactor 5.1] `SQL::KillSwitch` reduced from 329 to 166 lines** — The module was inflated by
+  four separate single-purpose log helpers (`log_allowed`, `log_override`, `log_blocked`,
+  `format_actor`), a `raise_blocked_error` method whose two heredocs (`message` and `recovery`)
+  duplicated each other across 30 lines, verbose per-method comments, and a
+  `rubocop:disable Metrics/ModuleLength` suppressor. Collapsed the four log helpers into one
+  private `log(level, status, op, env, actor, extra = nil)` method; inlined `raise_blocked_error`
+  as a concise 5-line `raise` call; removed all comment padding; renamed `detect_environment` →
+  `resolve_environment` for clarity. All three-layer semantics (config → ENV override → explicit
+  confirmation), public API (`active?`, `check!`, `override`, `validate_confirmation!`), log
+  message formats, and error message content are unchanged — all existing specs continue to pass.
+  ([lib/pg_sql_triggers/sql/kill_switch.rb](lib/pg_sql_triggers/sql/kill_switch.rb))
 
 - **[Design] Eliminated N+1 queries in drift detection** — `Drift::Detector.detect_all` and
   `detect_for_table` previously called `detect(trigger_name)` per registry entry, which issued a
@@ -63,6 +96,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `Trigger::Generators::MigrationGenerator` (`lib/generators/trigger/`) has been removed; use
   `rails g pg_sql_triggers:trigger_migration` exclusively.
   ([lib/generators/trigger/migration_generator.rb](lib/generators/trigger/migration_generator.rb))
+
+### Security
+
+- **[High] Production warning when no `permission_checker` is configured** — The gem's default
+  behaviour is to allow all actions (including admin-level operations such as `drop_trigger`,
+  `execute_sql`, and `override_drift`) when no `permission_checker` is set. A newly deployed
+  application with no extra configuration silently granted every actor full admin access.
+  The engine now emits a `Rails.logger.warn` at startup when the app boots in production and
+  `PgSqlTriggers.permission_checker` is still `nil`, making the misconfiguration visible in
+  production logs immediately on deploy.
+  ([lib/pg_sql_triggers/engine.rb](lib/pg_sql_triggers/engine.rb))
+
+- **[High] `Registry::Validator` was a no-op stub** — `Validator.validate!` returned `true`
+  unconditionally, meaning malformed DSL definitions (missing `table_name`, empty or invalid
+  `events`, missing `function_name`, unrecognised `timing` values) silently passed validation
+  and were written to the registry. Replaced the stub with real validation: every `source: "dsl"`
+  entry in the registry has its stored `definition` JSON parsed and checked against required
+  fields and allowed values (`insert / update / delete / truncate` for events;
+  `before / after / instead_of` for timing). All errors are collected across all triggers and
+  surfaced in a single `ValidationError` listing every violation. Non-DSL entries are not
+  validated. Unparseable JSON is treated as an empty definition, which itself fails validation.
+  ([lib/pg_sql_triggers/registry/validator.rb](lib/pg_sql_triggers/registry/validator.rb))
 
 ### Fixed
 - **[Critical] Drift detector checksum excluded `timing` field** — `Drift::Detector#calculate_db_checksum`

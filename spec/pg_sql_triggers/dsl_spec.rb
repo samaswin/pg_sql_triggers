@@ -45,6 +45,7 @@ RSpec.describe PgSqlTriggers::DSL::TriggerDefinition do
       expect(definition.environments).to eq([])
       expect(definition.condition).to be_nil
       expect(definition.timing).to eq("before")
+      expect(definition.for_each).to eq("row")
     end
   end
 
@@ -124,6 +125,21 @@ RSpec.describe PgSqlTriggers::DSL::TriggerDefinition do
     end
   end
 
+  describe "#for_each_row" do
+    it "sets for_each to row" do
+      definition.for_each_statement # change away from default first
+      definition.for_each_row
+      expect(definition.for_each).to eq("row")
+    end
+  end
+
+  describe "#for_each_statement" do
+    it "sets for_each to statement" do
+      definition.for_each_statement
+      expect(definition.for_each).to eq("statement")
+    end
+  end
+
   describe "#to_h" do
     it "converts definition to hash" do
       definition.table(:users)
@@ -144,7 +160,8 @@ RSpec.describe PgSqlTriggers::DSL::TriggerDefinition do
                            enabled: true,
                            environments: ["production"],
                            condition: "NEW.id > 0",
-                           timing: "before"
+                           timing: "before",
+                           for_each: "row"
                          })
     end
   end

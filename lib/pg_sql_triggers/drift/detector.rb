@@ -88,8 +88,9 @@ module PgSqlTriggers
                             extract_function_body(db_trigger) || ""
                           end
 
-          # Extract condition from trigger definition
+          # Extract condition and for_each granularity from trigger definition
           condition = extract_trigger_condition(db_trigger)
+          db_for_each = extract_trigger_for_each(db_trigger)
 
           # Use same algorithm as TriggerRegistry#calculate_checksum
           Digest::SHA256.hexdigest([
@@ -98,7 +99,8 @@ module PgSqlTriggers
             registry_entry.version,
             function_body,
             condition || "",
-            registry_entry.timing || "before"
+            registry_entry.timing || "before",
+            db_for_each || "row"
           ].join)
         end
 
@@ -124,6 +126,16 @@ module PgSqlTriggers
           # Example: "... WHEN ((new.email IS NOT NULL)) EXECUTE ..."
           match = trigger_def.match(/WHEN\s+\((.+?)\)\s+EXECUTE/i)
           match ? match[1].strip : nil
+        end
+
+        # Extract FOR EACH ROW / FOR EACH STATEMENT from trigger definition.
+        # Returns "row" or "statement" (lowercase). Defaults to "row".
+        def extract_trigger_for_each(db_trigger)
+          trigger_def = db_trigger["trigger_definition"]
+          return "row" unless trigger_def
+
+          match = trigger_def.match(/FOR\s+EACH\s+(ROW|STATEMENT)/i)
+          match ? match[1].downcase : "row"
         end
 
         # State helper methods
