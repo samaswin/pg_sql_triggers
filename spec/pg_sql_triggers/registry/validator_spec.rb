@@ -76,7 +76,7 @@ RSpec.describe PgSqlTriggers::Registry::Validator do
     end
 
     context "with a DSL trigger with invalid events" do
-      before { create(:trigger_registry, source: "dsl", definition: valid_definition("events" => ["insert", "upsert"])) }
+      before { create(:trigger_registry, source: "dsl", definition: valid_definition("events" => %w[insert upsert])) }
 
       it "raises ValidationError naming the invalid event" do
         expect { described_class.validate! }

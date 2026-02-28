@@ -135,6 +135,10 @@ RSpec.configure do |config|
       unless ActiveRecord::Base.connection.column_exists?("pg_sql_triggers_registry", :timing)
         ActiveRecord::Base.connection.add_column "pg_sql_triggers_registry", :timing, :string, default: "before", null: false
       end
+      # Add for_each column if it doesn't exist
+      unless ActiveRecord::Base.connection.column_exists?("pg_sql_triggers_registry", :for_each)
+        ActiveRecord::Base.connection.add_column "pg_sql_triggers_registry", :for_each, :string, default: "row", null: false
+      end
     else
       ActiveRecord::Base.connection.create_table "pg_sql_triggers_registry" do |t|
         t.string :trigger_name, null: false
@@ -148,6 +152,7 @@ RSpec.configure do |config|
         t.text :function_body
         t.text :condition
         t.string :timing, default: "before", null: false
+        t.string :for_each, default: "row", null: false
         t.datetime :installed_at
         t.datetime :last_verified_at
         t.datetime :last_executed_at

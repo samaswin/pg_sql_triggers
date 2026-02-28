@@ -9,7 +9,6 @@ module PgSqlTriggers
       VALID_TIMINGS = %w[before after instead_of].freeze
       VALID_FOR_EACH = %w[row statement].freeze
 
-      # rubocop:disable Naming/PredicateMethod
       def self.validate!
         errors = []
 
@@ -25,8 +24,6 @@ module PgSqlTriggers
           context: { errors: errors }
         )
       end
-      # rubocop:enable Naming/PredicateMethod
-
       class << self
         private
 
@@ -50,12 +47,12 @@ module PgSqlTriggers
           errors << "Trigger '#{name}': missing function_name" if definition["function_name"].blank?
 
           timing = definition["timing"].to_s
-          if timing.present? && !VALID_TIMINGS.include?(timing)
+          if timing.present? && VALID_TIMINGS.exclude?(timing)
             errors << "Trigger '#{name}': invalid timing '#{timing}' (valid: #{VALID_TIMINGS.inspect})"
           end
 
           for_each = definition["for_each"].to_s
-          if for_each.present? && !VALID_FOR_EACH.include?(for_each)
+          if for_each.present? && VALID_FOR_EACH.exclude?(for_each)
             errors << "Trigger '#{name}': invalid for_each '#{for_each}' (valid: #{VALID_FOR_EACH.inspect})"
           end
 
