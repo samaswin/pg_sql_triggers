@@ -56,10 +56,15 @@ RSpec.describe PgSqlTriggers::Registry do
   end
 
   describe ".validate!" do
-    it "delegates to Validator.validate!" do
-      # Validator.validate! is a simple method that returns true, so we can test with the real method
-      result = described_class.validate!
-      expect(result).to be true
+    it "returns true when all DSL triggers are valid" do
+      expect(described_class.validate!).to be true
+    end
+
+    it "raises ValidationError when a DSL trigger has an invalid definition" do
+      invalid_def = { "table_name" => nil, "events" => [], "function_name" => nil,
+                      "timing" => "before", "name" => "bad" }.to_json
+      create(:trigger_registry, source: "dsl", definition: invalid_def)
+      expect { described_class.validate! }.to raise_error(PgSqlTriggers::ValidationError)
     end
   end
 end

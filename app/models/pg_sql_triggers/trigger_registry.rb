@@ -320,7 +320,8 @@ module PgSqlTriggers
         version,
         function_body || "",
         condition || "",
-        timing || "before"
+        timing || "before",
+        for_each || "row"
       ].join)
     end
 
@@ -415,15 +416,16 @@ module PgSqlTriggers
       fn_name = defn["function_name"]
       return nil if fn_name.blank?
 
-      t_name    = table_name
-      timing_kw = (defn["timing"] || timing || "BEFORE").upcase
-      events    = Array(defn["events"]).map { |e| e.to_s.upcase }.join(" OR ")
-      events    = "INSERT" if events.blank?
-      cond      = defn["condition"] || condition
+      t_name      = table_name
+      timing_kw   = (defn["timing"] || timing || "BEFORE").upcase
+      events      = Array(defn["events"]).map { |e| e.to_s.upcase }.join(" OR ")
+      events      = "INSERT" if events.blank?
+      cond        = defn["condition"] || condition
+      for_each_kw = (defn["for_each"] || for_each || "row").upcase
 
       sql = "CREATE TRIGGER #{quote_identifier(trigger_name)} "
       sql += "#{timing_kw} #{events} ON #{quote_identifier(t_name)} "
-      sql += "FOR EACH ROW "
+      sql += "FOR EACH #{for_each_kw} "
       sql += "WHEN (#{cond}) " if cond.present?
       sql += "EXECUTE FUNCTION #{fn_name}();"
       sql

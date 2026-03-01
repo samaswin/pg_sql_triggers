@@ -25,5 +25,19 @@ module PgSqlTriggers
     rake_tasks do
       load root.join("lib/tasks/trigger_migrations.rake")
     end
+
+    # Warn at startup if no permission_checker is set in a protected environment.
+    # The default is to allow all actions (including admin-level ones), which is
+    # unsafe in production without an explicit checker configured.
+    config.after_initialize do
+      if PgSqlTriggers.permission_checker.nil? && defined?(Rails) && Rails.env.production?
+        Rails.logger.warn(
+          "[PgSqlTriggers] SECURITY WARNING: No permission_checker is configured. " \
+          "All actions are permitted by default, including admin-level operations " \
+          "(drop_trigger, execute_sql, override_drift). " \
+          "Set PgSqlTriggers.permission_checker in an initializer before deploying to production."
+        )
+      end
+    end
   end
 end
