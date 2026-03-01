@@ -14,11 +14,11 @@ module PgSqlTriggers
       desc "Generates a pg_sql_triggers DSL file and migration for a new trigger."
 
       argument :trigger_name, type: :string,
-               desc: "Name of the trigger (e.g. notify_on_insert_users)"
+                              desc: "Name of the trigger (e.g. notify_on_insert_users)"
       argument :table_name, type: :string,
-               desc: "Database table the trigger attaches to (e.g. users)"
+                            desc: "Database table the trigger attaches to (e.g. users)"
       argument :events, type: :array, default: ["insert"], banner: "EVENT ...",
-               desc: "Trigger events: insert, update, delete (default: insert)"
+                        desc: "Trigger events: insert, update, delete (default: insert)"
 
       class_option :timing, type: :string, default: "before",
                             desc: "Trigger timing: before or after (default: before)"
