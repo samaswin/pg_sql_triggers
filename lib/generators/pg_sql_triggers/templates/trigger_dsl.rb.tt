@@ -1,0 +1,11 @@
+# frozen_string_literal: true
+
+PgSqlTriggers::DSL.pg_sql_trigger "<%= trigger_name %>" do
+  table :<%= table_name %>
+  on <%= events_list %>
+  function :<%= function_name %>
+
+  version 1
+  enabled true
+  timing :<%= timing %>
+end

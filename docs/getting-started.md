@@ -45,9 +45,19 @@ After installation, you should have:
 
 ## Quick Start Example
 
-### 1. Create Your First Trigger Definition
+### 1. Scaffold a Trigger (DSL + Migration)
 
-Create a trigger definition file:
+Use the CLI generator to create both files at once:
+
+```bash
+rails generate pg_sql_triggers:trigger users_email_validation users insert update --timing before --function validate_user_email
+```
+
+This creates:
+- `app/triggers/users_email_validation.rb` — DSL stub
+- `db/triggers/TIMESTAMP_users_email_validation.rb` — migration with function + trigger SQL
+
+Edit the DSL stub to match your requirements:
 
 ```ruby
 # app/triggers/users_email_validation.rb
@@ -56,19 +66,10 @@ PgSqlTriggers::DSL.pg_sql_trigger "users_email_validation" do
   on :insert, :update
   function :validate_user_email
 
-  version 1
-  enabled false
-
-  when_env :production
+  self.version = 1
+  self.enabled = true
+  timing :before
 end
-```
-
-### 2. Generate a Migration
-
-Create a trigger migration to implement the function:
-
-```bash
-rails generate trigger:migration add_email_validation
 ```
 
 Edit the generated migration in `db/triggers/`:
@@ -104,7 +105,7 @@ class AddEmailValidation < PgSqlTriggers::Migration
 end
 ```
 
-### 3. Run the Migration
+### 2. Run the Migration
 
 Apply the trigger migration:
 
@@ -112,7 +113,7 @@ Apply the trigger migration:
 rake trigger:migrate
 ```
 
-### 4. Access the Web UI
+### 3. Access the Web UI
 
 Open your browser and navigate to:
 

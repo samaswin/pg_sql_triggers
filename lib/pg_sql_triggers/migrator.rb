@@ -191,13 +191,17 @@ module PgSqlTriggers
           end
         end
 
+        # Capture SQL once from a single inspection instance so that both the
+        # safety validator and comparator work from the same snapshot without
+        # running the migration code a second time.
+        captured_sql = capture_migration_sql(migration_class.new, direction)
+
         # Perform safety validation (prevent unsafe DROP + CREATE operations)
-        validation_instance = migration_class.new
         begin
           allow_unsafe = ENV["ALLOW_UNSAFE_MIGRATIONS"] == "true" ||
                          (defined?(PgSqlTriggers) && PgSqlTriggers.allow_unsafe_migrations == true)
 
-          SafetyValidator.validate!(validation_instance, direction: direction, allow_unsafe: allow_unsafe)
+          SafetyValidator.validate_sql!(captured_sql, direction: direction, allow_unsafe: allow_unsafe)
         rescue SafetyValidator::UnsafeOperationError => e
           # Safety validation failed - block the migration
           error_msg = "\n#{e.message}\n\n"
@@ -212,11 +216,9 @@ module PgSqlTriggers
           end
         end
 
-        # Perform pre-apply comparison (diff expected vs actual)
-        # Create a separate instance for comparison to avoid side effects
-        comparison_instance = migration_class.new
+        # Perform pre-apply comparison (diff expected vs actual) using the same captured SQL
         begin
-          diff_result = PreApplyComparator.compare(comparison_instance, direction: direction)
+          diff_result = PreApplyComparator.compare_sql(captured_sql)
 
           # Log the comparison result
           if diff_result[:has_differences]
@@ -294,6 +296,31 @@ module PgSqlTriggers
       def version
         current_version
       end
+
+      private
+
+      # Capture the SQL statements a migration would execute for a given direction
+      # without committing any side effects.  The migration's +execute+ method is
+      # overridden on the singleton so raw SQL strings are intercepted, and the
+      # whole run is wrapped in a transaction that is always rolled back so that
+      # any ActiveRecord migration helpers (add_column, create_table, …) don't
+      # persist their effects during the inspection phase.
+      def capture_migration_sql(migration_instance, direction)
+        captured = []
+
+        migration_instance.define_singleton_method(:execute) do |sql|
+          captured << sql.to_s.strip
+        end
+
+        ActiveRecord::Base.transaction do
+          migration_instance.public_send(direction)
+          raise ActiveRecord::Rollback
+        end
+
+        captured
+      end
+
+      public
 
       # Clean up registry entries for triggers that no longer exist in the database
       # This is called after rolling back migrations to keep the registry in sync

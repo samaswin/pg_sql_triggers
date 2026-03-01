@@ -2,9 +2,6 @@
   <h2 style="margin: 0;">Trigger Dashboard</h2>
   <div style="display: flex; gap: 1rem;">
     <%= link_to "View Tables", tables_path, class: "btn btn-primary", style: "font-size: 1rem; padding: 0.75rem 1.5rem; text-decoration: none;" %>
-    <%= link_to "Generate New Trigger", new_generator_path,
-        class: "btn btn-success",
-        style: "font-size: 1rem; padding: 0.75rem 1.5rem; text-decoration: none;" %>
   </div>
 </div>
 
@@ -129,7 +126,7 @@
   <div style="background: #e7f3ff; border-left: 4px solid #007bff; padding: 1.5rem; border-radius: 4px;">
     <h3 style="margin-top: 0;">No triggers yet</h3>
     <p style="margin-bottom: 1rem;">Get started by generating your first trigger using the form-based wizard.</p>
-    <%= link_to "Generate New Trigger", new_generator_path, class: "btn btn-primary" %>
+    <%= link_to "View Tables", tables_path, class: "btn btn-primary" %>
   </div>
 <% end %>
 

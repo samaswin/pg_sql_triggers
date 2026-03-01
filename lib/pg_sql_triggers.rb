@@ -59,7 +59,6 @@ module PgSqlTriggers
   autoload :Permissions, "pg_sql_triggers/permissions"
   autoload :SQL, "pg_sql_triggers/sql"
   autoload :DatabaseIntrospection, "pg_sql_triggers/database_introspection"
-  autoload :Generator, "pg_sql_triggers/generator"
   autoload :Testing, "pg_sql_triggers/testing"
   autoload :Migration, "pg_sql_triggers/migration"
   autoload :Migrator, "pg_sql_triggers/migrator"

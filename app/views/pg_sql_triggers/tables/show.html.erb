@@ -1,7 +1,6 @@
 <div style="margin-bottom: 2rem;">
   <h2>Table: <%= @table_info[:table_name] %></h2>
   <%= link_to "← Back to Tables", tables_path, class: "btn", style: "background: #6c757d; color: white; text-decoration: none; margin-right: 1rem;" %>
-  <%= link_to "Create Trigger for this Table", new_generator_path(pg_sql_triggers_generator_form: { table_name: @table_info[:table_name] }), class: "btn btn-success" %>
 </div>
 
 <!-- Table Information -->
@@ -138,7 +137,6 @@
   <% else %>
     <div style="background: #e7f3ff; border-left: 4px solid #007bff; padding: 1rem; border-radius: 4px;">
       <p style="margin: 0;">No registered triggers for this table.</p>
-      <%= link_to "Create a trigger", new_generator_path(pg_sql_triggers_generator_form: { table_name: @table_info[:table_name] }), class: "btn btn-primary", style: "margin-top: 0.5rem;" %>
     </div>
   <% end %>
 </div>
