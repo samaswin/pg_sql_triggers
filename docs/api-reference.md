@@ -11,7 +11,7 @@ Complete reference for using PgSqlTriggers programmatically from the Rails conso
 - [TriggerRegistry Model](#triggerregistry-model)
 - [Audit Log API](#audit-log-api)
 
-> **Removed in upcoming release**: `SQL::Capsule` and `SQL::Executor` have been removed. See [CHANGELOG](../CHANGELOG.md) for details.
+> **Removed in 1.4.0**: `SQL::Capsule` and `SQL::Executor` have been removed. See [CHANGELOG](../CHANGELOG.md) for details.
 
 ## Registry API
 
