@@ -164,6 +164,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ([lib/pg_sql_triggers/registry/validator.rb](lib/pg_sql_triggers/registry/validator.rb))
 
 ### Fixed
+- **[High] `enabled: false` DSL option was cosmetic — trigger still fired in PostgreSQL** —
+  The `enabled` field was stored in the registry and surfaced in drift reports, but no
+  `ALTER TABLE … DISABLE TRIGGER` was ever issued across three code paths, so the trigger
+  continued to fire regardless of the DSL flag.
+
+  *Gap 1 — `Registry::Manager#register`*: A new private `sync_postgresql_enabled_state` helper
+  is called after every create or update that affects the `enabled` field. On **create**, the
+  helper fires only when `definition.enabled` is falsy (a newly created PostgreSQL trigger is
+  always enabled by default). On **update**, `enabled_changed` is captured before the `update!`
+  call so the comparison is always against the old value; the sync fires only when `enabled`
+  actually flipped. The helper checks `DatabaseIntrospection#trigger_exists?` before issuing
+  any SQL, making it safe to call at app boot before migrations have run, and rescues any error
+  with a `Rails.logger.warn` so a transient DB issue cannot crash the registration path.
+
+  *Gap 2 — `Migrator#run_migration` (`:up`)*: `CREATE TRIGGER` always leaves the trigger
+  enabled in PostgreSQL. A new private `enforce_disabled_triggers` method is called after each
+  `:up` migration transaction commits; it iterates over all `TriggerRegistry.disabled` entries
+  and issues `ALTER TABLE … DISABLE TRIGGER` for any that exist in the database. A per-iteration
+  `rescue` ensures one failure does not block the rest.
+
+  *Gap 3 — `TriggerRegistry#update_registry_after_re_execute`*: `re_execute!` drops and
+  recreates the trigger, leaving it always enabled in PostgreSQL. The method previously also
+  forced `enabled: true` into the registry `update!` call, overwriting any previously stored
+  `false` value. The `enabled: true` is removed from the `update!` so the stored state is
+  preserved; if `enabled` is `false`, an `ALTER TABLE … DISABLE TRIGGER` is issued immediately
+  after the registry update, within the same transaction.
+
+  Spec coverage added for all three gaps:
+  - `registry_spec.rb` — four cases in a new `"with PostgreSQL enabled state sync"` context:
+    create with `enabled: false` when trigger exists in DB, create when trigger not yet in DB
+    (no SQL, no error), update `true → false`, and update `false → true`.
+  - `trigger_registry_spec.rb` — new `"when registry entry has enabled: false"` context inside
+    `#re_execute!`: verifies `enabled` is not flipped to `true` and that `DISABLE TRIGGER` SQL
+    is issued after recreation.
+  - `migrator_spec.rb` — new `".run_migration with enforce_disabled_triggers"` describe block:
+    runs a real migration that creates a trigger, confirms `tgenabled = 'D'` in `pg_trigger`
+    afterward.
+
+  ([lib/pg_sql_triggers/registry/manager.rb](lib/pg_sql_triggers/registry/manager.rb),
+  [lib/pg_sql_triggers/migrator.rb](lib/pg_sql_triggers/migrator.rb),
+  [app/models/pg_sql_triggers/trigger_registry.rb](app/models/pg_sql_triggers/trigger_registry.rb),
+  [spec/pg_sql_triggers/registry_spec.rb](spec/pg_sql_triggers/registry_spec.rb),
+  [spec/pg_sql_triggers/trigger_registry_spec.rb](spec/pg_sql_triggers/trigger_registry_spec.rb),
+  [spec/pg_sql_triggers/migrator_spec.rb](spec/pg_sql_triggers/migrator_spec.rb))
+
 - **[Medium] `enabled` defaulted to `false` in the DSL** — Every newly declared trigger had
   `@enabled = false`, meaning triggers were silently disabled unless the author explicitly added
   `self.enabled = true`. Deployments that omitted the flag would register a disabled trigger that

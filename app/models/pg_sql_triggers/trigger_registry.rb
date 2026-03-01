@@ -434,7 +434,14 @@ module PgSqlTriggers
     end
 
     def update_registry_after_re_execute
-      update!(enabled: true, last_executed_at: Time.current)
+      update!(last_executed_at: Time.current)
+      if !enabled && ActiveRecord::Base.connection.table_exists?(table_name)
+        quoted_table   = quote_identifier(table_name)
+        quoted_trigger = quote_identifier(trigger_name)
+        ActiveRecord::Base.connection.execute(
+          "ALTER TABLE #{quoted_table} DISABLE TRIGGER #{quoted_trigger};"
+        )
+      end
       Rails.logger.info "[TRIGGER_RE_EXECUTE] Updated registry" if defined?(Rails.logger)
     end
 

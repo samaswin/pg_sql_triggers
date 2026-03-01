@@ -1156,6 +1156,36 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
         end
       end
     end
+
+    context "when registry entry has enabled: false" do
+      let(:disabled_registry) do
+        create(:trigger_registry, :disabled, :with_function_body,
+               trigger_name: trigger_name,
+               table_name: "test_table",
+               function_body: "CREATE OR REPLACE FUNCTION #{function_name}() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql; CREATE TRIGGER #{trigger_name} BEFORE INSERT ON test_table FOR EACH ROW EXECUTE FUNCTION #{function_name}();")
+      end
+
+      it "does not flip enabled to true after re-execute" do
+        with_kill_switch_disabled do
+          disabled_registry.re_execute!(reason: "Fix drift", actor: actor)
+          expect(disabled_registry.reload.enabled).to be(false)
+        end
+      end
+
+      it "issues DISABLE TRIGGER after recreating the trigger" do
+        with_kill_switch_disabled do
+          executed_sqls = []
+          allow(ActiveRecord::Base.connection).to receive(:execute).and_wrap_original do |orig, sql, *args|
+            executed_sqls << sql.to_s
+            orig.call(sql, *args)
+          end
+
+          disabled_registry.re_execute!(reason: "Fix drift", actor: actor)
+
+          expect(executed_sqls).to include(a_string_matching(/ALTER TABLE.*DISABLE TRIGGER/i))
+        end
+      end
+    end
   end
 
   describe "private methods" do

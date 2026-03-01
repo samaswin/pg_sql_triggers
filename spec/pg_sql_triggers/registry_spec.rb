@@ -128,6 +128,96 @@ RSpec.describe PgSqlTriggers::Registry::Manager do
         expect(registry.source).to eq("dsl")
       end
     end
+
+    context "with PostgreSQL enabled state sync" do
+      let(:introspection) { instance_double(PgSqlTriggers::DatabaseIntrospection) }
+
+      before do
+        allow(PgSqlTriggers::DatabaseIntrospection).to receive(:new).and_return(introspection)
+      end
+
+      it "issues DISABLE TRIGGER on create when trigger exists in DB and enabled: false" do
+        allow(introspection).to receive(:trigger_exists?).and_return(true)
+        executed_sqls = []
+        allow(ActiveRecord::Base.connection).to receive(:execute).and_wrap_original do |orig, sql, *args|
+          executed_sqls << sql.to_s
+          orig.call(sql, *args)
+        end
+
+        described_class.register(definition) # definition.enabled = false
+
+        expect(executed_sqls).to include(a_string_matching(/ALTER TABLE.*DISABLE TRIGGER/i))
+      end
+
+      it "does not issue ALTER TABLE when trigger does not yet exist in DB" do
+        allow(introspection).to receive(:trigger_exists?).and_return(false)
+        executed_sqls = []
+        allow(ActiveRecord::Base.connection).to receive(:execute).and_wrap_original do |orig, sql, *args|
+          executed_sqls << sql.to_s
+          orig.call(sql, *args)
+        end
+
+        described_class.register(definition)
+
+        expect(executed_sqls).not_to include(a_string_matching(/ALTER TABLE.*TRIGGER/i))
+      end
+
+      context "when updating enabled from true to false" do
+        before do
+          create(:trigger_registry, :enabled,
+                 trigger_name: "test_trigger",
+                 table_name: "users",
+                 checksum: "old",
+                 source: "generated")
+          allow(introspection).to receive(:trigger_exists?).and_return(true)
+        end
+
+        it "issues DISABLE TRIGGER" do
+          executed_sqls = []
+          allow(ActiveRecord::Base.connection).to receive(:execute).and_wrap_original do |orig, sql, *args|
+            executed_sqls << sql.to_s
+            orig.call(sql, *args)
+          end
+
+          described_class.register(definition) # definition.enabled = false
+
+          expect(executed_sqls).to include(a_string_matching(/ALTER TABLE.*DISABLE TRIGGER/i))
+        end
+      end
+
+      context "when updating enabled from false to true" do
+        let(:enabling_definition) do
+          d = PgSqlTriggers::DSL::TriggerDefinition.new("test_trigger_enabling")
+          d.table(:users)
+          d.on(:insert)
+          d.function(:test_function)
+          d.version = 1
+          d.enabled = true
+          d
+        end
+
+        before do
+          create(:trigger_registry, :disabled,
+                 trigger_name: "test_trigger_enabling",
+                 table_name: "users",
+                 checksum: "old",
+                 source: "generated")
+          allow(introspection).to receive(:trigger_exists?).and_return(true)
+        end
+
+        it "issues ENABLE TRIGGER" do
+          executed_sqls = []
+          allow(ActiveRecord::Base.connection).to receive(:execute).and_wrap_original do |orig, sql, *args|
+            executed_sqls << sql.to_s
+            orig.call(sql, *args)
+          end
+
+          described_class.register(enabling_definition)
+
+          expect(executed_sqls).to include(a_string_matching(/ALTER TABLE.*ENABLE TRIGGER/i))
+        end
+      end
+    end
   end
 
   describe ".list" do

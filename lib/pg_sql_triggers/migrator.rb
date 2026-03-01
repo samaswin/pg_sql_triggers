@@ -263,6 +263,8 @@ module PgSqlTriggers
             cleanup_orphaned_registry_entries
           end
         end
+
+        enforce_disabled_triggers if direction == :up
       rescue LoadError => e
         raise StandardError, "Error loading trigger migration #{migration.filename}: #{e.message}"
       rescue StandardError => e
@@ -318,6 +320,24 @@ module PgSqlTriggers
         end
 
         captured
+      end
+
+      def enforce_disabled_triggers
+        return unless ActiveRecord::Base.connection.table_exists?("pg_sql_triggers_registry")
+
+        introspection = PgSqlTriggers::DatabaseIntrospection.new
+        PgSqlTriggers::TriggerRegistry.disabled.each do |registry|
+          next unless introspection.trigger_exists?(registry.trigger_name)
+
+          conn           = ActiveRecord::Base.connection
+          quoted_table   = conn.quote_table_name(registry.table_name.to_s)
+          quoted_trigger = conn.quote_table_name(registry.trigger_name.to_s)
+          conn.execute("ALTER TABLE #{quoted_table} DISABLE TRIGGER #{quoted_trigger};")
+        rescue StandardError => e
+          if defined?(Rails.logger)
+            Rails.logger.warn("[MIGRATOR] Could not disable trigger #{registry.trigger_name}: #{e.message}")
+          end
+        end
       end
 
       public
