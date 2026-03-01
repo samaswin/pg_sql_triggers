@@ -8,7 +8,6 @@ The PgSqlTriggers web interface provides a visual dashboard for managing trigger
 - [Dashboard Overview](#dashboard-overview)
 - [Managing Triggers](#managing-triggers)
 - [Migration Management](#migration-management)
-- [SQL Capsules](#sql-capsules)
 - [Audit Log](#audit-log)
 - [Permissions and Safety](#permissions-and-safety)
 
@@ -96,7 +95,7 @@ Each table row displays:
 - **Status**: Summary of enabled/disabled triggers
 - **Actions**: 
   - "View Details" - Navigate to the table detail page
-  - "Create Trigger" - Generate a new trigger for this table
+  - "Create Trigger" - Scaffold a new trigger for this table using the CLI generator (see [Trigger Generator](usage-guide.md#trigger-generator))
 
 ### Table Detail Page
 
@@ -303,83 +302,6 @@ After each migration action:
 - **Error**: Red flash message with error details
 - **Warnings**: Yellow flash message if issues occurred
 
-## SQL Capsules
-
-SQL Capsules provide emergency escape hatches for executing SQL directly with comprehensive safety checks and audit logging.
-
-### When to Use SQL Capsules
-
-Use SQL Capsules for:
-- Emergency fixes in production
-- Critical data corrections
-- Testing SQL functions
-- Debugging trigger behavior
-- One-off database operations
-
-### Creating and Executing SQL Capsules
-
-1. Navigate to "SQL Capsules" → "New SQL Capsule"
-2. Fill in the capsule form:
-   - **Name**: Unique identifier (alphanumeric, underscores, hyphens only)
-   - **Environment**: Target environment (e.g., production, staging)
-   - **Purpose**: Detailed explanation of what the SQL does and why (required for audit trail)
-   - **SQL**: The SQL statement(s) to execute
-3. Click "Create and Execute" or "Save for Later"
-4. Review the capsule details on the confirmation page
-5. In protected environments, enter confirmation text when prompted
-6. Click "Execute" to run the SQL
-7. Review the execution results
-
-### Viewing Capsule History
-
-1. Navigate to "SQL Capsules" → "History"
-2. View list of previously executed capsules with:
-   - Name and purpose
-   - Environment and timestamp
-   - SQL checksum
-   - Execution status
-3. Click on a capsule to view details
-4. Re-execute historical capsules if needed
-
-### Safety Features
-
-- **Admin Permission Required**: Only Admin users can create and execute SQL capsules
-- **Production Protection**: Requires typed confirmation in protected environments
-- **Kill Switch Integration**: All executions are protected by kill switch
-- **Comprehensive Logging**: All operations logged with actor, timestamp, and checksum
-- **Transactional Execution**: SQL runs in a transaction and rolls back on error
-- **Registry Storage**: All capsules are stored in the registry with checksums
-- **Purpose Tracking**: Required purpose field ensures all executions are documented
-
-### Example SQL Capsules
-
-#### View All Triggers
-```sql
-SELECT
-  trigger_name,
-  event_object_table,
-  action_timing,
-  event_manipulation
-FROM information_schema.triggers
-WHERE trigger_schema = 'public';
-```
-
-#### Check Function Definitions
-```sql
-SELECT
-  routine_name,
-  routine_type
-FROM information_schema.routines
-WHERE routine_schema = 'public'
-  AND routine_name LIKE '%trigger%';
-```
-
-#### Verify Trigger State
-```sql
-SELECT * FROM pg_sql_triggers_registry
-WHERE trigger_name = 'users_email_validation';
-```
-
 ## Audit Log
 
 The Audit Log provides a comprehensive view of all trigger operations performed through the web UI, console APIs, and CLI. This feature is essential for compliance, debugging, and tracking changes to your trigger ecosystem.
@@ -446,7 +368,6 @@ All of the following operations are logged to the audit log:
 - **Disable Trigger**: Success/failure, before/after state
 - **Drop Trigger**: Success/failure, reason, state changes
 - **Re-execute Trigger**: Success/failure, reason, drift diff information
-- **SQL Capsule Execution**: Success/failure, capsule details
 - **Migration Operations**: Up, down, and redo operations (infrastructure ready)
 
 Each log entry includes:
@@ -497,7 +418,6 @@ Cannot:
 #### Admin (Full Access)
 - All Operator permissions
 - Drop triggers
-- Execute SQL via capsules
 - Modify registry directly
 
 ### Kill Switch Protection
@@ -529,9 +449,9 @@ PgSqlTriggers.configure do |config|
     case action
     when :view_triggers, :view_diffs
       user.present? # Viewer level
-    when :enable_trigger, :disable_trigger, :apply_trigger, :generate_trigger, :test_trigger, :dry_run_sql
+    when :enable_trigger, :disable_trigger, :apply_trigger, :test_trigger
       user.operator? || user.admin? # Operator level
-    when :drop_trigger, :execute_sql, :override_drift
+    when :drop_trigger, :override_drift
       user.admin? # Admin level
     else
       false
@@ -550,31 +470,11 @@ end
 ### Main Dashboard
 ![Main Dashboard](screenshots/dashboard.png)
 
-### Trigger Generator
-
-The trigger generator provides a comprehensive form for creating triggers:
-
-1. **Basic Information**: Trigger name, table name, function name, and function body
-2. **Trigger Events**: Select timing (BEFORE/AFTER) and events (INSERT, UPDATE, DELETE, TRUNCATE)
-3. **Configuration**: Version, environments, WHEN condition, and enabled state
-4. **Preview**: Review generated DSL and migration code with timing and condition information
-
-The preview page displays:
-- Generated DSL code with timing
-- Trigger configuration summary (timing, events, table, function, condition)
-- PL/pgSQL function body (editable)
-- SQL validation results
-
-![Trigger Generator](screenshots/generator.png)
-
 ### Migration Management
 ![Migration Management](screenshots/migrations.png)
 
 ### Kill Switch Protection
 ![Kill Switch](screenshots/kill-switch.png)
-
-### SQL Capsules
-![SQL Capsules](screenshots/sql-capsules.png)
 
 ## Dashboard Enhancements (v1.3.0+)
 

@@ -211,6 +211,8 @@ Custom authorization logic for the web UI and API.
 - **Returns**: Boolean
 - **Default**: `->(_actor, _action, _environment) { true }`
 
+> **Important**: If `permission_checker` is `nil` (not configured) and the app boots in **production**, the engine emits a `Rails.logger.warn` at startup. Configure a real checker before deploying to production.
+
 ```ruby
 # Default: allow all (development only!)
 config.permission_checker = ->(_actor, _action, _environment) { true }
