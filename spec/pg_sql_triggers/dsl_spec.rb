@@ -41,7 +41,7 @@ RSpec.describe PgSqlTriggers::DSL::TriggerDefinition do
       expect(definition.name).to eq("test_trigger")
       expect(definition.events).to eq([])
       expect(definition.version).to eq(1)
-      expect(definition.enabled).to be(false)
+      expect(definition.enabled).to be(true)
       expect(definition.environments).to eq([])
       expect(definition.condition).to be_nil
       expect(definition.timing).to eq("before")

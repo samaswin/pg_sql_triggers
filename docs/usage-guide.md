@@ -15,7 +15,7 @@ PgSqlTriggers provides a Ruby DSL for defining triggers. Trigger definitions are
 
 ### Basic Trigger Definition
 
-Create trigger definition files in `app/triggers/`:
+Create trigger definition files in `app/triggers/` (or scaffold them with the CLI generator — see below):
 
 ```ruby
 # app/triggers/users_email_validation.rb
@@ -24,11 +24,9 @@ PgSqlTriggers::DSL.pg_sql_trigger "users_email_validation" do
   on :insert, :update
   function :validate_user_email
 
-  version 1
-  enabled false
+  self.version = 1
+  self.enabled = true
   timing :before
-
-  when_env :production
 end
 ```
 
@@ -61,24 +59,29 @@ function :validate_user_email
 Version number for tracking changes:
 
 ```ruby
-version 1  # Increment when trigger logic changes
+self.version = 1  # Increment when trigger logic changes
 ```
 
 #### `enabled`
-Initial state of the trigger:
+Initial state of the trigger (defaults to `true`):
 
 ```ruby
-enabled true   # Trigger is active
-enabled false  # Trigger is inactive
+self.enabled = true   # Trigger is active (default)
+self.enabled = false  # Trigger is inactive
+```
+
+#### `for_each_row` / `for_each_statement`
+PostgreSQL execution granularity (defaults to row-level):
+
+```ruby
+for_each_row       # FOR EACH ROW (default)
+for_each_statement # FOR EACH STATEMENT
 ```
 
 #### `when_env`
-Environment-specific activation:
-
-```ruby
-when_env :production           # Only in production
-when_env :staging, :production # Multiple environments
-```
+**Deprecated.** Environment-specific trigger declarations cause schema drift between environments.
+Use application-level configuration to gate trigger behaviour by environment instead.
+Calling `when_env` emits a deprecation warning and will be removed in a future major version.
 
 #### `timing`
 Specifies when the trigger fires relative to the event (BEFORE or AFTER):
@@ -97,76 +100,44 @@ PgSqlTriggers::DSL.pg_sql_trigger "orders_billing_trigger" do
   on :insert, :update
   function :calculate_order_total
 
-  version 2
-  enabled true
+  self.version = 2
+  self.enabled = true
   timing :after
-
-  when_env :production, :staging
+  for_each_row
 end
 ```
 
 ## Trigger Generator
 
-PgSqlTriggers provides a web-based generator and Rails generators for creating trigger definitions and migrations quickly.
+PgSqlTriggers provides a CLI generator that scaffolds a DSL definition and migration together from the command line.
 
-### Web UI Generator
-
-The web UI generator provides a user-friendly interface for creating triggers:
-
-1. Navigate to `/pg_sql_triggers/generator/new` in your browser
-2. Fill in the trigger details:
-   - **Trigger Name**: Lowercase letters, numbers, and underscores only
-   - **Table Name**: The PostgreSQL table to attach the trigger to
-   - **Function Name**: The PostgreSQL function name (must match the function body)
-   - **Timing**: When the trigger fires - BEFORE (before constraint checks) or AFTER (after constraint checks)
-   - **Events**: Select one or more events (INSERT, UPDATE, DELETE, TRUNCATE)
-   - **Function Body**: The complete PostgreSQL function definition
-   - **Version**: Starting version number (default: 1)
-   - **Enabled**: Whether the trigger should be enabled initially
-   - **Environments**: Optional environment restrictions
-   - **Condition**: Optional WHEN condition for the trigger
-3. Preview the generated DSL and migration code (includes timing and condition display)
-4. Create the trigger files
-
-The generator creates:
-- A DSL definition file in `app/triggers/`
-- A migration file in `db/triggers/`
-- A registry entry in the database
-
-### Rails Generators
-
-You can also use Rails generators to create trigger migrations:
+### CLI Generator
 
 ```bash
-# Generate a trigger migration
-rails generate trigger:migration add_user_validation
+rails generate pg_sql_triggers:trigger TRIGGER_NAME TABLE_NAME [EVENTS...] [--timing before|after] [--function fn_name]
+```
 
-# Or using the full namespace
+Example:
+
+```bash
+rails generate pg_sql_triggers:trigger users_email_validation users insert update --timing before --function validate_user_email
+```
+
+This creates:
+- `app/triggers/users_email_validation.rb` — DSL stub
+- `db/triggers/TIMESTAMP_users_email_validation.rb` — migration with function + trigger SQL
+
+Files are written directly into the working tree and go through version control and code review like any other source file.
+
+### Migration-Only Generator
+
+To generate a standalone trigger migration without a DSL stub:
+
+```bash
 rails generate pg_sql_triggers:trigger_migration add_user_validation
 ```
 
-This creates a migration file in `db/triggers/` that you can edit to add your trigger logic.
-
-### Generator Features
-
-The generator handles:
-- **Function Name Formatting**: Automatically quotes function names with special characters
-- **Multiple Environments**: Supports multiple environment restrictions
-- **Condition Escaping**: Properly escapes quotes in WHEN conditions
-- **Event Combinations**: Handles single or multiple events (INSERT, UPDATE, DELETE, TRUNCATE)
-- **Migration Numbering**: Automatically generates sequential migration numbers
-- **Error Handling**: Graceful error handling with detailed error messages
-
-### Generator Edge Cases
-
-The generator properly handles:
-- Function names with special characters (quoted vs unquoted)
-- Multiple environments in a single trigger
-- Complex WHEN conditions with quotes
-- All event type combinations
-- Standalone gem usage (without Rails context)
-- Migration number collisions
-- Blank events and environments (filtered automatically)
+This creates a timestamped file in `db/triggers/` that you can edit to add your trigger logic.
 
 ## Trigger Migrations
 
@@ -177,7 +148,7 @@ Trigger migrations work similarly to Rails schema migrations but are specificall
 Create a new trigger migration:
 
 ```bash
-rails generate trigger:migration add_validation_trigger
+rails generate pg_sql_triggers:trigger_migration add_validation_trigger
 ```
 
 This creates a timestamped file in `db/triggers/`:

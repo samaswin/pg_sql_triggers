@@ -10,7 +10,7 @@ module PgSqlTriggers
         @name = name
         @events = []
         @version = 1
-        @enabled = false
+        @enabled = true
         @environments = []
         @condition = nil
         @timing = "before"

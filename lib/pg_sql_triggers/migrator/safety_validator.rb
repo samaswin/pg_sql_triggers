@@ -34,24 +34,34 @@ module PgSqlTriggers
           raise UnsafeOperationError.new(error_message, violations)
         end
 
+        # Validate using pre-captured SQL (avoids re-instantiating the migration class).
+        # Raises UnsafeOperationError if unsafe patterns are detected.
+        def validate_sql!(captured_sql, direction: :up, allow_unsafe: false) # rubocop:disable Lint/UnusedMethodArgument
+          return if allow_unsafe
+
+          violations = detect_unsafe_patterns_from_sql(captured_sql)
+          return if violations.empty?
+
+          error_message = build_error_message(violations, "(migration)")
+          raise UnsafeOperationError.new(error_message, violations)
+        end
+
         # Detect unsafe patterns in migration SQL
         # Returns array of violation hashes
         def detect_unsafe_patterns(migration_instance, direction)
-          violations = []
-
-          # Capture SQL that would be executed
           captured_sql = capture_sql(migration_instance, direction)
-
-          # Parse SQL to detect unsafe patterns
-          sql_operations = parse_sql_operations(captured_sql)
-
-          # Check for explicit DROP + CREATE patterns (the main safety concern)
-          violations.concat(detect_drop_create_patterns(sql_operations))
-
-          violations
+          detect_unsafe_patterns_from_sql(captured_sql)
         end
 
         private
+
+        # Core detection logic that works on pre-captured SQL.
+        def detect_unsafe_patterns_from_sql(captured_sql)
+          violations = []
+          sql_operations = parse_sql_operations(captured_sql)
+          violations.concat(detect_drop_create_patterns(sql_operations))
+          violations
+        end
 
         # Capture SQL that would be executed by the migration.
         # Runs the migration inside a transaction that is always rolled back so

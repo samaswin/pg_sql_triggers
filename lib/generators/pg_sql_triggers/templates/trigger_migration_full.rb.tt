@@ -1,0 +1,29 @@
+# frozen_string_literal: true
+
+class <%= trigger_class_name %> < PgSqlTriggers::Migration
+  def up
+    execute <<-SQL
+      CREATE OR REPLACE FUNCTION <%= function_name %>()
+      RETURNS TRIGGER AS $$
+      BEGIN
+        -- TODO: implement trigger logic
+        RETURN NEW;
+      END;
+      $$ LANGUAGE plpgsql;
+    SQL
+
+    execute <<-SQL
+      CREATE TRIGGER <%= trigger_name %>
+      <%= timing.upcase %> <%= events_sql %> ON <%= table_name %>
+      FOR EACH ROW
+      EXECUTE FUNCTION <%= function_name %>();
+    SQL
+  end
+
+  def down
+    execute <<-SQL
+      DROP TRIGGER IF EXISTS <%= trigger_name %> ON <%= table_name %>;
+      DROP FUNCTION IF EXISTS <%= function_name %>();
+    SQL
+  end
+end

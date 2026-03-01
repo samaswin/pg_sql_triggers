@@ -50,16 +50,18 @@ PgSqlTriggers::DSL.pg_sql_trigger "users_email_validation" do
   table :users
   on :insert, :update
   function :validate_user_email
-  version 1
-  enabled false
-  when_env :production
+  self.version = 1
+  self.enabled = true
+  timing :before
 end
 ```
 
-### Create and Run Migration
+### Generate and Run Migration
 
 ```bash
-rails generate trigger:migration add_email_validation
+# Generate a DSL stub + migration in one command
+rails generate pg_sql_triggers:trigger users_email_validation users insert update --timing before --function validate_user_email
+
 rake trigger:migrate
 ```
 
@@ -83,19 +85,26 @@ Comprehensive documentation is available in the [docs](docs/) directory:
 ## Key Features
 
 ### Trigger DSL
-Define triggers using a Rails-native Ruby DSL with versioning and environment control.
+Define triggers using a Rails-native Ruby DSL with versioning, row/statement-level granularity, and timing control.
+
+### CLI Generator
+Scaffold a DSL stub and migration in one command:
+```bash
+rails generate pg_sql_triggers:trigger TRIGGER_NAME TABLE_NAME [EVENTS...] [--timing before|after] [--function fn_name]
+```
+Files land in `app/triggers/` and `db/triggers/` for code review like any other source change.
 
 ### Migration System
 Manage trigger functions and definitions with a migration system similar to Rails schema migrations.
 
 ### Drift Detection
-Automatically detect when database triggers drift from your DSL definitions.
+Automatically detect when database triggers drift from your DSL definitions. N+1-free bulk detection across all triggers.
 
 ### Production Kill Switch
 Multi-layered safety mechanism preventing accidental destructive operations in production environments.
 
 ### Web Dashboard
-Visual interface for managing triggers, running migrations, and executing SQL capsules. Includes:
+Visual interface for managing triggers and running migrations. Includes:
 - **Quick Actions**: Enable/disable, drop, and re-execute triggers from dashboard
 - **Last Applied Tracking**: See when triggers were last applied with human-readable timestamps
 - **Breadcrumb Navigation**: Easy navigation between dashboard, tables, and triggers
@@ -104,18 +113,15 @@ Visual interface for managing triggers, running migrations, and executing SQL ca
 ### Audit Logging
 Comprehensive audit trail for all trigger operations:
 - Track who performed each operation (actor tracking)
-- Before and after state capture
+- Before and after state capture (including function body)
 - Success/failure logging with error messages
 - Reason tracking for drop and re-execute operations
-
-### SQL Capsules
-Emergency SQL execution feature for critical operations with Admin permission requirements, kill switch protection, and comprehensive logging.
 
 ### Drop & Re-Execute Flow
 Operational controls for trigger lifecycle management with drop and re-execute capabilities, drift comparison, and required reason logging.
 
 ### Permissions
-Three-tier permission system (Viewer, Operator, Admin) with customizable authorization.
+Three-tier permission system (Viewer, Operator, Admin) with customizable authorization. A startup warning is emitted in production when no `permission_checker` is configured.
 
 ## Console API
 
@@ -142,15 +148,6 @@ PgSqlTriggers::Registry.disable("users_email_validation", actor: current_user, c
 # Drop and re-execute triggers
 PgSqlTriggers::Registry.drop("old_trigger", actor: current_user, reason: "No longer needed", confirmation: "EXECUTE TRIGGER_DROP")
 PgSqlTriggers::Registry.re_execute("drifted_trigger", actor: current_user, reason: "Fix drift", confirmation: "EXECUTE TRIGGER_RE_EXECUTE")
-
-# Execute SQL capsules
-capsule = PgSqlTriggers::SQL::Capsule.new(
-  name: "emergency_fix",
-  environment: "production",
-  purpose: "Fix critical data issue",
-  sql: "UPDATE users SET status = 'active' WHERE id = 123"
-)
-PgSqlTriggers::SQL::Executor.execute(capsule, actor: current_user, confirmation: "EXECUTE SQL")
 ```
 
 See the [API Reference](docs/api-reference.md) for complete documentation of all console APIs.
@@ -164,7 +161,7 @@ For working examples and complete demonstrations, check out the [example reposit
 - **Rails-native**: Works seamlessly with Rails conventions
 - **Explicit over magic**: No automatic execution
 - **Safe by default**: Requires explicit confirmation for destructive actions
-- **Power with guardrails**: Emergency SQL escape hatches with safety checks
+- **Code review first**: Generator produces files into working tree; no server-side file writes
 
 ## Development
 

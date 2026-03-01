@@ -12,25 +12,24 @@ module PgSqlTriggers
         # Compare expected state from migration with actual database state
         # Returns a comparison result with diff information
         def compare(migration_instance, direction: :up)
-          expected = extract_expected_state(migration_instance, direction)
+          captured_sql = capture_sql(migration_instance, direction)
+          compare_sql(captured_sql)
+        end
+
+        # Compare using pre-captured SQL (avoids re-instantiating the migration class).
+        # Returns a comparison result with diff information.
+        def compare_sql(captured_sql)
+          expected = parse_sql_to_state(captured_sql)
           actual = extract_actual_state(expected)
           generate_diff(expected, actual)
         end
 
         private
 
-        # Extract expected SQL and state from migration instance
-        def extract_expected_state(migration_instance, direction)
-          captured_sql = capture_sql(migration_instance, direction)
-          parse_sql_to_state(captured_sql)
-        end
-
         # Capture SQL that would be executed by the migration
         def capture_sql(migration_instance, direction)
           captured = []
 
-          # Override execute to capture SQL instead of executing
-          # Since we use a separate instance for comparison, we don't need to restore
           migration_instance.define_singleton_method(:execute) do |sql|
             captured << sql.to_s.strip
           end

@@ -80,6 +80,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   The field is now included in all captured state hashes.
   ([app/models/pg_sql_triggers/trigger_registry.rb](app/models/pg_sql_triggers/trigger_registry.rb))
 
+- **[Design 5.4] `Migrator#run_migration` reduced from three migration instances to two** —
+  `run_migration` previously instantiated the migration class three times: once for
+  `SafetyValidator`, once for `PreApplyComparator`, and once for actual execution. This meant
+  the migration code ran twice before execution, making the behaviour unpredictable if the
+  migration had side effects that escaped the `execute` override. A new private
+  `capture_migration_sql(instance, direction)` helper (wrapped in a rolled-back transaction)
+  captures SQL once from a single inspection instance. `SafetyValidator.validate_sql!` and
+  `PreApplyComparator.compare_sql` are new entry points that accept pre-captured SQL directly,
+  avoiding a second run of the migration code. Execution still uses a fresh instance. The
+  existing `validate!` and `compare` instance-based APIs are retained for backward compatibility
+  with specs.
+  ([lib/pg_sql_triggers/migrator.rb](lib/pg_sql_triggers/migrator.rb),
+  [lib/pg_sql_triggers/migrator/safety_validator.rb](lib/pg_sql_triggers/migrator/safety_validator.rb),
+  [lib/pg_sql_triggers/migrator/pre_apply_comparator.rb](lib/pg_sql_triggers/migrator/pre_apply_comparator.rb))
+
 ### Deprecated
 
 - **`DSL::TriggerDefinition#when_env`** — Environment-specific trigger declarations cause schema
@@ -90,6 +105,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ([lib/pg_sql_triggers/dsl/trigger_definition.rb](lib/pg_sql_triggers/dsl/trigger_definition.rb))
 
 ### Removed
+
+- **[Refactor 5.3] Web UI trigger generator removed; replaced with Rails CLI generator** —
+  `GeneratorController` provided a browser form for generating trigger DSL files and migrations
+  at runtime, writing files directly to the server's filesystem. This is a security and
+  auditability concern in production (server-side file writes, no code review gate). The
+  controller, its two views (`new`, `preview`), the `/generator` routes, `Generator::Service`,
+  `Generator::Form`, and all related specs have been removed. Code generation is now a local,
+  CLI-driven action via a new `pg_sql_triggers:trigger` Rails generator:
+  ```
+  rails generate pg_sql_triggers:trigger TRIGGER_NAME TABLE_NAME [EVENTS...] [--timing before|after] [--function fn_name]
+  ```
+  The generator produces `app/triggers/TRIGGER_NAME.rb` (DSL stub) and
+  `db/triggers/TIMESTAMP_TRIGGER_NAME.rb` (migration with function + trigger SQL) directly into
+  the working tree, where they go through version control and code review like any other source
+  file. The `autoload :Generator` entry is also removed from `PgSqlTriggers`.
+  ([lib/generators/pg_sql_triggers/trigger_generator.rb](lib/generators/pg_sql_triggers/trigger_generator.rb),
+  [config/routes.rb](config/routes.rb))
+
+- **[Refactor 5.2] `SQL::Capsule` and `SQL::Executor` removed** — These classes implemented a
+  named-SQL-snippet execution system ("SQL capsules") for emergency operations. The feature is a
+  general-purpose dangerous-SQL runner that has nothing specifically to do with trigger management;
+  bundling it in this gem conflated concerns and enlarged the web UI's attack surface. Removed:
+  `lib/pg_sql_triggers/sql/capsule.rb`, `lib/pg_sql_triggers/sql/executor.rb`,
+  `app/controllers/pg_sql_triggers/sql_capsules_controller.rb`, the two associated views, the
+  `/sql_capsules` routes, and all related specs. `SQL::KillSwitch` is retained — it continues to
+  gate trigger re-execution and migration operations. The `PgSqlTriggers::SQL.execute_capsule`
+  convenience method is also removed.
+  ([lib/pg_sql_triggers/sql.rb](lib/pg_sql_triggers/sql.rb),
+  [config/routes.rb](config/routes.rb))
 
 - **Duplicate `trigger:migration` generator namespace** — Two generator namespaces existed for the
   same task: `rails g pg_sql_triggers:trigger_migration` and `rails g trigger:migration`. The
@@ -120,6 +164,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ([lib/pg_sql_triggers/registry/validator.rb](lib/pg_sql_triggers/registry/validator.rb))
 
 ### Fixed
+- **[Medium] `enabled` defaulted to `false` in the DSL** — Every newly declared trigger had
+  `@enabled = false`, meaning triggers were silently disabled unless the author explicitly added
+  `self.enabled = true`. Deployments that omitted the flag would register a disabled trigger that
+  appears in the registry but never fires, with no warning. Changed the default to `true` so
+  triggers are active unless explicitly disabled.
+  ([lib/pg_sql_triggers/dsl/trigger_definition.rb](lib/pg_sql_triggers/dsl/trigger_definition.rb))
+
 - **[Critical] Drift detector checksum excluded `timing` field** — `Drift::Detector#calculate_db_checksum`
   was hashing without the `timing` attribute, while `TriggerRegistry#calculate_checksum` and
   `Registry::Manager#calculate_checksum` both include it. Any trigger with a non-default timing

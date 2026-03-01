@@ -50,6 +50,25 @@ config.default_environment = -> {
 config.default_environment = -> { 'production' }
 ```
 
+### `db_schema`
+
+The PostgreSQL schema in which triggers are managed. All system catalog queries use this value. Override when your triggers live in a non-`public` schema.
+
+- **Type**: String
+- **Default**: `"public"`
+
+```ruby
+config.db_schema = "public"  # default
+
+# Use a custom schema
+config.db_schema = "app"
+```
+
+You can also set this at runtime:
+```ruby
+PgSqlTriggers.db_schema = "app"
+```
+
 ### `mount_path`
 
 Customize where the web UI is mounted (configured in routes, not initializer).
@@ -210,9 +229,9 @@ config.permission_checker = ->(actor, action, environment) {
   case action
   when :view_triggers, :view_diffs
     user.present? # Viewer level
-  when :enable_trigger, :disable_trigger, :apply_trigger, :generate_trigger, :test_trigger, :dry_run_sql
+  when :enable_trigger, :disable_trigger, :apply_trigger, :test_trigger
     user.operator? || user.admin? # Operator level
-  when :drop_trigger, :execute_sql, :override_drift
+  when :drop_trigger, :override_drift
     user.admin? # Admin level
   else
     false
@@ -287,7 +306,7 @@ The permission checker should handle three levels:
 #### `:admin`
 - All `:operate` permissions
 - Drop triggers
-- Execute SQL capsules
+- Override drift
 - Modify registry directly
 
 ## Environment Detection

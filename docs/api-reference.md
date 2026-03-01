@@ -11,6 +11,8 @@ Complete reference for using PgSqlTriggers programmatically from the Rails conso
 - [TriggerRegistry Model](#triggerregistry-model)
 - [Audit Log API](#audit-log-api)
 
+> **Removed in upcoming release**: `SQL::Capsule` and `SQL::Executor` have been removed. See [CHANGELOG](../CHANGELOG.md) for details.
+
 ## Registry API
 
 The Registry API provides methods for inspecting and managing triggers.
@@ -485,124 +487,6 @@ end
 
 **Returns**: Result of the block
 
-## SQL Capsule API
-
-The SQL Capsule API provides emergency SQL execution capabilities with safety checks.
-
-### `PgSqlTriggers::SQL::Capsule.new(name:, environment:, purpose:, sql:, created_at: nil)`
-
-Creates a new SQL capsule for emergency operations.
-
-```ruby
-capsule = PgSqlTriggers::SQL::Capsule.new(
-  name: "fix_user_permissions",
-  environment: "production",
-  purpose: "Emergency fix for user permission issue after deployment",
-  sql: "UPDATE users SET role = 'admin' WHERE email = 'admin@example.com';"
-)
-```
-
-**Parameters**:
-- `name` (String): Unique name for the capsule (alphanumeric, underscores, hyphens only)
-- `environment` (String): Target environment (e.g., "production", "staging")
-- `purpose` (String): Description of what the capsule does and why (required for audit trail)
-- `sql` (String): The SQL statement(s) to execute
-- `created_at` (Time, optional): Creation timestamp (defaults to current time)
-
-**Raises**: `ArgumentError` if validation fails
-
-### `capsule.checksum`
-
-Returns the SHA256 checksum of the SQL content.
-
-```ruby
-capsule = PgSqlTriggers::SQL::Capsule.new(name: "fix", ...)
-puts capsule.checksum
-# => "a3f5b8c9d2e..."
-```
-
-**Returns**: String (SHA256 hash)
-
-### `capsule.to_h`
-
-Converts the capsule to a hash for storage or serialization.
-
-```ruby
-capsule_data = capsule.to_h
-# => {
-#   name: "fix_user_permissions",
-#   environment: "production",
-#   purpose: "Emergency fix...",
-#   sql: "UPDATE users...",
-#   checksum: "a3f5b8c9d2e...",
-#   created_at: 2026-01-01 12:00:00 UTC
-# }
-```
-
-**Returns**: Hash
-
-## SQL Executor API
-
-The SQL Executor API handles safe execution of SQL capsules with comprehensive logging.
-
-### `PgSqlTriggers::SQL::Executor.execute(capsule, actor:, confirmation: nil, dry_run: false)`
-
-Executes a SQL capsule with safety checks and logging.
-
-```ruby
-capsule = PgSqlTriggers::SQL::Capsule.new(
-  name: "emergency_fix",
-  environment: "production",
-  purpose: "Fix critical data corruption",
-  sql: "UPDATE orders SET status = 'completed' WHERE id IN (123, 456);"
-)
-
-# Execute the capsule
-result = PgSqlTriggers::SQL::Executor.execute(
-  capsule,
-  actor: { type: "user", id: "admin@example.com" },
-  confirmation: "EXECUTE SQL"
-)
-
-if result[:success]
-  puts "SQL executed successfully"
-  puts "Rows affected: #{result[:data][:rows_affected]}"
-else
-  puts "Execution failed: #{result[:message]}"
-end
-```
-
-**Parameters**:
-- `capsule` (Capsule): The SQL capsule to execute
-- `actor` (Hash): Information about who is executing (Admin permission required)
-- `confirmation` (String, optional): Kill switch confirmation text
-- `dry_run` (Boolean): If true, validates without executing (default: false)
-
-**Returns**: Hash with `:success`, `:message`, and `:data` keys
-
-**Raises**: Permission and kill switch errors are returned in the result hash
-
-### `PgSqlTriggers::SQL::Executor.execute_capsule(capsule_name, actor:, confirmation: nil, dry_run: false)`
-
-Executes a previously stored SQL capsule by name from the registry.
-
-```ruby
-# Execute a capsule stored in the registry
-result = PgSqlTriggers::SQL::Executor.execute_capsule(
-  "emergency_fix",
-  actor: { type: "user", id: "admin@example.com" },
-  confirmation: "EXECUTE SQL"
-)
-```
-
-**Parameters**:
-- `capsule_name` (String): Name of the capsule in the registry
-- `actor` (Hash): Information about who is executing
-- `confirmation` (String, optional): Kill switch confirmation text
-- `dry_run` (Boolean): If true, validates without executing
-
-**Returns**: Hash with execution results
-
 ## DSL API
 
 The DSL API is used to define triggers in your application.
@@ -616,10 +500,10 @@ PgSqlTriggers::DSL.pg_sql_trigger "users_email_validation" do
   table :users
   on :insert, :update
   function :validate_user_email
-  version 1
-  enabled false
+  self.version = 1
+  self.enabled = true
   timing :before
-  when_env :production
+  for_each_row
 end
 ```
 
@@ -651,7 +535,7 @@ on :insert, :update, :delete
 ```
 
 **Parameters**:
-- `events` (Symbols): One or more of `:insert`, `:update`, `:delete`
+- `events` (Symbols): One or more of `:insert`, `:update`, `:delete`, `:truncate`
 
 #### `function(function_name)`
 
@@ -664,37 +548,48 @@ function :validate_user_email
 **Parameters**:
 - `function_name` (Symbol): Function name
 
-#### `version(number)`
+#### `self.version = number`
 
 Sets the trigger version.
 
 ```ruby
-version 1
-version 2
+self.version = 1  # Increment when trigger logic changes
+self.version = 2
 ```
 
 **Parameters**:
 - `number` (Integer): Version number
 
-#### `enabled(state)`
+#### `self.enabled = state`
 
-Sets the initial enabled state.
+Sets the initial enabled state. Defaults to `true`.
 
 ```ruby
-enabled true
-enabled false
+self.enabled = true   # Trigger is active (default)
+self.enabled = false  # Trigger is inactive
 ```
 
 **Parameters**:
 - `state` (Boolean): Initial state
 
-#### `when_env(*environments)`
+#### `for_each_row` / `for_each_statement`
 
-Restricts trigger to specific environments.
+Specifies PostgreSQL execution granularity. Defaults to `for_each_row`.
 
 ```ruby
-when_env :production
-when_env :production, :staging
+for_each_row       # FOR EACH ROW (default)
+for_each_statement # FOR EACH STATEMENT
+```
+
+Stored in the `for_each` column on the registry table and included in checksum calculation.
+
+#### `when_env(*environments)`
+
+**Deprecated.** Restricts trigger to specific environments. Emits a deprecation warning on every call and will be removed in a future major version. Use application-level configuration to gate trigger behaviour by environment instead.
+
+```ruby
+when_env :production           # Deprecated — avoid in new code
+when_env :production, :staging # Deprecated — avoid in new code
 ```
 
 **Parameters**:
@@ -712,8 +607,6 @@ timing :after   # Trigger fires after constraint checks
 **Parameters**:
 - `timing_value` (Symbol or String): Either `:before` or `:after`
 
-**Returns**: Current timing value if called without argument
-
 ## TriggerRegistry Model
 
 The `TriggerRegistry` ActiveRecord model represents a trigger in the registry.
@@ -728,12 +621,13 @@ trigger.table_name         # => "users"
 trigger.function_name      # => "validate_user_email"
 trigger.events             # => ["insert", "update"]
 trigger.version            # => 1
-trigger.enabled             # => false
-trigger.timing              # => "before" or "after"
-trigger.environments        # => ["production"]
-trigger.condition           # => "NEW.status = 'active'" or nil
-trigger.created_at          # => 2023-12-15 12:00:00 UTC
-trigger.updated_at          # => 2023-12-15 12:00:00 UTC
+trigger.enabled            # => true
+trigger.timing             # => "before" or "after"
+trigger.for_each           # => "row" or "statement"
+trigger.environments       # => [] (when_env is deprecated)
+trigger.condition          # => "NEW.status = 'active'" or nil
+trigger.created_at         # => 2023-12-15 12:00:00 UTC
+trigger.updated_at         # => 2023-12-15 12:00:00 UTC
 ```
 
 ### Instance Methods
@@ -816,7 +710,7 @@ trigger.re_execute!(
 - `confirmation` (String, optional): Kill switch confirmation text
 - `actor` (Hash, optional): Information about who is performing the operation
 
-**Raises**: `ArgumentError` if reason is blank or function_body is missing, `PgSqlTriggers::KillSwitchError`, `StandardError`
+**Raises**: `ArgumentError` if reason is blank, `PgSqlTriggers::KillSwitchError`, `StandardError`
 
 **Returns**: `true` on success
 
@@ -904,10 +798,6 @@ triggers = PgSqlTriggers::Registry.list
 puts "Total triggers: #{triggers.count}"
 
 # 4. Check for drift
-drift = PgSqlTriggers::Registry.diff
-puts "Drifted triggers: #{drift[:drifted].count}"
-
-# Alternative: Use dedicated query methods
 drifted = PgSqlTriggers::Registry.drifted
 in_sync = PgSqlTriggers::Registry.in_sync
 unknown = PgSqlTriggers::Registry.unknown_triggers
@@ -955,16 +845,16 @@ end
 ### Inspection and Reporting
 
 ```ruby
-# Generate a drift report
-drift = PgSqlTriggers::Registry.diff
-
+# Generate a drift report using dedicated query methods
 puts "=== Drift Report ==="
-puts "In Sync: #{drift[:in_sync].count}"
-puts "Drifted: #{drift[:drifted].count}"
+puts "In Sync: #{PgSqlTriggers::Registry.in_sync.count}"
+puts "Drifted: #{PgSqlTriggers::Registry.drifted.count}"
+puts "Dropped: #{PgSqlTriggers::Registry.dropped.count}"
+puts "Unknown: #{PgSqlTriggers::Registry.unknown_triggers.count}"
+
+# Or get the full categorised hash
+drift = PgSqlTriggers::Registry.diff
 puts "Manual Override: #{drift[:manual_override].count}"
-puts "Disabled: #{drift[:disabled].count}"
-puts "Dropped: #{drift[:dropped].count}"
-puts "Unknown: #{drift[:unknown].count}"
 
 # List all triggers with details
 triggers = PgSqlTriggers::Registry.list
@@ -976,6 +866,7 @@ triggers.each do |trigger|
   puts "  Function: #{trigger.function_name}"
   puts "  Events: #{trigger.events.join(', ')}"
   puts "  Timing: #{trigger.timing}"
+  puts "  For Each: #{trigger.for_each}"
   puts "  Version: #{trigger.version}"
   puts "  Enabled: #{trigger.enabled}"
   puts "  Drift: #{trigger.drift_status}"
