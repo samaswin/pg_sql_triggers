@@ -842,4 +842,54 @@ RSpec.describe PgSqlTriggers::Migrator do
       expect(migrations.first.version).to eq(12_345)
     end
   end
+
+  describe ".run_migration with enforce_disabled_triggers" do
+    let(:function_name) { "test_enforce_disabled_func_#{SecureRandom.hex(4)}" }
+    let(:trigger_name) { "test_enforce_disabled_trig_#{SecureRandom.hex(4)}" }
+
+    let(:migration_content) do
+      fn = function_name
+      tn = trigger_name
+      <<~RUBY
+        class EnforceDisabledMigration < PgSqlTriggers::Migration
+          def up
+            execute "CREATE OR REPLACE FUNCTION #{fn}() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql;"
+            execute "CREATE TRIGGER #{tn} BEFORE INSERT ON test_table FOR EACH ROW EXECUTE FUNCTION #{fn}();"
+          end
+          def down
+            execute "DROP TRIGGER IF EXISTS #{tn} ON test_table;"
+            execute "DROP FUNCTION IF EXISTS #{fn}();"
+          end
+        end
+      RUBY
+    end
+
+    before do
+      create_test_table(:test_table, columns: { name: :string })
+      File.write(migrations_path.join("20231215120001_enforce_disabled_migration.rb"), migration_content)
+      described_class.ensure_migrations_table!
+      create(:trigger_registry, :disabled,
+             trigger_name: trigger_name,
+             table_name: "test_table",
+             checksum: "any")
+    end
+
+    after do
+      ActiveRecord::Base.connection.execute("DROP TRIGGER IF EXISTS #{trigger_name} ON test_table")
+      ActiveRecord::Base.connection.execute("DROP FUNCTION IF EXISTS #{function_name}()")
+      drop_test_table(:test_table)
+      PgSqlTriggers::TriggerRegistry.where(trigger_name: trigger_name).destroy_all
+    end
+
+    it "disables a trigger at the PostgreSQL level when registry says enabled: false" do
+      allow(PgSqlTriggers::SQL::KillSwitch).to receive(:check!).and_return(true)
+
+      described_class.run_up
+
+      tgenabled = ActiveRecord::Base.connection.select_value(
+        "SELECT tgenabled FROM pg_trigger WHERE tgname = #{ActiveRecord::Base.connection.quote(trigger_name)}"
+      )
+      expect(tgenabled).to eq("D")
+    end
+  end
 end

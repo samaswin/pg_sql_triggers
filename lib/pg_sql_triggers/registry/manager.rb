@@ -65,6 +65,7 @@ module PgSqlTriggers
             attributes_changed = attributes.any? do |key, value|
               existing.send(key) != value
             end
+            enabled_changed = existing.enabled != definition.enabled
 
             if attributes_changed
               begin
@@ -72,6 +73,7 @@ module PgSqlTriggers
                 # Update cache with the modified record (reload to get fresh data)
                 reloaded = existing.reload
                 _registry_cache[trigger_name] = reloaded
+                sync_postgresql_enabled_state(existing.trigger_name, existing.table_name, definition.enabled) if enabled_changed
                 reloaded
               rescue ActiveRecord::RecordNotFound
                 # Cached record was deleted, create a new one
@@ -87,6 +89,7 @@ module PgSqlTriggers
             new_record = PgSqlTriggers::TriggerRegistry.create!(attributes)
             # Cache the newly created record
             _registry_cache[trigger_name] = new_record
+            sync_postgresql_enabled_state(new_record.trigger_name, new_record.table_name, definition.enabled) unless definition.enabled
             new_record
           end
         end
@@ -147,6 +150,19 @@ module PgSqlTriggers
             definition.timing || "before",
             definition.for_each || "row"
           ].join)
+        end
+
+        def sync_postgresql_enabled_state(trigger_name, table_name, enabled)
+          introspection = PgSqlTriggers::DatabaseIntrospection.new
+          return unless introspection.trigger_exists?(trigger_name)
+
+          conn           = ActiveRecord::Base.connection
+          quoted_table   = conn.quote_table_name(table_name.to_s)
+          quoted_trigger = conn.quote_table_name(trigger_name.to_s)
+          verb           = enabled ? "ENABLE" : "DISABLE"
+          conn.execute("ALTER TABLE #{quoted_table} #{verb} TRIGGER #{quoted_trigger};")
+        rescue StandardError => e
+          Rails.logger.warn("[REGISTER] Could not sync trigger enabled state: #{e.message}") if defined?(Rails.logger)
         end
       end
     end
