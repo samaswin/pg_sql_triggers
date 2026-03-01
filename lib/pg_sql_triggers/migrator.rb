@@ -334,7 +334,9 @@ module PgSqlTriggers
           quoted_trigger = conn.quote_table_name(registry.trigger_name.to_s)
           conn.execute("ALTER TABLE #{quoted_table} DISABLE TRIGGER #{quoted_trigger};")
         rescue StandardError => e
-          Rails.logger.warn("[MIGRATOR] Could not disable trigger #{registry.trigger_name}: #{e.message}") if defined?(Rails.logger)
+          if defined?(Rails.logger)
+            Rails.logger.warn("[MIGRATOR] Could not disable trigger #{registry.trigger_name}: #{e.message}")
+          end
         end
       end
 

@@ -73,7 +73,9 @@ module PgSqlTriggers
                 # Update cache with the modified record (reload to get fresh data)
                 reloaded = existing.reload
                 _registry_cache[trigger_name] = reloaded
-                sync_postgresql_enabled_state(existing.trigger_name, existing.table_name, definition.enabled) if enabled_changed
+                if enabled_changed
+                  sync_postgresql_enabled_state(existing.trigger_name, existing.table_name, definition.enabled)
+                end
                 reloaded
               rescue ActiveRecord::RecordNotFound
                 # Cached record was deleted, create a new one
@@ -89,7 +91,9 @@ module PgSqlTriggers
             new_record = PgSqlTriggers::TriggerRegistry.create!(attributes)
             # Cache the newly created record
             _registry_cache[trigger_name] = new_record
-            sync_postgresql_enabled_state(new_record.trigger_name, new_record.table_name, definition.enabled) unless definition.enabled
+            unless definition.enabled
+              sync_postgresql_enabled_state(new_record.trigger_name, new_record.table_name, definition.enabled)
+            end
             new_record
           end
         end
