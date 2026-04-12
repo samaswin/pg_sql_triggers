@@ -85,8 +85,7 @@ rescue StandardError
     ActiveRecord::Base.connection
   rescue StandardError => e2
     db_name = test_db_config.is_a?(String) ? ENV["TEST_DATABASE"] || "pg_sql_triggers_test" : test_db_config[:database]
-    puts "Warning: Could not create test database. Please create it manually:"
-    puts "  createdb #{db_name}"
+    warn "Warning: Could not create test database. Please create it manually:\n  createdb #{db_name}"
     raise e2
   end
 end
@@ -140,8 +139,13 @@ RSpec.configure do |config|
         ActiveRecord::Base.connection.add_column "pg_sql_triggers_registry", :for_each, :string, default: "row", null: false
       end
       unless ActiveRecord::Base.connection.column_exists?("pg_sql_triggers_registry", :constraint_trigger)
-        ActiveRecord::Base.connection.add_column "pg_sql_triggers_registry", :constraint_trigger, :boolean,
-                                                   default: false, null: false
+        ActiveRecord::Base.connection.add_column(
+          "pg_sql_triggers_registry",
+          :constraint_trigger,
+          :boolean,
+          default: false,
+          null: false
+        )
       end
       unless ActiveRecord::Base.connection.column_exists?("pg_sql_triggers_registry", :deferrable)
         ActiveRecord::Base.connection.add_column "pg_sql_triggers_registry", :deferrable, :string
@@ -213,8 +217,12 @@ RSpec.configure do |config|
     DatabaseCleaner.allow_production = true
     # Use truncation strategy for better isolation in Rails 7/Ruby 3.4
     # Transaction strategy can have issues with test isolation in newer Rails versions
-    DatabaseCleaner.strategy = :truncation
-    DatabaseCleaner.clean_with(:truncation)
+    # Disable table list caching: specs create/drop helper tables (e.g. test_table); a cached
+    # list would still TRUNCATE dropped tables and fail with PG::UndefinedTable, and leave
+    # registry rows uncleared (duplicate trigger_name failures).
+    truncation_opts = { cache_tables: false }
+    DatabaseCleaner.strategy = :truncation, truncation_opts
+    DatabaseCleaner.clean_with(:truncation, truncation_opts)
   end
 
   # Use DatabaseCleaner with transactions for test isolation

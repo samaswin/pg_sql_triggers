@@ -18,7 +18,11 @@ module PgSqlTriggers
     end
 
     def ruby_schema_format?
-      ar_cfg = Rails.application.config.active_record
+      cfg = Rails.application.config
+      # Minimal Rails apps (e.g. tests without ActiveRecord::Railtie) have no config.active_record.
+      return true unless cfg.respond_to?(:active_record)
+
+      ar_cfg = cfg.active_record
       return true unless ar_cfg.respond_to?(:schema_format)
 
       format = ar_cfg.schema_format
