@@ -56,8 +56,8 @@ module PgSqlTriggers
               state[:functions] << function_info if function_info
             end
 
-            # Parse CREATE TRIGGER statements
-            if sql_normalized.match?(/CREATE\s+TRIGGER/i)
+            # Parse CREATE [CONSTRAINT] TRIGGER statements
+            if sql_normalized.match?(/CREATE\s+(?:CONSTRAINT\s+)?TRIGGER/i)
               trigger_info = parse_trigger_sql(sql)
               state[:triggers] << trigger_info if trigger_info
             end
@@ -94,8 +94,8 @@ module PgSqlTriggers
 
         # Parse trigger SQL to extract trigger details
         def parse_trigger_sql(sql)
-          # Match CREATE TRIGGER trigger_name BEFORE/AFTER events ON table_name ...
-          match = sql.match(/CREATE\s+TRIGGER\s+(\w+)\s+(BEFORE|AFTER)\s+(.+?)\s+ON\s+(\w+)/i)
+          # Match CREATE [CONSTRAINT] TRIGGER trigger_name BEFORE/AFTER events ON table_name ...
+          match = sql.match(/CREATE\s+(?:CONSTRAINT\s+)?TRIGGER\s+(\w+)\s+(BEFORE|AFTER)\s+(.+?)\s+ON\s+(\w+)/i)
           return nil unless match
 
           trigger_name = match[1]

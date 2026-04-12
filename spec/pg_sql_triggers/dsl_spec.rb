@@ -37,7 +37,7 @@ RSpec.describe PgSqlTriggers::DSL::TriggerDefinition do
   let(:definition) { described_class.new("test_trigger") }
 
   describe "#initialize" do
-    it "sets default values" do
+    it "sets default values" do # rubocop:disable RSpec/MultipleExpectations
       expect(definition.name).to eq("test_trigger")
       expect(definition.events).to eq([])
       expect(definition.version).to eq(1)
@@ -47,6 +47,9 @@ RSpec.describe PgSqlTriggers::DSL::TriggerDefinition do
       expect(definition.timing).to eq("before")
       expect(definition.for_each).to eq("row")
       expect(definition.columns).to be_nil
+      expect(definition.constraint_trigger).to be(false)
+      expect(definition.deferrable).to be_nil
+      expect(definition.initially).to be_nil
     end
   end
 
@@ -155,6 +158,29 @@ RSpec.describe PgSqlTriggers::DSL::TriggerDefinition do
     end
   end
 
+  describe "constraint deferral" do
+    it "records constraint_trigger and deferral options in to_h" do
+      definition.constraint_trigger!
+      definition.deferrable = :deferrable
+      definition.initially = :deferred
+
+      expect(definition.to_h).to include(
+        constraint_trigger: true,
+        deferrable: "deferrable",
+        initially: "deferred"
+      )
+    end
+
+    it "clears deferrable and initially when constraint_trigger is set to false" do
+      definition.constraint_trigger!
+      definition.deferrable = :not_deferrable
+      definition.constraint_trigger = false
+
+      expect(definition.deferrable).to be_nil
+      expect(definition.initially).to be_nil
+    end
+  end
+
   describe "#to_h" do
     it "converts definition to hash" do
       definition.table(:users)
@@ -177,7 +203,10 @@ RSpec.describe PgSqlTriggers::DSL::TriggerDefinition do
                            condition: "NEW.id > 0",
                            timing: "before",
                            for_each: "row",
-                           columns: nil
+                           columns: nil,
+                           constraint_trigger: false,
+                           deferrable: nil,
+                           initially: nil
                          })
     end
 

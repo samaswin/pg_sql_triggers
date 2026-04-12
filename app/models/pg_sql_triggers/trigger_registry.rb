@@ -314,6 +314,11 @@ module PgSqlTriggers
     end
 
     def calculate_checksum
+      deferral = PgSqlTriggers::DeferralChecksum.parts(
+        constraint_trigger: constraint_trigger,
+        deferrable: deferrable,
+        initially: initially
+      )
       Digest::SHA256.hexdigest([
         trigger_name,
         table_name,
@@ -321,7 +326,8 @@ module PgSqlTriggers
         function_body || "",
         condition || "",
         timing || "before",
-        for_each || "row"
+        for_each || "row",
+        *deferral
       ].join)
     end
 
@@ -409,28 +415,56 @@ module PgSqlTriggers
 
     # Build a CREATE TRIGGER SQL statement from the stored DSL definition JSON.
     # Used by re_execute! when function_body is absent (the normal case for DSL triggers).
-    def build_trigger_sql_from_definition
+    def build_trigger_sql_from_definition # rubocop:disable Metrics/PerceivedComplexity
       return nil if definition.blank?
 
       defn = JSON.parse(definition)
       fn_name = defn["function_name"]
       return nil if fn_name.blank?
 
-      t_name      = table_name
-      timing_kw   = (defn["timing"] || timing || "BEFORE").upcase
-      events      = Array(defn["events"]).map { |e| e.to_s.upcase }.join(" OR ")
-      events      = "INSERT" if events.blank?
-      cond        = defn["condition"] || condition
+      t_name = table_name
+      constraint = ActiveModel::Type::Boolean.new.cast(defn["constraint_trigger"])
+      timing_kw = if constraint
+                    "AFTER"
+                  else
+                    (defn["timing"] || timing || "before").to_s.upcase
+                  end
+      events = Array(defn["events"]).map { |e| e.to_s.upcase }.join(" OR ")
+      events = "INSERT" if events.blank?
+      cond = defn["condition"] || condition
       for_each_kw = (defn["for_each"] || for_each || "row").upcase
 
-      sql = "CREATE TRIGGER #{quote_identifier(trigger_name)} "
+      create_kw = constraint ? "CREATE CONSTRAINT TRIGGER" : "CREATE TRIGGER"
+      sql = "#{create_kw} #{quote_identifier(trigger_name)} "
       sql += "#{timing_kw} #{events} ON #{quote_identifier(t_name)} "
+      deferral = deferral_sql_fragment(defn)
+      sql += "#{deferral} " if deferral.present?
       sql += "FOR EACH #{for_each_kw} "
       sql += "WHEN (#{cond}) " if cond.present?
       sql += "EXECUTE FUNCTION #{fn_name}();"
       sql
     rescue JSON::ParserError
       nil
+    end # rubocop:enable Metrics/PerceivedComplexity
+
+    def deferral_sql_fragment(defn)
+      return "" unless ActiveModel::Type::Boolean.new.cast(defn["constraint_trigger"])
+
+      case defn["deferrable"].to_s
+      when "not_deferrable"
+        "NOT DEFERRABLE"
+      when "deferrable"
+        case defn["initially"].to_s
+        when "deferred"
+          "DEFERRABLE INITIALLY DEFERRED"
+        when "immediate"
+          "DEFERRABLE INITIALLY IMMEDIATE"
+        else
+          "DEFERRABLE"
+        end
+      else
+        ""
+      end
     end
 
     def update_registry_after_re_execute

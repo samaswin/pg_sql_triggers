@@ -11,6 +11,9 @@ FactoryBot.define do
     environment { "test" }
     timing { "before" }
     for_each { "row" }
+    constraint_trigger { false }
+    deferrable { nil }
+    initially { nil }
 
     trait :enabled do
       enabled { true }
@@ -67,6 +70,11 @@ FactoryBot.define do
       after(:build) do |registry|
         require "digest"
         function_body_for_checksum = registry.function_body || ""
+        deferral = PgSqlTriggers::DeferralChecksum.parts(
+          constraint_trigger: registry.constraint_trigger,
+          deferrable: registry.deferrable,
+          initially: registry.initially
+        )
         registry.checksum = Digest::SHA256.hexdigest([
           registry.trigger_name,
           registry.table_name,
@@ -74,7 +82,8 @@ FactoryBot.define do
           function_body_for_checksum,
           registry.condition || "",
           registry.timing || "before",
-          registry.for_each || "row"
+          registry.for_each || "row",
+          *deferral
         ].join)
       end
     end

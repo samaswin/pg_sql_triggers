@@ -2,7 +2,7 @@
 
 module PgSqlTriggers
   module Drift
-    module DbQueries
+    module DbQueries # rubocop:disable Metrics/ModuleLength -- trigger introspection SQL in one place
       class << self
         # Fetch all triggers from database
         def all_triggers
@@ -16,7 +16,10 @@ module PgSqlTriggers
               pg_get_triggerdef(t.oid) AS trigger_definition,
               pg_get_functiondef(p.oid) AS function_definition,
               t.tgenabled AS enabled,
-              t.tgisinternal AS is_internal
+              t.tgisinternal AS is_internal,
+              t.tgconstraint AS tgconstraint,
+              t.tgdeferrable AS tgdeferrable,
+              t.tginitdeferred AS tginitdeferred
             FROM pg_trigger t
             JOIN pg_class c ON t.tgrelid = c.oid
             JOIN pg_namespace n ON c.relnamespace = n.oid
@@ -42,7 +45,10 @@ module PgSqlTriggers
               pg_get_triggerdef(t.oid) AS trigger_definition,
               pg_get_functiondef(p.oid) AS function_definition,
               t.tgenabled AS enabled,
-              t.tgisinternal AS is_internal
+              t.tgisinternal AS is_internal,
+              t.tgconstraint AS tgconstraint,
+              t.tgdeferrable AS tgdeferrable,
+              t.tginitdeferred AS tginitdeferred
             FROM pg_trigger t
             JOIN pg_class c ON t.tgrelid = c.oid
             JOIN pg_namespace n ON c.relnamespace = n.oid
@@ -68,7 +74,10 @@ module PgSqlTriggers
               pg_get_triggerdef(t.oid) AS trigger_definition,
               pg_get_functiondef(p.oid) AS function_definition,
               t.tgenabled AS enabled,
-              t.tgisinternal AS is_internal
+              t.tgisinternal AS is_internal,
+              t.tgconstraint AS tgconstraint,
+              t.tgdeferrable AS tgdeferrable,
+              t.tginitdeferred AS tginitdeferred
             FROM pg_trigger t
             JOIN pg_class c ON t.tgrelid = c.oid
             JOIN pg_namespace n ON c.relnamespace = n.oid
@@ -115,6 +124,6 @@ module PgSqlTriggers
           end
         end
       end
-    end
+    end # rubocop:enable Metrics/ModuleLength
   end
 end

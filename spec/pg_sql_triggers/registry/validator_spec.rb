@@ -145,5 +145,83 @@ RSpec.describe PgSqlTriggers::Registry::Validator do
           .to raise_error(PgSqlTriggers::ValidationError)
       end
     end
+
+    context "with deferrable set without constraint_trigger" do
+      before do
+        create(:trigger_registry, source: "dsl",
+                                  definition: valid_definition("deferrable" => "deferrable", "constraint_trigger" => false))
+      end
+
+      it "raises ValidationError" do
+        expect { described_class.validate! }
+          .to raise_error(PgSqlTriggers::ValidationError, /constraint_trigger/)
+      end
+    end
+
+    context "with constraint_trigger and before timing" do
+      before do
+        create(:trigger_registry, source: "dsl",
+                                  definition: valid_definition(
+                                    "constraint_trigger" => true,
+                                    "timing" => "before",
+                                    "events" => ["insert"]
+                                  ))
+      end
+
+      it "raises ValidationError" do
+        expect { described_class.validate! }
+          .to raise_error(PgSqlTriggers::ValidationError, /constraint triggers must use after timing/)
+      end
+    end
+
+    context "with constraint_trigger and TRUNCATE event" do
+      before do
+        create(:trigger_registry, source: "dsl",
+                                  definition: valid_definition(
+                                    "constraint_trigger" => true,
+                                    "timing" => "after",
+                                    "events" => ["truncate"]
+                                  ))
+      end
+
+      it "raises ValidationError" do
+        expect { described_class.validate! }
+          .to raise_error(PgSqlTriggers::ValidationError, /cannot use TRUNCATE/)
+      end
+    end
+
+    context "with initially set but deferrable not deferrable" do
+      before do
+        create(:trigger_registry, source: "dsl",
+                                  definition: valid_definition(
+                                    "constraint_trigger" => true,
+                                    "timing" => "after",
+                                    "deferrable" => "not_deferrable",
+                                    "initially" => "deferred"
+                                  ))
+      end
+
+      it "raises ValidationError" do
+        expect { described_class.validate! }
+          .to raise_error(PgSqlTriggers::ValidationError, /initially requires deferrable/)
+      end
+    end
+
+    context "with valid constraint deferrable trigger" do
+      before do
+        create(:trigger_registry, source: "dsl",
+                                  definition: valid_definition(
+                                    "constraint_trigger" => true,
+                                    "timing" => "after",
+                                    "deferrable" => "deferrable",
+                                    "initially" => "deferred",
+                                    "events" => ["insert"]
+                                  ))
+      end
+
+      it "returns true" do
+        expect(described_class.validate!).to be true
+      end
+    end
   end
 end

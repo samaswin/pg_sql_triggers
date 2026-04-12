@@ -139,6 +139,16 @@ RSpec.configure do |config|
       unless ActiveRecord::Base.connection.column_exists?("pg_sql_triggers_registry", :for_each)
         ActiveRecord::Base.connection.add_column "pg_sql_triggers_registry", :for_each, :string, default: "row", null: false
       end
+      unless ActiveRecord::Base.connection.column_exists?("pg_sql_triggers_registry", :constraint_trigger)
+        ActiveRecord::Base.connection.add_column "pg_sql_triggers_registry", :constraint_trigger, :boolean,
+                                                   default: false, null: false
+      end
+      unless ActiveRecord::Base.connection.column_exists?("pg_sql_triggers_registry", :deferrable)
+        ActiveRecord::Base.connection.add_column "pg_sql_triggers_registry", :deferrable, :string
+      end
+      unless ActiveRecord::Base.connection.column_exists?("pg_sql_triggers_registry", :initially)
+        ActiveRecord::Base.connection.add_column "pg_sql_triggers_registry", :initially, :string
+      end
     else
       ActiveRecord::Base.connection.create_table "pg_sql_triggers_registry" do |t|
         t.string :trigger_name, null: false
@@ -153,6 +163,9 @@ RSpec.configure do |config|
         t.text :condition
         t.string :timing, default: "before", null: false
         t.string :for_each, default: "row", null: false
+        t.boolean :constraint_trigger, default: false, null: false
+        t.string :deferrable
+        t.string :initially
         t.datetime :installed_at
         t.datetime :last_verified_at
         t.datetime :last_executed_at

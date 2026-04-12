@@ -42,6 +42,8 @@ rails generate pg_sql_triggers:install
 rails db:migrate
 ```
 
+Schema migrations bundled with the gem are listed in [Getting Started — Gem schema migrations](docs/getting-started.md#gem-schema-migrations) (ordered `db/migrate/*.rb` filenames).
+
 ### Define a Trigger
 
 ```ruby

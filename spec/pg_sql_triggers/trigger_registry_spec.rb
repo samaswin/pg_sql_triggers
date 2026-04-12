@@ -1284,6 +1284,70 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
 
         expect(checksum_with_nil).to eq(checksum_with_before)
       end
+
+      it "includes deferral metadata in checksum" do
+        checksum1 = registry.send(:calculate_checksum)
+        registry.constraint_trigger = true
+        registry.deferrable = "deferrable"
+        registry.initially = "deferred"
+        checksum2 = registry.send(:calculate_checksum)
+        expect(checksum1).not_to eq(checksum2)
+      end
+    end
+
+    describe "#build_trigger_sql_from_definition" do
+      let(:dsl_registry) do
+        create(:trigger_registry,
+               source: "dsl",
+               trigger_name: "defer_trig",
+               table_name: "orders",
+               timing: "after",
+               for_each: "row",
+               constraint_trigger: true,
+               deferrable: "deferrable",
+               initially: "deferred",
+               function_body: nil,
+               checksum: Digest::SHA256.hexdigest("x"),
+               definition: {
+                 "function_name" => "defer_fn",
+                 "events" => ["insert"],
+                 "timing" => "after",
+                 "for_each" => "row",
+                 "constraint_trigger" => true,
+                 "deferrable" => "deferrable",
+                 "initially" => "deferred"
+               }.to_json)
+      end
+
+      it "outputs CREATE CONSTRAINT TRIGGER with DEFERRABLE INITIALLY DEFERRED" do
+        sql = dsl_registry.send(:build_trigger_sql_from_definition)
+        expect(sql).to start_with("CREATE CONSTRAINT TRIGGER")
+        expect(sql).to include("AFTER INSERT ON")
+        expect(sql).to include("DEFERRABLE INITIALLY DEFERRED")
+        expect(sql).to end_with("EXECUTE FUNCTION defer_fn();")
+      end
+
+      it "outputs NOT DEFERRABLE when configured" do
+        reg = create(:trigger_registry,
+                     source: "dsl",
+                     trigger_name: "nd_trig",
+                     table_name: "orders",
+                     timing: "after",
+                     for_each: "row",
+                     constraint_trigger: true,
+                     deferrable: "not_deferrable",
+                     initially: nil,
+                     function_body: nil,
+                     checksum: Digest::SHA256.hexdigest("nd"),
+                     definition: {
+                       "function_name" => "defer_fn",
+                       "events" => ["insert"],
+                       "constraint_trigger" => true,
+                       "deferrable" => "not_deferrable"
+                     }.to_json)
+        sql = reg.send(:build_trigger_sql_from_definition)
+        expect(sql).to include("NOT DEFERRABLE")
+      end
     end
 
     describe "#verify!" do

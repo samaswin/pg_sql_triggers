@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `for_each_statement`, let trigger definitions declare the desired granularity explicitly. The
   value defaults to `"row"` so all existing definitions continue to produce `FOR EACH ROW` triggers
   without modification. The field is stored in a new `for_each` column on the registry table
-  (migration `20260228000001_add_for_each_to_pg_sql_triggers_registry.rb`), included in all three
+  (migration `20260228162233_add_for_each_to_pg_sql_triggers_registry.rb`), included in all three
   checksum computations (`TriggerRegistry#calculate_checksum`, `Registry::Manager#calculate_checksum`,
   and `Drift::Detector#calculate_db_checksum`), extracted from live trigger definitions via a new
   `extract_trigger_for_each` helper, and validated by `Registry::Validator` (only `"row"` and
@@ -26,7 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   [lib/pg_sql_triggers/registry/validator.rb](lib/pg_sql_triggers/registry/validator.rb),
   [lib/pg_sql_triggers/drift/detector.rb](lib/pg_sql_triggers/drift/detector.rb),
   [app/models/pg_sql_triggers/trigger_registry.rb](app/models/pg_sql_triggers/trigger_registry.rb),
-  [db/migrate/20260228000001_add_for_each_to_pg_sql_triggers_registry.rb](db/migrate/20260228000001_add_for_each_to_pg_sql_triggers_registry.rb))
+  [db/migrate/20260228162233_add_for_each_to_pg_sql_triggers_registry.rb](db/migrate/20260228162233_add_for_each_to_pg_sql_triggers_registry.rb))
 
 ### Changed
 

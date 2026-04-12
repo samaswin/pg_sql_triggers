@@ -62,4 +62,5 @@ module PgSqlTriggers
   autoload :Testing, "pg_sql_triggers/testing"
   autoload :Migration, "pg_sql_triggers/migration"
   autoload :Migrator, "pg_sql_triggers/migrator"
+  autoload :DeferralChecksum, "pg_sql_triggers/deferral_checksum"
 end

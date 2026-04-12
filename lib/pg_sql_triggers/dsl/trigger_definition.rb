@@ -4,7 +4,7 @@ module PgSqlTriggers
   module DSL
     class TriggerDefinition
       attr_accessor :name, :table_name, :events, :function_name, :environments, :condition, :version, :enabled,
-                    :columns
+                    :columns, :deferrable, :initially
       attr_reader :timing, :for_each
 
       def initialize(name)
@@ -17,6 +17,19 @@ module PgSqlTriggers
         @timing = "before"
         @for_each = "row"
         @columns = nil
+        @constraint_trigger = false
+        @deferrable = nil
+        @initially = nil
+      end
+
+      # Intentionally not named `constraint_trigger?` — matches registry column and JSON key.
+      def constraint_trigger # rubocop:disable Naming/PredicateMethod
+        @constraint_trigger == true
+      end
+
+      def constraint_trigger=(value)
+        @constraint_trigger = ActiveModel::Type::Boolean.new.cast(value)
+        clear_deferral unless @constraint_trigger
       end
 
       def table(table_name)
@@ -39,6 +52,10 @@ module PgSqlTriggers
 
       def timing=(val)
         @timing = val.to_s
+      end
+
+      def constraint_trigger!
+        self.constraint_trigger = true
       end
 
       def for_each_row
@@ -76,8 +93,18 @@ module PgSqlTriggers
           condition: @condition,
           timing: @timing,
           for_each: @for_each,
-          columns: @columns
+          columns: @columns,
+          constraint_trigger: @constraint_trigger == true,
+          deferrable: @deferrable&.to_s,
+          initially: @initially&.to_s
         }
+      end
+
+      private
+
+      def clear_deferral
+        @deferrable = nil
+        @initially = nil
       end
     end
   end

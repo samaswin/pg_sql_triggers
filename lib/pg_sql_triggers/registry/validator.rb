@@ -56,7 +56,47 @@ module PgSqlTriggers
             errors << "Trigger '#{name}': invalid for_each '#{for_each}' (valid: #{VALID_FOR_EACH.inspect})"
           end
 
+          errors.concat(validate_deferral(name, definition, timing))
+
           errors
+        end
+
+        def validate_deferral(name, definition, timing) # rubocop:disable Metrics/PerceivedComplexity
+          errors = []
+          constraint = ActiveModel::Type::Boolean.new.cast(definition["constraint_trigger"])
+          deferrable_val = definition["deferrable"].presence&.to_s
+          initially_val = definition["initially"].presence&.to_s
+
+          if (deferrable_val.present? || initially_val.present?) && !constraint
+            errors << "Trigger '#{name}': deferrable/initially require constraint_trigger (CONSTRAINT TRIGGER)"
+          end
+
+          if constraint && timing.to_s != "after"
+            errors << "Trigger '#{name}': constraint triggers must use after timing"
+          end
+          if constraint && events_include_truncate?(definition)
+            errors << "Trigger '#{name}': constraint triggers cannot use TRUNCATE events"
+          end
+
+          valid_deferrable = %w[deferrable not_deferrable]
+          if deferrable_val.present? && valid_deferrable.exclude?(deferrable_val)
+            errors << "Trigger '#{name}': invalid deferrable '#{deferrable_val}' (valid: #{valid_deferrable.inspect})"
+          end
+
+          valid_initially = %w[deferred immediate]
+          if initially_val.present? && valid_initially.exclude?(initially_val)
+            errors << "Trigger '#{name}': invalid initially '#{initially_val}' (valid: #{valid_initially.inspect})"
+          end
+
+          if initially_val.present? && deferrable_val != "deferrable"
+            errors << "Trigger '#{name}': initially requires deferrable to be 'deferrable'"
+          end
+
+          errors
+        end # rubocop:enable Metrics/PerceivedComplexity
+
+        def events_include_truncate?(definition)
+          Array(definition["events"]).map(&:to_s).include?("truncate")
         end
 
         def parse_definition(definition_json)

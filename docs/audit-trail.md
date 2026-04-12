@@ -385,7 +385,7 @@ PgSqlTriggers::AuditLog
 **Problem**: Operations are not being logged.
 
 **Solution**: 
-- Check that migrations are run (`rails db:migrate`)
+- Check that migrations are run (`rails db:migrate`). The audit log table is created by `20260103114508_create_pg_sql_triggers_audit_log.rb` (see [Gem schema migrations](getting-started.md#gem-schema-migrations)).
 - Verify the audit log table exists
 - Check Rails logs for audit logging errors
 

@@ -47,18 +47,7 @@ module PgSqlTriggers
 
           # Calculate checksum using field-concatenation (consistent with TriggerRegistry model)
           checksum = calculate_checksum(definition)
-
-          attributes = {
-            trigger_name: definition.name,
-            table_name: definition.table_name,
-            version: definition.version,
-            enabled: definition.enabled,
-            source: "dsl",
-            environment: definition.environments.join(","),
-            definition: definition.to_h.to_json,
-            checksum: checksum,
-            for_each: definition.for_each || "row"
-          }
+          attributes = registration_attributes(definition, checksum)
 
           if existing
             # Check if attributes have actually changed to avoid unnecessary queries
@@ -138,6 +127,23 @@ module PgSqlTriggers
 
         private
 
+        def registration_attributes(definition, checksum)
+          {
+            trigger_name: definition.name,
+            table_name: definition.table_name,
+            version: definition.version,
+            enabled: definition.enabled,
+            source: "dsl",
+            environment: definition.environments.join(","),
+            definition: definition.to_h.to_json,
+            checksum: checksum,
+            for_each: definition.for_each || "row",
+            constraint_trigger: definition.respond_to?(:constraint_trigger) && definition.constraint_trigger,
+            deferrable: definition.respond_to?(:deferrable) ? definition.deferrable&.to_s.presence : nil,
+            initially: definition.respond_to?(:initially) ? definition.initially&.to_s.presence : nil
+          }
+        end
+
         def calculate_checksum(definition)
           function_body_value = definition.respond_to?(:function_body) ? definition.function_body : nil
 
@@ -145,6 +151,11 @@ module PgSqlTriggers
           # DSL definitions have no function_body — use "" so the checksum is real and comparable
           # with what Drift::Detector#calculate_db_checksum computes for DSL-source triggers.
           require "digest"
+          deferral = PgSqlTriggers::DeferralChecksum.parts(
+            constraint_trigger: definition.respond_to?(:constraint_trigger) && definition.constraint_trigger,
+            deferrable: definition.respond_to?(:deferrable) ? definition.deferrable : nil,
+            initially: definition.respond_to?(:initially) ? definition.initially : nil
+          )
           Digest::SHA256.hexdigest([
             definition.name,
             definition.table_name,
@@ -152,7 +163,8 @@ module PgSqlTriggers
             function_body_value || "",
             definition.condition || "",
             definition.timing || "before",
-            definition.for_each || "row"
+            definition.for_each || "row",
+            *deferral
           ].join)
         end
 

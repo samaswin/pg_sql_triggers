@@ -34,6 +34,20 @@ This will:
 2. Create migrations for the registry table
 3. Mount the engine at `/pg_sql_triggers`
 
+## Gem schema migrations
+
+The gem’s Rails schema migrations live under `db/migrate/` in this repository. Versions use the standard **`YYYYMMDDHHMMSS`** prefix (14 digits: date and clock time). Rails runs them in version order.
+
+Run order (oldest first):
+
+1. `20251222104327_create_pg_sql_triggers_tables.rb` — creates `pg_sql_triggers_registry`
+2. `20251229071916_add_timing_to_pg_sql_triggers_registry.rb` — adds `timing` on the registry
+3. `20260103114508_create_pg_sql_triggers_audit_log.rb` — creates `pg_sql_triggers_audit_log`
+4. `20260228162233_add_for_each_to_pg_sql_triggers_registry.rb` — adds `for_each` on the registry
+5. `20260412185841_add_constraint_deferral_to_pg_sql_triggers_registry.rb` — adds `constraint_trigger`, `deferrable`, `initially` on the registry
+
+If you upgrade the gem and rename migration files locally, update the corresponding rows in `schema_migrations` so the version strings match these filenames.
+
 ## Verify Installation
 
 After installation, you should have:

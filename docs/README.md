@@ -27,6 +27,9 @@ Welcome to the PgSqlTriggers documentation. This directory contains comprehensiv
 #### Install PgSqlTriggers
 Start with [Getting Started](getting-started.md)
 
+#### See bundled Rails schema migrations (`db/migrate`)
+[Getting Started — Gem schema migrations](getting-started.md#gem-schema-migrations) lists versioned migration files and run order.
+
 #### Learn the DSL syntax
 See [Usage Guide - Declaring Triggers](usage-guide.md#declaring-triggers)
 
