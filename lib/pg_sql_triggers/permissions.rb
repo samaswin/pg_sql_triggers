@@ -20,6 +20,7 @@ module PgSqlTriggers
       generate_trigger: OPERATOR,
       test_trigger: OPERATOR,
       drop_trigger: ADMIN,
+      # Admin-level SQL; for host `permission_checker` / custom tooling (not used by built-in UI)
       execute_sql: ADMIN,
       override_drift: ADMIN
     }.freeze

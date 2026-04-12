@@ -25,8 +25,9 @@ module PgSqlTriggers
       can?(:drop_trigger)
     end
 
-    # Check if the current actor can execute SQL capsules
-    def can_execute_sql?
+    # Check if the current actor has the +:execute_sql+ permission (admin-level SQL;
+    # host apps may use this in custom tooling — not used by built-in UI)
+    def can_execute_sql_operations?
       can?(:execute_sql)
     end
 

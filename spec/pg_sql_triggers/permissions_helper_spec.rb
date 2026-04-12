@@ -196,7 +196,7 @@ RSpec.describe PgSqlTriggers::PermissionsHelper do
     end
   end
 
-  describe "#can_execute_sql?" do
+  describe "#can_execute_sql_operations?" do
     let(:actor) { { type: "User", id: "123" } }
     let(:environment) { "production" }
 
@@ -213,12 +213,12 @@ RSpec.describe PgSqlTriggers::PermissionsHelper do
       end
 
       it "returns true" do
-        expect(helper_instance.can_execute_sql?).to be true
+        expect(helper_instance.can_execute_sql_operations?).to be true
       end
 
       it "calls can? with :execute_sql" do
         allow(helper_instance).to receive(:can?).with(:execute_sql).and_return(true)
-        helper_instance.can_execute_sql?
+        helper_instance.can_execute_sql_operations?
         expect(helper_instance).to have_received(:can?).with(:execute_sql)
       end
     end
@@ -231,7 +231,7 @@ RSpec.describe PgSqlTriggers::PermissionsHelper do
       end
 
       it "returns false" do
-        expect(helper_instance.can_execute_sql?).to be false
+        expect(helper_instance.can_execute_sql_operations?).to be false
       end
     end
   end

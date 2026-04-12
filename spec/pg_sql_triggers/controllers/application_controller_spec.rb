@@ -121,8 +121,8 @@ RSpec.describe PgSqlTriggers::ApplicationController, type: :controller do
         expect(controller.class._helper_methods).to include(:can_drop_triggers?)
       end
 
-      it "exposes can_execute_sql? as a helper method" do
-        expect(controller.class._helper_methods).to include(:can_execute_sql?)
+      it "exposes can_execute_sql_operations? as a helper method" do
+        expect(controller.class._helper_methods).to include(:can_execute_sql_operations?)
       end
 
       it "exposes can_generate_triggers? as a helper method" do
@@ -479,7 +479,7 @@ RSpec.describe PgSqlTriggers::ApplicationController, type: :controller do
       end
     end
 
-    describe "#can_execute_sql?" do
+    describe "#can_execute_sql_operations?" do
       let(:test_controller) { permission_checking_controller_class.new }
       let(:actor) { { type: "User", id: "123" } }
       let(:environment) { "production" }
@@ -496,11 +496,11 @@ RSpec.describe PgSqlTriggers::ApplicationController, type: :controller do
         end
 
         it "returns true" do
-          expect(test_controller.send(:can_execute_sql?)).to be true
+          expect(test_controller.send(:can_execute_sql_operations?)).to be true
         end
 
         it "calls Permissions.can? with correct arguments" do
-          test_controller.send(:can_execute_sql?)
+          test_controller.send(:can_execute_sql_operations?)
           expect(PgSqlTriggers::Permissions).to have_received(:can?)
             .with(actor, :execute_sql, environment: environment)
         end
@@ -514,7 +514,7 @@ RSpec.describe PgSqlTriggers::ApplicationController, type: :controller do
         end
 
         it "returns false" do
-          expect(test_controller.send(:can_execute_sql?)).to be false
+          expect(test_controller.send(:can_execute_sql_operations?)).to be false
         end
       end
     end

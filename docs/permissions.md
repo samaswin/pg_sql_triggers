@@ -18,7 +18,7 @@ The permission system provides three levels of access:
 
 - **Viewer**: Read-only access to view triggers and their status
 - **Operator**: Can enable/disable triggers, apply migrations, generate triggers
-- **Admin**: Full access including drop, re-execute, and SQL capsule execution
+- **Admin**: Full access including drop, re-execute, and the reserved `execute_sql` permission action for host-defined privileged SQL
 
 By default, all permissions are allowed (permissive mode). **You must configure permissions in production** to enforce access controls.
 
@@ -49,7 +49,7 @@ Admins have full access:
 - All Operator permissions
 - Drop triggers
 - Re-execute triggers
-- Execute SQL capsules
+- `execute_sql` (privileged SQL; for custom integrations — not used by built-in UI)
 - Override drift detection
 
 ## Actions and Required Roles
@@ -67,7 +67,7 @@ The following actions are mapped to permission levels:
 | `generate_trigger` | Operator | Generate triggers via UI |
 | `test_trigger` | Operator | Test trigger functions |
 | `drop_trigger` | Admin | Drop a trigger from database |
-| `execute_sql` | Admin | Execute SQL capsules |
+| `execute_sql` | Admin | Privileged SQL (`permission_checker` / custom tooling; not used by built-in UI) |
 | `override_drift` | Admin | Override drift detection warnings |
 
 ## Configuration
@@ -272,12 +272,9 @@ PgSqlTriggers::Registry.drop(
   confirmation: "EXECUTE TRIGGER_DROP"
 )
 
-# Execute SQL capsule (requires Admin)
-PgSqlTriggers::SQL::Executor.execute(
-  capsule,
-  actor: current_user,
-  confirmation: "EXECUTE SQL"
-)
+# Custom tooling: gate raw SQL with the Admin-level :execute_sql action (requires Admin)
+PgSqlTriggers::Permissions.check!(current_user, :execute_sql)
+# ... your application's SQL execution ...
 ```
 
 ### Permission Errors in Console

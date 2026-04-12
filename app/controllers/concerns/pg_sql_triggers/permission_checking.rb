@@ -7,7 +7,7 @@ module PgSqlTriggers
     included do
       # Helper methods available in views
       helper_method :current_actor, :can_view_triggers?, :can_enable_disable_triggers?,
-                    :can_drop_triggers?, :can_execute_sql?, :can_generate_triggers?, :can_apply_triggers?
+                    :can_drop_triggers?, :can_execute_sql_operations?, :can_generate_triggers?, :can_apply_triggers?
     end
 
     # Returns the current actor (user) performing the action.
@@ -67,7 +67,7 @@ module PgSqlTriggers
       redirect_to root_path, alert: "Insufficient permissions. Operator role required."
     end
 
-    # Checks if current actor has admin permissions (drop/re-execute/execute SQL).
+    # Checks if current actor has admin permissions (drop/re-execute).
     #
     # @raise [ActionController::RedirectError] Redirects if permission denied
     def check_admin_permission
@@ -99,8 +99,9 @@ module PgSqlTriggers
       PgSqlTriggers::Permissions.can?(current_actor, :drop_trigger, environment: current_environment)
     end
 
-    # @return [Boolean] true if current actor can execute SQL capsules
-    def can_execute_sql?
+    # @return [Boolean] true if the +:execute_sql+ action is allowed (privileged SQL for host apps;
+    #   not used by built-in UI)
+    def can_execute_sql_operations?
       PgSqlTriggers::Permissions.can?(current_actor, :execute_sql, environment: current_environment)
     end
 
