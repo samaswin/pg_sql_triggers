@@ -3,7 +3,8 @@
 module PgSqlTriggers
   module DSL
     class TriggerDefinition
-      attr_accessor :name, :table_name, :events, :function_name, :environments, :condition, :version, :enabled
+      attr_accessor :name, :table_name, :events, :function_name, :environments, :condition, :version, :enabled,
+                    :columns
       attr_reader :timing, :for_each
 
       def initialize(name)
@@ -15,6 +16,7 @@ module PgSqlTriggers
         @condition = nil
         @timing = "before"
         @for_each = "row"
+        @columns = nil
       end
 
       def table(table_name)
@@ -23,6 +25,12 @@ module PgSqlTriggers
 
       def on(*events)
         @events = events.map(&:to_s)
+        @columns = nil
+      end
+
+      def on_update_of(*cols)
+        @events = ["update"]
+        @columns = cols.map(&:to_s)
       end
 
       def function(function_name)
@@ -67,7 +75,8 @@ module PgSqlTriggers
           environments: @environments,
           condition: @condition,
           timing: @timing,
-          for_each: @for_each
+          for_each: @for_each,
+          columns: @columns
         }
       end
     end

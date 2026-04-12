@@ -46,6 +46,7 @@ RSpec.describe PgSqlTriggers::DSL::TriggerDefinition do
       expect(definition.condition).to be_nil
       expect(definition.timing).to eq("before")
       expect(definition.for_each).to eq("row")
+      expect(definition.columns).to be_nil
     end
   end
 
@@ -65,6 +66,20 @@ RSpec.describe PgSqlTriggers::DSL::TriggerDefinition do
     it "handles single event" do
       definition.on(:insert)
       expect(definition.events).to eq(["insert"])
+    end
+
+    it "clears column list when replacing events" do
+      definition.on_update_of(:email, :name)
+      definition.on(:insert, :update)
+      expect(definition.columns).to be_nil
+    end
+  end
+
+  describe "#on_update_of" do
+    it "sets update event and column names as strings" do
+      definition.on_update_of(:email, "name")
+      expect(definition.events).to eq(["update"])
+      expect(definition.columns).to eq(%w[email name])
     end
   end
 
@@ -161,8 +176,20 @@ RSpec.describe PgSqlTriggers::DSL::TriggerDefinition do
                            environments: ["production"],
                            condition: "NEW.id > 0",
                            timing: "before",
-                           for_each: "row"
+                           for_each: "row",
+                           columns: nil
                          })
+    end
+
+    it "includes columns when set via on_update_of" do
+      definition.table(:users)
+      definition.on_update_of(:status)
+      definition.function(:audit_fn)
+
+      expect(definition.to_h).to include(
+        events: ["update"],
+        columns: ["status"]
+      )
     end
   end
 end
