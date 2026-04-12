@@ -336,6 +336,12 @@ RSpec.describe PgSqlTriggers::TriggersController, type: :controller do
         expect(assigns(:drift_info)).to have_key(:drift_type)
       end
 
+      it "assigns dependency_related for the ordering graph" do
+        get :show, params: { id: trigger.id }
+        expect(assigns(:dependency_related)).to be_a(Hash)
+        expect(assigns(:dependency_related)).to include(:prerequisites, :dependents)
+      end
+
       it "includes expected_sql and actual_sql in drift_info" do
         get :show, params: { id: trigger.id }
         expect(assigns(:drift_info)).to have_key(:expected_sql)

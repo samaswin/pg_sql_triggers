@@ -173,6 +173,18 @@ namespace :trigger do
     exit 1 if ENV["FAIL_ON_DRIFT"].present? && alertable.any?
   end
 
+  desc "Validate trigger depends_on metadata (refs, cycles, compatibility, PostgreSQL name order)"
+  task validate_order: :environment do
+    errors = PgSqlTriggers::Registry::Validator.trigger_order_validation_errors
+    if errors.empty?
+      puts "PgSqlTriggers: trigger depends_on / name order OK."
+    else
+      puts "PgSqlTriggers: trigger order validation failed:"
+      errors.each { |msg| puts "  - #{msg}" }
+      exit 1
+    end
+  end
+
   desc "Raises an error if there are pending trigger migrations"
   task "abort_if_pending_migrations" => :environment do
     PgSqlTriggers::Migrator.ensure_migrations_table!

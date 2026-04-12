@@ -50,6 +50,7 @@ RSpec.describe PgSqlTriggers::DSL::TriggerDefinition do
       expect(definition.constraint_trigger).to be(false)
       expect(definition.deferrable).to be_nil
       expect(definition.initially).to be_nil
+      expect(definition.depends_on_names).to eq([])
     end
   end
 
@@ -181,6 +182,18 @@ RSpec.describe PgSqlTriggers::DSL::TriggerDefinition do
     end
   end
 
+  describe "#depends_on" do
+    it "records prerequisite trigger names in order" do
+      definition.depends_on("validate_user_email", :normalize_user_name)
+      expect(definition.depends_on_names).to eq(%w[validate_user_email normalize_user_name])
+    end
+
+    it "ignores blanks and deduplicates" do
+      definition.depends_on("a", "", "a", nil)
+      expect(definition.depends_on_names).to eq(["a"])
+    end
+  end
+
   describe "#to_h" do
     it "converts definition to hash" do
       definition.table(:users)
@@ -206,7 +219,8 @@ RSpec.describe PgSqlTriggers::DSL::TriggerDefinition do
                            columns: nil,
                            constraint_trigger: false,
                            deferrable: nil,
-                           initially: nil
+                           initially: nil,
+                           depends_on: []
                          })
     end
 

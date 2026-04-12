@@ -11,10 +11,12 @@ RSpec.describe PgSqlTriggers::Registry::Validator do
       "events" => ["insert"],
       "function_name" => "test_function",
       "timing" => "before",
+      "for_each" => "row",
       "version" => 1,
       "enabled" => true,
       "environments" => [],
-      "condition" => nil
+      "condition" => nil,
+      "depends_on" => []
     }.merge(overrides).to_json
   end
 
@@ -222,6 +224,110 @@ RSpec.describe PgSqlTriggers::Registry::Validator do
       it "returns true" do
         expect(described_class.validate!).to be true
       end
+    end
+
+    context "with valid depends_on chain (alphabetical order)" do
+      before do
+        create(:trigger_registry, source: "dsl",
+                                  trigger_name: "a_users_log",
+                                  definition: valid_definition(
+                                    "name" => "a_users_log",
+                                    "depends_on" => []
+                                  ))
+        create(:trigger_registry, source: "dsl",
+                                  trigger_name: "z_users_audit",
+                                  definition: valid_definition(
+                                    "name" => "z_users_audit",
+                                    "depends_on" => ["a_users_log"]
+                                  ))
+      end
+
+      it "returns true" do
+        expect(described_class.validate!).to be true
+      end
+    end
+
+    context "with depends_on referencing an unknown trigger" do
+      before do
+        create(:trigger_registry, source: "dsl",
+                                  trigger_name: "z_orphan",
+                                  definition: valid_definition("name" => "z_orphan", "depends_on" => ["missing_other"]))
+      end
+
+      it "raises ValidationError" do
+        expect { described_class.validate! }
+          .to raise_error(PgSqlTriggers::ValidationError, /unknown trigger 'missing_other'/)
+      end
+    end
+
+    context "with depends_on violating alphabetical order" do
+      before do
+        create(:trigger_registry, source: "dsl",
+                                  trigger_name: "a_child",
+                                  definition: valid_definition("name" => "a_child", "depends_on" => ["z_parent"]))
+        create(:trigger_registry, source: "dsl",
+                                  trigger_name: "z_parent",
+                                  definition: valid_definition("name" => "z_parent", "depends_on" => []))
+      end
+
+      it "raises ValidationError" do
+        expect { described_class.validate! }
+          .to raise_error(PgSqlTriggers::ValidationError, /must sort before/)
+      end
+    end
+
+    context "with depends_on circular chain" do
+      before do
+        create(:trigger_registry, source: "dsl",
+                                  trigger_name: "pad_00",
+                                  definition: valid_definition("name" => "pad_00", "depends_on" => ["pad_02"]))
+        create(:trigger_registry, source: "dsl",
+                                  trigger_name: "pad_01",
+                                  definition: valid_definition("name" => "pad_01", "depends_on" => ["pad_00"]))
+        create(:trigger_registry, source: "dsl",
+                                  trigger_name: "pad_02",
+                                  definition: valid_definition("name" => "pad_02", "depends_on" => ["pad_01"]))
+      end
+
+      it "raises ValidationError for cycle or order" do
+        expect { described_class.validate! }
+          .to raise_error(PgSqlTriggers::ValidationError) do |err|
+            expect(err.context[:errors].join).to match(/circular|must sort before/)
+          end
+      end
+    end
+  end
+
+  describe ".related_triggers_for_show" do
+    it "returns prerequisites and dependents" do
+      parent = create(:trigger_registry, :dsl_source,
+                      trigger_name: "parent_tr",
+                      definition: valid_definition("name" => "parent_tr"))
+      child = create(:trigger_registry, :dsl_source,
+                     trigger_name: "zz_child_tr",
+                     definition: valid_definition(
+                       "name" => "zz_child_tr",
+                       "depends_on" => ["parent_tr"]
+                     ))
+
+      result = described_class.related_triggers_for_show(child)
+      expect(result[:prerequisites].map(&:trigger_name)).to eq(["parent_tr"])
+      expect(result[:dependents].map(&:trigger_name)).to eq([])
+
+      reverse = described_class.related_triggers_for_show(parent)
+      expect(reverse[:prerequisites]).to eq([])
+      expect(reverse[:dependents].map(&:trigger_name)).to eq(["zz_child_tr"])
+    end
+  end
+
+  describe ".trigger_order_validation_errors" do
+    it "returns the same dependency errors as validate! without raising" do
+      create(:trigger_registry, source: "dsl",
+                                trigger_name: "bad_order",
+                                definition: valid_definition("name" => "bad_order", "depends_on" => ["missing"]))
+
+      errors = described_class.trigger_order_validation_errors
+      expect(errors.join).to match(/unknown trigger/)
     end
   end
 end

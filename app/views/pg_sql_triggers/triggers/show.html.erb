@@ -131,6 +131,39 @@
   </div>
 <% end %>
 
+<% rel = @dependency_related || { prerequisites: [], dependents: [] } %>
+<% if rel[:prerequisites].any? || rel[:dependents].any? %>
+  <div style="background: white; padding: 1.5rem; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 2rem;">
+    <h3 style="margin-top: 0;">Trigger ordering (depends_on)</h3>
+    <p style="color: #6c757d; font-size: 0.875rem; margin-bottom: 1rem;">
+      PostgreSQL runs triggers of the same kind in alphabetical order by name. The DSL <code>depends_on</code> records intended order;
+      <code>rake trigger:validate_order</code> and <code>PgSqlTriggers::Registry.validate!</code> check that names and dependencies line up.
+    </p>
+
+    <% if rel[:prerequisites].any? %>
+      <div style="margin-bottom: 1rem;">
+        <strong>Runs after (depends_on):</strong>
+        <ul style="margin-top: 0.5rem;">
+          <% rel[:prerequisites].each do |dep_row| %>
+            <li><%= link_to dep_row.trigger_name, trigger_path(dep_row), style: "color: #007bff;" %></li>
+          <% end %>
+        </ul>
+      </div>
+    <% end %>
+
+    <% if rel[:dependents].any? %>
+      <div>
+        <strong>Runs before (other triggers depend on this one):</strong>
+        <ul style="margin-top: 0.5rem;">
+          <% rel[:dependents].each do |dep_row| %>
+            <li><%= link_to dep_row.trigger_name, trigger_path(dep_row), style: "color: #007bff;" %></li>
+          <% end %>
+        </ul>
+      </div>
+    <% end %>
+  </div>
+<% end %>
+
 <!-- SQL Diff (if drift detected) -->
 <% if @drift_info[:has_drift] && @drift_info[:expected_sql].present? %>
   <div style="background: white; padding: 1.5rem; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 2rem;">

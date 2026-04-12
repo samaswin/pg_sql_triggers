@@ -12,6 +12,7 @@ module PgSqlTriggers
     def show
       # Load trigger details and drift information
       @drift_info = calculate_drift_info
+      @dependency_related = PgSqlTriggers::Registry::Validator.related_triggers_for_show(@trigger)
     end
 
     def enable

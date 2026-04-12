@@ -20,6 +20,7 @@ module PgSqlTriggers
         @constraint_trigger = false
         @deferrable = nil
         @initially = nil
+        @depends_on = []
       end
 
       # Intentionally not named `constraint_trigger?` — matches registry column and JSON key.
@@ -77,6 +78,22 @@ module PgSqlTriggers
         @condition = condition_sql
       end
 
+      # Declares that this trigger must run after the named trigger(s) on the same table.
+      # PostgreSQL executes same-kind triggers in alphabetical order by name; use naming or
+      # validate with Registry.validate! / rake trigger:validate_order.
+      def depends_on(*names)
+        names.flatten.compact.each do |entry|
+          label = entry.to_s.strip
+          next if label.empty?
+
+          @depends_on << label unless @depends_on.include?(label)
+        end
+      end
+
+      def depends_on_names
+        @depends_on.dup
+      end
+
       def function_body
         nil # DSL definitions don't include function_body directly
       end
@@ -96,7 +113,8 @@ module PgSqlTriggers
           columns: @columns,
           constraint_trigger: @constraint_trigger == true,
           deferrable: @deferrable&.to_s,
-          initially: @initially&.to_s
+          initially: @initially&.to_s,
+          depends_on: @depends_on.dup
         }
       end
 
