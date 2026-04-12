@@ -4,7 +4,7 @@
     <h1 style="margin: 0;">Audit Log</h1>
     <div style="display: flex; gap: 1rem;">
       <%= link_to "Dashboard", dashboard_path, style: "padding: 0.5rem 1rem; background: #6c757d; color: white; text-decoration: none; border-radius: 4px; display: inline-block;" %>
-      <% csv_params = params.permit(:trigger_name, :operation, :status, :environment, :actor_id).to_h %>
+      <% csv_params = params.permit(:trigger_name, :operation, :status, :environment, :actor_id, :q).to_h %>
       <%= link_to "Export CSV", audit_logs_path(csv_params.merge(format: :csv)), style: "padding: 0.5rem 1rem; background: #28a745; color: white; text-decoration: none; border-radius: 4px; display: inline-block;" %>
     </div>
   </div>
@@ -13,6 +13,10 @@
   <div style="background: white; padding: 1.5rem; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 2rem;">
     <h3 style="margin-top: 0; margin-bottom: 1rem;">Filters</h3>
     <%= form_with url: audit_logs_path, method: :get, local: true, style: "display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;" do |f| %>
+      <div style="grid-column: 1 / -1;">
+        <%= label_tag :q, "Search", style: "display: block; margin-bottom: 0.5rem; font-weight: 600;" %>
+        <%= text_field_tag :q, params[:q], placeholder: "Trigger, operation, reason, error…", style: "width: 100%; padding: 0.5rem; border: 1px solid #ced4da; border-radius: 4px;" %>
+      </div>
       <div>
         <%= f.label :trigger_name, "Trigger Name", style: "display: block; margin-bottom: 0.5rem; font-weight: 600;" %>
         <%= f.select :trigger_name, options_for_select([["All", ""]] + @available_trigger_names.map { |n| [n, n] }, params[:trigger_name]), {}, { style: "width: 100%; padding: 0.5rem; border: 1px solid #ced4da; border-radius: 4px;" } %>
@@ -48,7 +52,7 @@
   <!-- Results Summary -->
   <div style="background: #f8f9fa; padding: 1rem; border-radius: 4px; margin-bottom: 1rem;">
     <strong>Total Results:</strong> <%= @total_count %> entries
-    <% if params[:trigger_name].present? || params[:operation].present? || params[:status].present? || params[:environment].present? %>
+    <% if params[:trigger_name].present? || params[:operation].present? || params[:status].present? || params[:environment].present? || params[:q].present? %>
       <span style="color: #6c757d;">(filtered)</span>
     <% end %>
   </div>
@@ -144,7 +148,7 @@
     <% if @total_pages > 1 %>
       <div style="display: flex; justify-content: center; align-items: center; gap: 1rem; margin-top: 2rem;">
         <% if @page > 1 %>
-          <% prev_params = params.except(:page).permit(:trigger_name, :operation, :status, :environment, :sort, :per_page).to_h %>
+          <% prev_params = params.except(:page).permit(:trigger_name, :operation, :status, :environment, :sort, :per_page, :q).to_h %>
           <%= link_to "« Previous", audit_logs_path(prev_params.merge(page: @page - 1)), style: "padding: 0.5rem 1rem; background: #007bff; color: white; text-decoration: none; border-radius: 4px;" %>
         <% else %>
           <span style="padding: 0.5rem 1rem; background: #e9ecef; color: #6c757d; border-radius: 4px; cursor: not-allowed;">« Previous</span>
@@ -155,7 +159,7 @@
         </span>
 
         <% if @page < @total_pages %>
-          <% next_params = params.except(:page).permit(:trigger_name, :operation, :status, :environment, :sort, :per_page).to_h %>
+          <% next_params = params.except(:page).permit(:trigger_name, :operation, :status, :environment, :sort, :per_page, :q).to_h %>
           <%= link_to "Next »", audit_logs_path(next_params.merge(page: @page + 1)), style: "padding: 0.5rem 1rem; background: #007bff; color: white; text-decoration: none; border-radius: 4px;" %>
         <% else %>
           <span style="padding: 0.5rem 1rem; background: #e9ecef; color: #6c757d; border-radius: 4px; cursor: not-allowed;">Next »</span>
@@ -166,7 +170,7 @@
     <div style="background: white; padding: 3rem; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); text-align: center;">
       <h3 style="margin-top: 0; color: #6c757d;">No audit log entries found</h3>
       <p style="color: #6c757d;">
-        <% if params[:trigger_name].present? || params[:operation].present? || params[:status].present? || params[:environment].present? %>
+        <% if params[:trigger_name].present? || params[:operation].present? || params[:status].present? || params[:environment].present? || params[:q].present? %>
           Try adjusting your filters or <%= link_to "clear filters", audit_logs_path, style: "color: #007bff;" %>.
         <% else %>
           Audit log entries will appear here as operations are performed.

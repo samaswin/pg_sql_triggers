@@ -39,6 +39,16 @@ module PgSqlTriggers
     scope :for_environment, ->(env) { where(environment: [env, nil]) }
     scope :by_source, ->(source) { where(source: source) }
 
+    # Case-insensitive search on trigger name and table name (used by web dashboard).
+    scope :matching_search, lambda { |raw|
+      query = raw.to_s.strip
+      next all if query.blank?
+
+      sanitized = ActiveRecord::Base.sanitize_sql_like(query)
+      term = "%#{sanitized}%"
+      where("trigger_name ILIKE :term OR table_name ILIKE :term", term: term)
+    }
+
     # Returns the current drift state of this trigger.
     #
     # @return [String] One of: "in_sync", "drifted", "manual_override", "disabled", "dropped", "unknown"

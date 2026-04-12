@@ -104,6 +104,13 @@ RSpec.describe PgSqlTriggers::AuditLogsController, type: :controller do
       expect(logs.first.actor["id"]).to eq("1")
     end
 
+    it "filters by free-text search across message fields" do
+      get :index, params: { q: "Permission denied" }
+      logs = assigns(:audit_logs)
+      expect(logs.count).to eq(1)
+      expect(logs.first.id).to eq(failed_audit_log.id)
+    end
+
     it "combines multiple filters" do
       get :index, params: { trigger_name: "test_trigger_1", status: "success" }
       logs = assigns(:audit_logs)

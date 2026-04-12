@@ -23,6 +23,14 @@ module PgSqlTriggers
                           all_tables
                         end
 
+      @search_query = params[:q].to_s.strip
+      if @search_query.present?
+        needle = @search_query.downcase
+        filtered_tables = filtered_tables.select do |row|
+          row[:table_name].to_s.downcase.include?(needle)
+        end
+      end
+
       @total_tables = filtered_tables.count
 
       # Pagination

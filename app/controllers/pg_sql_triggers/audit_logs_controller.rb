@@ -4,6 +4,10 @@ module PgSqlTriggers
   class AuditLogsController < ApplicationController
     before_action :check_viewer_permission
 
+    # rubocop:disable Layout/LineLength -- single SQL fragment for WHERE
+    TEXT_SEARCH_SQL = "trigger_name ILIKE :t OR operation ILIKE :t OR COALESCE(reason, '') ILIKE :t OR COALESCE(error_message, '') ILIKE :t"
+    # rubocop:enable Layout/LineLength
+
     # GET /audit_logs
     # Display audit log entries with filtering and sorting
     def index
@@ -25,6 +29,12 @@ module PgSqlTriggers
 
       # Filter by actor (search in JSONB field)
       @audit_logs = @audit_logs.where("actor->>'id' = ?", params[:actor_id]) if params[:actor_id].present?
+
+      # Free-text search across common columns
+      if params[:q].present?
+        term = "%#{ActiveRecord::Base.sanitize_sql_like(params[:q].to_s.strip)}%"
+        @audit_logs = @audit_logs.where(TEXT_SEARCH_SQL, t: term)
+      end
 
       # Sort by date (default: most recent first)
       sort_direction = params[:sort] == "asc" ? :asc : :desc
@@ -71,6 +81,11 @@ module PgSqlTriggers
       end
       audit_logs = audit_logs.for_environment(params[:environment]) if params[:environment].present?
       audit_logs = audit_logs.where("actor->>'id' = ?", params[:actor_id]) if params[:actor_id].present?
+
+      if params[:q].present?
+        term = "%#{ActiveRecord::Base.sanitize_sql_like(params[:q].to_s.strip)}%"
+        audit_logs = audit_logs.where(TEXT_SEARCH_SQL, t: term)
+      end
 
       CSV.generate(headers: true) do |csv|
         csv << [

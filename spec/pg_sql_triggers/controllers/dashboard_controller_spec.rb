@@ -65,5 +65,46 @@ RSpec.describe PgSqlTriggers::DashboardController, type: :controller do
       expect(assigns(:migration_status)).to eq([])
       expect(assigns(:pending_migrations)).to eq([])
     end
+
+    it "filters triggers by search query" do
+      allow(PgSqlTriggers::Migrator).to receive_messages(status: [], pending_migrations: [], current_version: 0)
+
+      get :index, params: { q: "enabled_trigger" }
+      expect(assigns(:trigger_list_total)).to eq(1)
+      expect(assigns(:triggers).map(&:trigger_name)).to eq(["enabled_trigger"])
+    end
+
+    it "filters triggers by table" do
+      allow(PgSqlTriggers::Migrator).to receive_messages(status: [], pending_migrations: [], current_version: 0)
+
+      get :index, params: { table: "posts" }
+      expect(assigns(:trigger_list_total)).to eq(1)
+      expect(assigns(:triggers).first.table_name).to eq("posts")
+    end
+
+    it "filters triggers by drift state using detect_all" do
+      allow(PgSqlTriggers::Migrator).to receive_messages(status: [], pending_migrations: [], current_version: 0)
+
+      enabled = PgSqlTriggers::TriggerRegistry.find_by!(trigger_name: "enabled_trigger")
+      disabled = PgSqlTriggers::TriggerRegistry.find_by!(trigger_name: "disabled_trigger")
+      allow(PgSqlTriggers::Drift::Detector).to receive(:detect_all).and_return(
+        [
+          { state: PgSqlTriggers::DRIFT_STATE_IN_SYNC, registry_entry: enabled },
+          { state: PgSqlTriggers::DRIFT_STATE_DRIFTED, registry_entry: disabled }
+        ]
+      )
+
+      get :index, params: { state: "in_sync" }
+      expect(assigns(:trigger_list_total)).to eq(1)
+      expect(assigns(:triggers).first.trigger_name).to eq("enabled_trigger")
+    end
+
+    it "paginates triggers separately from migrations" do
+      allow(PgSqlTriggers::Migrator).to receive_messages(status: [], pending_migrations: [], current_version: 0)
+
+      get :index, params: { trigger_page: 1, trigger_per_page: 1, page: 1, per_page: 20 }
+      expect(assigns(:triggers).size).to eq(1)
+      expect(assigns(:trigger_list_total)).to eq(2)
+    end
   end
 end

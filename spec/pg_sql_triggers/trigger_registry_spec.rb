@@ -115,6 +115,18 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
         expect(generated_triggers.first.trigger_name).to eq("generated_trigger")
       end
     end
+
+    describe ".matching_search" do
+      it "matches trigger_name and table_name case-insensitively" do
+        expect(described_class.matching_search("enabled1").pluck(:trigger_name)).to eq(["enabled1"])
+        expect(described_class.matching_search("POSTS").pluck(:trigger_name)).to contain_exactly("enabled2")
+      end
+
+      it "returns all rows when query is blank" do
+        expect(described_class.matching_search("").count).to eq(3)
+        expect(described_class.matching_search("   ").count).to eq(3)
+      end
+    end
   end
 
   describe "#drift_state" do
