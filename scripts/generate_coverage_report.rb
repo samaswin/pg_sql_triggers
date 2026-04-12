@@ -31,7 +31,8 @@ def extract_file_path(full_path)
 end
 
 def parse_coverage_data
-  coverage_dir = Pathname.new(__dir__).parent.join("coverage")
+  workspace_root = Pathname.new(__dir__).parent.realpath
+  coverage_dir = workspace_root.join("coverage")
   resultset_file = coverage_dir.join(".resultset.json")
   last_run_file = coverage_dir.join(".last_run.json")
 
@@ -57,6 +58,8 @@ def parse_coverage_data
     relative_path = extract_file_path(full_path)
     # Skip files in spec, vendor, etc.
     next if relative_path.include?("/spec/") || relative_path.include?("/vendor/")
+    # Omit deleted or moved sources so stale .resultset.json cannot inflate the report
+    next unless workspace_root.join(relative_path).file?
 
     lines = file_data["lines"]
     coverage_percentage = calculate_file_coverage(lines)
