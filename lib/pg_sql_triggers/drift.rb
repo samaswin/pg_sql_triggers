@@ -23,5 +23,10 @@ module PgSqlTriggers
     def self.report(trigger_name)
       Reporter.report(trigger_name)
     end
+
+    # Runs full drift detection and optional external notification; see {PgSqlTriggers::Alerting}.
+    def self.check_and_notify
+      Alerting.check_and_notify
+    end
   end
 end

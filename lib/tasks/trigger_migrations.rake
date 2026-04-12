@@ -1,5 +1,12 @@
 # frozen_string_literal: true
 
+# @param result [Hash] single drift result from {PgSqlTriggers::Drift::Detector}
+def drift_check_trigger_label(result)
+  result[:registry_entry]&.trigger_name ||
+    result[:db_trigger]&.fetch("trigger_name", nil) ||
+    "(unknown)"
+end
+
 # Helper method to check kill switch before dangerous operations
 def check_kill_switch!(operation)
   PgSqlTriggers::SQL::KillSwitch.check!(
@@ -145,6 +152,25 @@ namespace :trigger do
   task version: :environment do
     PgSqlTriggers::Migrator.ensure_migrations_table!
     puts "Current trigger migration version: #{PgSqlTriggers::Migrator.current_version}"
+  end
+
+  desc "Detect trigger drift; calls drift_notifier when drifted/dropped/unknown (FAIL_ON_DRIFT=1 exits non-zero)"
+  task check_drift: :environment do
+    outcome = PgSqlTriggers::Alerting.check_and_notify
+    results = outcome[:results]
+    alertable = outcome[:alertable]
+
+    puts "PgSqlTriggers drift check: #{results.size} trigger(s), #{alertable.size} problem(s)."
+    alertable.each do |r|
+      name = drift_check_trigger_label(r)
+      puts "  - #{name}: #{r[:state]} — #{r[:details]}"
+    end
+    puts "Notifier invoked." if outcome[:notified]
+    if alertable.any? && !outcome[:notified]
+      puts "No drift notifier configured; set PgSqlTriggers.drift_notifier to receive alerts."
+    end
+
+    exit 1 if ENV["FAIL_ON_DRIFT"].present? && alertable.any?
   end
 
   desc "Raises an error if there are pending trigger migrations"

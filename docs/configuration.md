@@ -10,6 +10,7 @@ Complete reference for configuring PgSqlTriggers in your Rails application.
 - [Kill Switch Configuration](#kill-switch-configuration)
 - [Permission System](#permission-system)
 - [Environment Detection](#environment-detection)
+- [Drift alerting](#drift-alerting)
 - [Advanced Configuration](#advanced-configuration)
 - [Examples](#examples)
 
@@ -338,6 +339,91 @@ config.default_environment = -> {
 config.default_environment = -> {
   Rails.application.credentials.environment || Rails.env
 }
+```
+
+## Drift alerting
+
+Drift checks can run from the web UI, Ruby API, or Rake. To push notifications when triggers are **drifted**, **dropped**, or **unknown** (external), set a notifier and schedule `trigger:check_drift` (for example via cron or your job runner).
+
+### `drift_notifier`
+
+- **Type**: `Proc`, `lambda`, or any object responding to `call`
+- **Default**: `nil` (no notifications)
+
+The callable receives:
+
+1. **First argument**: an Array of result hashes for problematic triggers only (same shape as `PgSqlTriggers::Drift::Detector.detect_all` elements).
+2. **Keyword argument** `all_results:`: the full result set from drift detection.
+
+```ruby
+PgSqlTriggers.configure do |config|
+  config.drift_notifier = lambda do |drift_results, all_results:|
+    next if drift_results.empty?
+
+    # Example: log, Slack, PagerDuty, email, etc.
+    Rails.logger.warn("[PgSqlTriggers] Drift: #{drift_results.map { |r| r[:state] }.tally.inspect}")
+  end
+end
+```
+
+### Rake task
+
+Run this from your **Rails application root** (tasks are loaded by the engine), or from the **gem repository** when developing the gem (the root `Rakefile` loads `rakelib/` so `trigger:*` tasks are available there too).
+
+```bash
+bundle exec rake trigger:check_drift
+```
+
+- Set `FAIL_ON_DRIFT=1` to exit with status **1** when any problematic trigger exists (useful in CI or monitoring scripts that treat non-zero as failure).
+- If problems exist and no notifier is configured, the task prints a reminder to set `drift_notifier`.
+
+### `ActiveSupport::Notifications`
+
+When Active Support is loaded, each run emits `pg_sql_triggers.drift_check` with payload keys including `:results`, `:alertable`, `:alertable_count`, `:total_count`, and `:notified`. Subscribe in an initializer to forward metrics to your APM or logging pipeline.
+
+### Example: Slack incoming webhook
+
+```ruby
+require "net/http"
+require "json"
+require "uri"
+
+PgSqlTriggers.configure do |config|
+  config.drift_notifier = lambda do |drift_results, all_results:|
+    uri = URI(ENV.fetch("SLACK_DRIFT_WEBHOOK_URL"))
+    text = "PgSqlTriggers drift: #{drift_results.size} issue(s)\n" +
+           drift_results.map { |r|
+             name = r[:registry_entry]&.trigger_name || r[:db_trigger]&.dig("trigger_name")
+             "- #{name}: #{r[:state]}"
+           }.join("\n")
+    Net::HTTP.post(uri, { text: text }.to_json, "Content-Type" => "application/json")
+  end
+end
+```
+
+### Example: PagerDuty Events API v2
+
+```ruby
+require "net/http"
+require "json"
+require "uri"
+
+PgSqlTriggers.configure do |config|
+  config.drift_notifier = lambda do |drift_results, all_results:|
+    uri = URI("https://events.pagerduty.com/v2/enqueue")
+    body = {
+      routing_key: ENV.fetch("PAGERDUTY_INTEGRATION_KEY"),
+      event_action: "trigger",
+      payload: {
+        summary: "PgSqlTriggers: #{drift_results.size} drift issue(s)",
+        severity: "error",
+        source: "pg_sql_triggers",
+        custom_details: { triggers: drift_results.map { |r| r.slice(:state, :details) } }
+      }
+    }
+    Net::HTTP.post(uri, body.to_json, "Content-Type" => "application/json")
+  end
+end
 ```
 
 ## Advanced Configuration

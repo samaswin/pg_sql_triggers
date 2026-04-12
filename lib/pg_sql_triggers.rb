@@ -49,6 +49,11 @@ module PgSqlTriggers
   mattr_accessor :db_schema
   self.db_schema = "public"
 
+  # Callable invoked when drift check finds drifted, dropped, or unknown triggers (+nil+ = no-op).
+  # See {PgSqlTriggers::Alerting.check_and_notify} and +trigger:check_drift+.
+  mattr_accessor :drift_notifier
+  self.drift_notifier = nil
+
   # Drift states
   DRIFT_STATE_IN_SYNC = "in_sync"
   DRIFT_STATE_DRIFTED = "drifted"
@@ -72,4 +77,5 @@ module PgSqlTriggers
   autoload :Migration, "pg_sql_triggers/migration"
   autoload :Migrator, "pg_sql_triggers/migrator"
   autoload :DeferralChecksum, "pg_sql_triggers/deferral_checksum"
+  autoload :Alerting, "pg_sql_triggers/alerting"
 end

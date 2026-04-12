@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Drift alerting** — Configurable `PgSqlTriggers.drift_notifier` for external notification when
+  drift detection finds drifted, dropped, or unknown triggers; `PgSqlTriggers::Alerting` module;
+  `PgSqlTriggers::Drift.check_and_notify`; Rake task `trigger:check_drift` with optional
+  `FAIL_ON_DRIFT=1`; `ActiveSupport::Notifications` event `pg_sql_triggers.drift_check`.
+  The gem’s root `Rakefile` loads `rakelib/pg_sql_triggers_environment.rake` and
+  `lib/tasks/trigger_migrations.rake` so `bundle exec rake trigger:*` works when developing the
+  gem (not only from a host app).
+  ([lib/pg_sql_triggers/alerting.rb](lib/pg_sql_triggers/alerting.rb),
+  [lib/tasks/trigger_migrations.rake](lib/tasks/trigger_migrations.rake),
+  [lib/pg_sql_triggers/rake_development_boot.rb](lib/pg_sql_triggers/rake_development_boot.rb),
+  [docs/configuration.md](docs/configuration.md))
+
 ## [1.4.0] - 2026-03-01
 
 ### Added

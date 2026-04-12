@@ -108,4 +108,12 @@ RSpec.describe PgSqlTriggers::Drift do
       expect(report).to include(trigger_name)
     end
   end
+
+  describe ".check_and_notify" do
+    it "delegates to Alerting.check_and_notify" do
+      returned = { results: [], alertable: [], notified: false }
+      allow(PgSqlTriggers::Alerting).to receive(:check_and_notify).and_return(returned)
+      expect(described_class.check_and_notify).to eq(returned)
+    end
+  end
 end
