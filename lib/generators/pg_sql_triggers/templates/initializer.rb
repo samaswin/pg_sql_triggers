@@ -66,4 +66,18 @@ PgSqlTriggers.configure do |config|
   # You can also override per-migration with ALLOW_UNSAFE_MIGRATIONS=true environment variable
   # Default: false (recommended for safety)
   config.allow_unsafe_migrations = false
+
+  # ========== Schema / structure.sql integration ==========
+  # Triggers are not included in db/schema.rb. After db:schema:load, the engine runs
+  # trigger:migrate by default. Set SKIP_TRIGGER_MIGRATE_AFTER_SCHEMA_LOAD=1 to skip.
+  # config.migrate_triggers_after_schema_load = true
+  #
+  # Optional: append comments to schema.rb pointing at db/trigger_structure.sql.
+  # config.append_trigger_notes_to_schema_dump = true
+  #
+  # Snapshot live trigger SQL: bin/rails trigger:dump (apply with trigger:load).
+  # config.trigger_structure_sql_path = Rails.root.join("db/trigger_structure.sql")
+  #
+  # For databases where triggers must appear in the main SQL dump, prefer:
+  #   config.active_record.schema_format = :sql
 end

@@ -14,6 +14,22 @@ rescue PgSqlTriggers::KillSwitchError => e
 end
 
 namespace :trigger do
+  desc "Dump managed PostgreSQL triggers to db/trigger_structure.sql (FILE=path to override)"
+  task dump: :environment do
+    path = ENV["FILE"].presence || ENV["TRIGGER_STRUCTURE_SQL"].presence
+    written = PgSqlTriggers::TriggerStructureDumper.dump_to(path)
+    puts "Wrote #{written}"
+  end
+
+  desc "Execute SQL from db/trigger_structure.sql (FILE=path to override)"
+  task load: :environment do
+    check_kill_switch!(:trigger_load)
+
+    path = ENV["FILE"].presence || ENV["TRIGGER_STRUCTURE_SQL"].presence
+    PgSqlTriggers::TriggerStructureDumper.load_from(path)
+    puts "Loaded #{PgSqlTriggers::TriggerStructureDumper.resolve_path(path)}"
+  end
+
   desc "Migrate trigger migrations (options: VERSION=x, VERBOSE=false)"
   task migrate: :environment do
     check_kill_switch!(:trigger_migrate)

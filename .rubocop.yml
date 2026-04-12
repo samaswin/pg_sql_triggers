@@ -1,9 +1,7 @@
-require:
-  - rubocop-rspec
-  - rubocop-rspec_rails
-
 plugins:
   - rubocop-rails
+  - rubocop-rspec
+  - rubocop-rspec_rails
   - rubocop-capybara
   - rubocop-factory_bot
 
@@ -96,9 +94,6 @@ RSpec/ExampleLength:
   Max: 10
   Exclude:
     - 'spec/**/*_spec.rb'
-
-RSpec/FilePath:
-  Enabled: false
 
 RSpec/InstanceVariable:
   Enabled: false

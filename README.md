@@ -99,6 +99,16 @@ Files land in `app/triggers/` and `db/triggers/` for code review like any other 
 ### Migration System
 Manage trigger functions and definitions with a migration system similar to Rails schema migrations.
 
+### schema.rb, structure.sql, and trigger snapshots
+
+`db:schema:dump` does not capture PostgreSQL triggers. This gem addresses that in three ways:
+
+1. **Comments in `schema.rb`** — When using the default Ruby schema format, `rails db:schema:dump` appends a short note listing managed triggers and pointing to `trigger:migrate` / `trigger:load`. Disable with `PgSqlTriggers.append_trigger_notes_to_schema_dump = false`.
+2. **`db/trigger_structure.sql`** — Run `rails trigger:dump` to write `CREATE FUNCTION` / `CREATE TRIGGER` statements for registered triggers (or all non-internal triggers in `public` if the registry table is absent). Apply on a fresh DB with `rails trigger:load` (runs arbitrary SQL; kill switch applies in protected environments). Override the path with `FILE=...` or `TRIGGER_STRUCTURE_SQL=...`, or set `PgSqlTriggers.trigger_structure_sql_path`.
+3. **`db:schema:load`** — After loading `schema.rb`, `trigger:migrate` runs automatically so pending trigger migrations apply. Opt out with `SKIP_TRIGGER_MIGRATE_AFTER_SCHEMA_LOAD=1` or `PgSqlTriggers.migrate_triggers_after_schema_load = false`.
+
+For a single SQL artifact that includes tables and triggers, set `config.active_record.schema_format = :sql` and use Rails’ `structure.sql` workflow; keep `db/triggers` migrations as the source of truth and refresh `db/trigger_structure.sql` when you want a portable trigger-only snapshot.
+
 ### Drift Detection
 Automatically detect when database triggers drift from your DSL definitions. N+1-free bulk detection across all triggers.
 

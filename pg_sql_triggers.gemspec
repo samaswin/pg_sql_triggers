@@ -46,8 +46,11 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "rails-controller-testing", "~> 1.0"
   spec.add_development_dependency "rspec", "~> 3.0"
   spec.add_development_dependency "rspec-rails", "~> 6.0"
-  spec.add_development_dependency "rubocop", "~> 1.50"
+  spec.add_development_dependency "rubocop", "~> 1.81"
+  spec.add_development_dependency "rubocop-capybara", "~> 2.22"
+  spec.add_development_dependency "rubocop-factory_bot", "~> 2.28"
   spec.add_development_dependency "rubocop-rails", "~> 2.19"
-  spec.add_development_dependency "rubocop-rspec", "~> 2.20"
+  spec.add_development_dependency "rubocop-rspec", "~> 3.5"
+  spec.add_development_dependency "rubocop-rspec_rails", "~> 2.31"
   spec.add_development_dependency "simplecov", "~> 0.21"
 end

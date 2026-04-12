@@ -75,4 +75,14 @@ RSpec.describe PgSqlTriggers::Engine do
       expect(described_class.respond_to?(:rake_tasks)).to be true
     end
   end
+
+  describe ".install_schema_load_trigger_hook" do
+    after do
+      described_class.instance_variable_set(:@schema_load_trigger_hook_installed, nil)
+    end
+
+    it "does not raise when invoked" do
+      expect { described_class.install_schema_load_trigger_hook }.not_to raise_error
+    end
+  end
 end

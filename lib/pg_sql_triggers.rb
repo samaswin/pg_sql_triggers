@@ -36,6 +36,15 @@ module PgSqlTriggers
   mattr_accessor :allow_unsafe_migrations
   self.allow_unsafe_migrations = false
 
+  # Path or callable returning path for trigger SQL snapshot (default: db/trigger_structure.sql).
+  mattr_accessor :trigger_structure_sql_path
+
+  mattr_accessor :append_trigger_notes_to_schema_dump
+  self.append_trigger_notes_to_schema_dump = true
+
+  mattr_accessor :migrate_triggers_after_schema_load
+  self.migrate_triggers_after_schema_load = true
+
   # PostgreSQL schema used by DbQueries. Override for non-public schemas.
   mattr_accessor :db_schema
   self.db_schema = "public"
