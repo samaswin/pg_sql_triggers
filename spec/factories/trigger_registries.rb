@@ -75,6 +75,7 @@ FactoryBot.define do
           deferrable: registry.deferrable,
           initially: registry.initially
         )
+        events_segment = PgSqlTriggers::EventsChecksum.segment_from_definition_json(registry.definition)
         registry.checksum = Digest::SHA256.hexdigest([
           registry.trigger_name,
           registry.table_name,
@@ -83,6 +84,7 @@ FactoryBot.define do
           registry.condition || "",
           registry.timing || "before",
           registry.for_each || "row",
+          events_segment,
           *deferral
         ].join)
       end

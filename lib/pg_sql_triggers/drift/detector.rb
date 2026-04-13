@@ -94,6 +94,10 @@ module PgSqlTriggers
 
           deferral = PgSqlTriggers::DeferralChecksum.parts_from_db(db_trigger)
 
+          events_segment = PgSqlTriggers::EventsChecksum.canonical_from_pg_triggerdef(
+            db_trigger["trigger_definition"]
+          )
+
           # Use same algorithm as TriggerRegistry#calculate_checksum
           Digest::SHA256.hexdigest([
             registry_entry.trigger_name,
@@ -103,6 +107,7 @@ module PgSqlTriggers
             condition || "",
             registry_entry.timing || "before",
             db_for_each || "row",
+            events_segment,
             *deferral
           ].join)
         end

@@ -8,6 +8,14 @@ RSpec.describe PgSqlTriggers::Drift::Detector do
   let(:function_name) { "test_function" }
   let(:function_body) { "CREATE OR REPLACE FUNCTION test_function() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql;" }
   let(:condition) { "NEW.email IS NOT NULL" }
+  let(:dsl_insert_definition) do
+    {
+      "events" => ["insert"],
+      "function_name" => function_name,
+      "timing" => "before",
+      "for_each" => "row"
+    }.to_json
+  end
 
   describe ".detect" do
     # rubocop:disable RSpec/MultipleMemoizedHelpers
@@ -16,7 +24,7 @@ RSpec.describe PgSqlTriggers::Drift::Detector do
         create(:trigger_registry, :enabled, :dsl_source, :in_sync,
                trigger_name: trigger_name,
                table_name: table_name,
-               definition: {}.to_json,
+               definition: dsl_insert_definition,
                function_body: function_body,
                condition: condition)
       end
@@ -68,7 +76,7 @@ RSpec.describe PgSqlTriggers::Drift::Detector do
         create(:trigger_registry, :enabled, :dsl_source, :in_sync,
                trigger_name: trigger_name,
                table_name: table_name,
-               definition: {}.to_json,
+               definition: dsl_insert_definition,
                function_body: function_body,
                condition: condition)
 
@@ -90,7 +98,7 @@ RSpec.describe PgSqlTriggers::Drift::Detector do
         create(:trigger_registry, :enabled, :dsl_source, :in_sync,
                trigger_name: trigger_name,
                table_name: table_name,
-               definition: {}.to_json,
+               definition: dsl_insert_definition,
                function_body: function_body,
                condition: condition)
       end
@@ -153,7 +161,7 @@ RSpec.describe PgSqlTriggers::Drift::Detector do
         create(:trigger_registry, :disabled, :dsl_source, :in_sync,
                trigger_name: trigger_name,
                table_name: table_name,
-               definition: {}.to_json,
+               definition: dsl_insert_definition,
                function_body: function_body,
                condition: condition)
 
@@ -230,14 +238,14 @@ RSpec.describe PgSqlTriggers::Drift::Detector do
       create(:trigger_registry, :enabled, :dsl_source, :in_sync,
              trigger_name: "in_sync_trigger",
              table_name: table_name,
-             definition: {}.to_json,
+             definition: dsl_insert_definition,
              function_body: function_body,
              condition: condition)
 
       create(:trigger_registry, :enabled, :dsl_source, :in_sync,
              trigger_name: "dropped_trigger",
              table_name: table_name,
-             definition: {}.to_json,
+             definition: dsl_insert_definition,
              function_body: function_body,
              condition: condition)
 
@@ -283,14 +291,14 @@ RSpec.describe PgSqlTriggers::Drift::Detector do
       create(:trigger_registry, :enabled, :dsl_source, :in_sync,
              trigger_name: "users_trigger_1",
              table_name: "users",
-             definition: {}.to_json,
+             definition: dsl_insert_definition,
              function_body: function_body,
              condition: condition)
 
       create(:trigger_registry, :enabled, :dsl_source, :in_sync,
              trigger_name: "posts_trigger_1",
              table_name: "posts",
-             definition: {}.to_json,
+             definition: dsl_insert_definition,
              function_body: function_body,
              condition: condition)
 

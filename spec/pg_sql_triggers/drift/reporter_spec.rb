@@ -7,6 +7,14 @@ RSpec.describe PgSqlTriggers::Drift::Reporter do
   let(:table_name) { "users" }
   let(:function_body) { "CREATE OR REPLACE FUNCTION test_function() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql;" }
   let(:condition) { "NEW.email IS NOT NULL" }
+  let(:dsl_insert_definition) do
+    {
+      "events" => ["insert"],
+      "function_name" => "test_function",
+      "timing" => "before",
+      "for_each" => "row"
+    }.to_json
+  end
 
   describe ".summary" do
     let(:db_triggers) do
@@ -50,21 +58,21 @@ RSpec.describe PgSqlTriggers::Drift::Reporter do
       create(:trigger_registry, :enabled, :dsl_source, :in_sync,
              trigger_name: "in_sync_trigger",
              table_name: table_name,
-             definition: {}.to_json,
+             definition: dsl_insert_definition,
              function_body: function_body,
              condition: condition)
 
       create(:trigger_registry, :enabled, :dsl_source, :in_sync,
              trigger_name: "drifted_trigger",
              table_name: table_name,
-             definition: {}.to_json,
+             definition: dsl_insert_definition,
              function_body: function_body,
              condition: condition)
 
       create(:trigger_registry, :disabled, :dsl_source, :in_sync,
              trigger_name: "disabled_trigger",
              table_name: table_name,
-             definition: {}.to_json,
+             definition: dsl_insert_definition,
              function_body: function_body,
              condition: condition)
 
@@ -103,7 +111,7 @@ RSpec.describe PgSqlTriggers::Drift::Reporter do
       create(:trigger_registry, :enabled, :dsl_source, :in_sync,
              trigger_name: trigger_name,
              table_name: table_name,
-             definition: {}.to_json,
+             definition: dsl_insert_definition,
              function_body: function_body,
              condition: condition)
 
@@ -141,7 +149,7 @@ RSpec.describe PgSqlTriggers::Drift::Reporter do
       create(:trigger_registry, :enabled, :dsl_source, :in_sync,
              trigger_name: trigger_name,
              table_name: table_name,
-             definition: {}.to_json,
+             definition: dsl_insert_definition,
              function_body: function_body,
              condition: condition)
     end
@@ -229,7 +237,7 @@ RSpec.describe PgSqlTriggers::Drift::Reporter do
       create(:trigger_registry, :enabled, :dsl_source, :in_sync,
              trigger_name: "drifted_trigger",
              table_name: table_name,
-             definition: {}.to_json,
+             definition: dsl_insert_definition,
              function_body: function_body,
              condition: condition)
 
@@ -285,14 +293,14 @@ RSpec.describe PgSqlTriggers::Drift::Reporter do
       create(:trigger_registry, :enabled, :dsl_source, :in_sync,
              trigger_name: "drifted_trigger",
              table_name: table_name,
-             definition: {}.to_json,
+             definition: dsl_insert_definition,
              function_body: function_body,
              condition: condition)
 
       create(:trigger_registry, :enabled, :dsl_source, :in_sync,
              trigger_name: "dropped_trigger",
              table_name: table_name,
-             definition: {}.to_json,
+             definition: dsl_insert_definition,
              function_body: function_body,
              condition: condition)
 

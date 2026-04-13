@@ -74,5 +74,17 @@ RSpec.describe PgSqlTriggers::Alerting do
       expect(called).to be false
       expect(outcome[:notified]).to be false
     end
+
+    it "rescues notifier errors and leaves notified false" do
+      drifted = { state: PgSqlTriggers::DRIFT_STATE_DRIFTED, details: "x" }
+      allow(PgSqlTriggers::Drift::Detector).to receive(:detect_all).and_return([drifted])
+      allow(Rails.logger).to receive(:error)
+
+      PgSqlTriggers.drift_notifier = ->(*) { raise StandardError, "webhook down" }
+
+      outcome = described_class.check_and_notify
+      expect(outcome[:notified]).to be false
+      expect(Rails.logger).to have_received(:error).with(/drift_notifier failed/)
+    end
   end
 end

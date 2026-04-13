@@ -6,7 +6,7 @@ require "tsort"
 
 module PgSqlTriggers
   module Registry
-    class Validator
+    class Validator # rubocop:disable Metrics/ClassLength -- validation rules grouped in one class
       VALID_EVENTS = %w[insert update delete truncate].freeze
       VALID_TIMINGS = %w[before after instead_of].freeze
       VALID_FOR_EACH = %w[row statement].freeze
@@ -179,6 +179,8 @@ module PgSqlTriggers
 
           errors << "Trigger '#{name}': missing function_name" if definition["function_name"].blank?
 
+          errors.concat(validate_update_columns(name, events, definition))
+
           timing = definition["timing"].to_s
           if timing.present? && VALID_TIMINGS.exclude?(timing)
             errors << "Trigger '#{name}': invalid timing '#{timing}' (valid: #{VALID_TIMINGS.inspect})"
@@ -230,6 +232,24 @@ module PgSqlTriggers
 
         def events_include_truncate?(definition)
           Array(definition["events"]).map(&:to_s).include?("truncate")
+        end
+
+        def validate_update_columns(name, events, definition)
+          errs = []
+          cols = Array(definition["columns"]).flatten.compact.map(&:to_s).map(&:strip).reject(&:empty?)
+          return errs if cols.empty?
+
+          unless events.map(&:to_s).include?("update")
+            errs << "Trigger '#{name}': columns require an update event " \
+                    "(use on_update_of or include :update)"
+          end
+
+          cols.each do |col|
+            next if col.match?(/\A[a-zA-Z_][a-zA-Z0-9_]*\z/)
+
+            errs << "Trigger '#{name}': invalid column name #{col.inspect} (use simple SQL identifiers, no quoting)"
+          end
+          errs
         end
 
         def parse_definition(definition_json)

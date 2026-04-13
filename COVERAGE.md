@@ -1,8 +1,8 @@
 # Code Coverage Report
 
-**Total Coverage: 94.9%**
+**Total Coverage: 95.93%**
 
-Covered: 1989 / 2096 lines
+Covered: 2454 / 2558 lines
 
 ---
 
@@ -10,49 +10,55 @@ Covered: 1989 / 2096 lines
 
 | File | Coverage | Covered Lines | Missed Lines | Total Lines |
 |------|----------|---------------|--------------|-------------|
+| `lib/pg_sql_triggers/migration.rb` | 100.0% ✅ | 4 | 0 | 4 |
+| `lib/generators/pg_sql_triggers/install_generator.rb` | 100.0% ✅ | 18 | 0 | 18 |
+| `lib/pg_sql_triggers/dsl/trigger_definition.rb` | 100.0% ✅ | 61 | 0 | 61 |
+| `lib/pg_sql_triggers/dsl.rb` | 100.0% ✅ | 9 | 0 | 9 |
+| `lib/pg_sql_triggers/migrator/pre_apply_comparator.rb` | 100.0% ✅ | 123 | 0 | 123 |
+| `lib/pg_sql_triggers/sql.rb` | 100.0% ✅ | 7 | 0 | 7 |
+| `lib/pg_sql_triggers/migrator/pre_apply_diff_reporter.rb` | 100.0% ✅ | 75 | 0 | 75 |
+| `lib/pg_sql_triggers/drift.rb` | 100.0% ✅ | 15 | 0 | 15 |
+| `lib/pg_sql_triggers/migrator/safety_validator.rb` | 100.0% ✅ | 120 | 0 | 120 |
+| `lib/pg_sql_triggers/permissions.rb` | 100.0% ✅ | 11 | 0 | 11 |
+| `lib/pg_sql_triggers/permissions/checker.rb` | 100.0% ✅ | 17 | 0 | 17 |
+| `app/controllers/pg_sql_triggers/triggers_controller.rb` | 100.0% ✅ | 76 | 0 | 76 |
+| `app/helpers/pg_sql_triggers/dashboard_helper.rb` | 100.0% ✅ | 7 | 0 | 7 |
+| `app/controllers/pg_sql_triggers/dashboard_controller.rb` | 100.0% ✅ | 62 | 0 | 62 |
+| `lib/pg_sql_triggers.rb` | 100.0% ✅ | 51 | 0 | 51 |
+| `lib/pg_sql_triggers/errors.rb` | 100.0% ✅ | 83 | 0 | 83 |
 | `lib/pg_sql_triggers/testing/dry_run.rb` | 100.0% ✅ | 24 | 0 | 24 |
 | `lib/pg_sql_triggers/testing/syntax_validator.rb` | 100.0% ✅ | 58 | 0 | 58 |
 | `lib/pg_sql_triggers/testing.rb` | 100.0% ✅ | 6 | 0 | 6 |
-| `lib/pg_sql_triggers/sql.rb` | 100.0% ✅ | 7 | 0 | 7 |
-| `lib/pg_sql_triggers/registry/validator.rb` | 100.0% ✅ | 39 | 0 | 39 |
-| `lib/pg_sql_triggers/permissions/checker.rb` | 100.0% ✅ | 17 | 0 | 17 |
-| `lib/pg_sql_triggers/permissions.rb` | 100.0% ✅ | 11 | 0 | 11 |
-| `lib/pg_sql_triggers/migrator/pre_apply_diff_reporter.rb` | 100.0% ✅ | 75 | 0 | 75 |
-| `lib/pg_sql_triggers/migrator/pre_apply_comparator.rb` | 100.0% ✅ | 123 | 0 | 123 |
-| `lib/pg_sql_triggers/migration.rb` | 100.0% ✅ | 4 | 0 | 4 |
-| `lib/generators/pg_sql_triggers/install_generator.rb` | 100.0% ✅ | 18 | 0 | 18 |
-| `lib/pg_sql_triggers/dsl/trigger_definition.rb` | 100.0% ✅ | 34 | 0 | 34 |
-| `lib/pg_sql_triggers/dsl.rb` | 100.0% ✅ | 9 | 0 | 9 |
-| `lib/pg_sql_triggers/drift.rb` | 100.0% ✅ | 13 | 0 | 13 |
-| `app/controllers/pg_sql_triggers/triggers_controller.rb` | 100.0% ✅ | 75 | 0 | 75 |
-| `lib/pg_sql_triggers.rb` | 100.0% ✅ | 41 | 0 | 41 |
 | `config/initializers/pg_sql_triggers.rb` | 100.0% ✅ | 10 | 0 | 10 |
-| `app/controllers/pg_sql_triggers/dashboard_controller.rb` | 100.0% ✅ | 26 | 0 | 26 |
 | `app/models/pg_sql_triggers/application_record.rb` | 100.0% ✅ | 3 | 0 | 3 |
 | `app/models/pg_sql_triggers/audit_log.rb` | 100.0% ✅ | 28 | 0 | 28 |
-| `app/helpers/pg_sql_triggers/permissions_helper.rb` | 100.0% ✅ | 16 | 0 | 16 |
-| `app/controllers/pg_sql_triggers/application_controller.rb` | 100.0% ✅ | 13 | 0 | 13 |
-| `lib/pg_sql_triggers/errors.rb` | 100.0% ✅ | 83 | 0 | 83 |
 | `app/controllers/concerns/pg_sql_triggers/error_handling.rb` | 100.0% ✅ | 19 | 0 | 19 |
 | `app/controllers/concerns/pg_sql_triggers/kill_switch_protection.rb` | 100.0% ✅ | 17 | 0 | 17 |
-| `lib/pg_sql_triggers/registry/manager.rb` | 98.68% ✅ | 75 | 1 | 76 |
-| `lib/pg_sql_triggers/migrator/safety_validator.rb` | 98.33% ✅ | 118 | 2 | 120 |
-| `app/controllers/pg_sql_triggers/audit_logs_controller.rb` | 97.73% ✅ | 43 | 1 | 44 |
+| `app/controllers/concerns/pg_sql_triggers/permission_checking.rb` | 100.0% ✅ | 41 | 0 | 41 |
+| `app/controllers/pg_sql_triggers/application_controller.rb` | 100.0% ✅ | 13 | 0 | 13 |
+| `app/helpers/pg_sql_triggers/permissions_helper.rb` | 100.0% ✅ | 16 | 0 | 16 |
+| `app/controllers/pg_sql_triggers/migrations_controller.rb` | 98.84% ✅ | 85 | 1 | 86 |
+| `lib/pg_sql_triggers/registry/manager.rb` | 98.81% ✅ | 83 | 1 | 84 |
+| `lib/pg_sql_triggers/events_checksum.rb` | 98.33% ✅ | 59 | 1 | 60 |
+| `app/models/pg_sql_triggers/trigger_registry.rb` | 97.76% ✅ | 218 | 5 | 223 |
 | `lib/pg_sql_triggers/sql/kill_switch.rb` | 96.51% ✅ | 83 | 3 | 86 |
 | `lib/generators/pg_sql_triggers/trigger_migration_generator.rb` | 96.3% ✅ | 26 | 1 | 27 |
+| `lib/pg_sql_triggers/alerting.rb` | 96.3% ✅ | 26 | 1 | 27 |
 | `lib/pg_sql_triggers/drift/db_queries.rb` | 96.15% ✅ | 25 | 1 | 26 |
+| `lib/pg_sql_triggers/deferral_checksum.rb` | 96.0% ✅ | 24 | 1 | 25 |
+| `lib/pg_sql_triggers/migrator.rb` | 95.39% ✅ | 145 | 7 | 152 |
+| `lib/pg_sql_triggers/registry/validator.rb` | 94.48% ✅ | 154 | 9 | 163 |
 | `lib/pg_sql_triggers/database_introspection.rb` | 94.29% ✅ | 66 | 4 | 70 |
 | `lib/pg_sql_triggers/drift/reporter.rb` | 94.12% ✅ | 96 | 6 | 102 |
-| `lib/pg_sql_triggers/drift/detector.rb` | 92.31% ✅ | 72 | 6 | 78 |
-| `lib/pg_sql_triggers/migrator.rb` | 92.11% ✅ | 140 | 12 | 152 |
-| `app/models/pg_sql_triggers/trigger_registry.rb` | 91.92% ✅ | 182 | 16 | 198 |
+| `app/controllers/pg_sql_triggers/audit_logs_controller.rb` | 94.12% ✅ | 48 | 3 | 51 |
+| `lib/pg_sql_triggers/drift/detector.rb` | 92.5% ✅ | 74 | 6 | 80 |
 | `lib/pg_sql_triggers/testing/safe_executor.rb` | 91.89% ✅ | 34 | 3 | 37 |
 | `lib/pg_sql_triggers/registry.rb` | 91.84% ✅ | 45 | 4 | 49 |
-| `app/controllers/pg_sql_triggers/tables_controller.rb` | 90.63% ✅ | 29 | 3 | 32 |
+| `lib/pg_sql_triggers/trigger_structure_dumper.rb` | 90.32% ✅ | 56 | 6 | 62 |
 | `lib/pg_sql_triggers/testing/function_tester.rb` | 89.71% ⚠️ | 61 | 7 | 68 |
-| `lib/pg_sql_triggers/engine.rb` | 88.24% ⚠️ | 15 | 2 | 17 |
-| `app/controllers/concerns/pg_sql_triggers/permission_checking.rb` | 85.37% ⚠️ | 35 | 6 | 41 |
-| `app/controllers/pg_sql_triggers/migrations_controller.rb` | 82.76% ⚠️ | 72 | 15 | 87 |
+| `app/controllers/pg_sql_triggers/tables_controller.rb` | 83.78% ⚠️ | 31 | 6 | 37 |
+| `lib/pg_sql_triggers/schema_dumper_extension.rb` | 73.33% ⚠️ | 11 | 4 | 15 |
+| `lib/pg_sql_triggers/engine.rb` | 72.97% ⚠️ | 27 | 10 | 37 |
 | `config/routes.rb` | 17.65% ❌ | 3 | 14 | 17 |
 
 ---

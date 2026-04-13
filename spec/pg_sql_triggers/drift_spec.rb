@@ -7,6 +7,14 @@ RSpec.describe PgSqlTriggers::Drift do
   let(:table_name) { "users" }
   let(:function_body) { "CREATE OR REPLACE FUNCTION test_function() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql;" }
   let(:condition) { "NEW.email IS NOT NULL" }
+  let(:dsl_insert_definition) do
+    {
+      "events" => ["insert"],
+      "function_name" => "test_function",
+      "timing" => "before",
+      "for_each" => "row"
+    }.to_json
+  end
 
   describe ".detect" do
     context "with trigger name" do
@@ -25,7 +33,7 @@ RSpec.describe PgSqlTriggers::Drift do
         create(:trigger_registry, :enabled, :dsl_source, :in_sync,
                trigger_name: trigger_name,
                table_name: table_name,
-               definition: {}.to_json,
+               definition: dsl_insert_definition,
                function_body: function_body,
                condition: condition)
 

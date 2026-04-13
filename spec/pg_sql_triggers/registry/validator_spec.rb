@@ -86,6 +86,41 @@ RSpec.describe PgSqlTriggers::Registry::Validator do
       end
     end
 
+    context "with a DSL trigger listing columns without an update event" do
+      before do
+        create(:trigger_registry, source: "dsl",
+                                  definition: valid_definition("events" => ["insert"], "columns" => ["email"]))
+      end
+
+      it "raises ValidationError" do
+        expect { described_class.validate! }
+          .to raise_error(PgSqlTriggers::ValidationError, /columns require an update event/)
+      end
+    end
+
+    context "with a DSL trigger with an invalid column identifier" do
+      before do
+        create(:trigger_registry, source: "dsl",
+                                  definition: valid_definition("events" => ["update"], "columns" => ["bad-name"]))
+      end
+
+      it "raises ValidationError" do
+        expect { described_class.validate! }
+          .to raise_error(PgSqlTriggers::ValidationError, /invalid column name/)
+      end
+    end
+
+    context "with a DSL trigger using UPDATE OF columns" do
+      before do
+        create(:trigger_registry, source: "dsl",
+                                  definition: valid_definition("events" => ["update"], "columns" => %w[email name]))
+      end
+
+      it "returns true" do
+        expect(described_class.validate!).to be true
+      end
+    end
+
     context "with a DSL trigger missing function_name" do
       before { create(:trigger_registry, source: "dsl", definition: valid_definition("function_name" => nil)) }
 

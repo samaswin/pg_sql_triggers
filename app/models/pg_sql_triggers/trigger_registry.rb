@@ -330,6 +330,7 @@ module PgSqlTriggers
         deferrable: deferrable,
         initially: initially
       )
+      events_segment = PgSqlTriggers::EventsChecksum.segment_from_definition_json(definition)
       Digest::SHA256.hexdigest([
         trigger_name,
         table_name,
@@ -338,6 +339,7 @@ module PgSqlTriggers
         condition || "",
         timing || "before",
         for_each || "row",
+        events_segment,
         *deferral
       ].join)
     end
@@ -410,7 +412,9 @@ module PgSqlTriggers
     end
 
     def recreate_trigger
-      sql = if source.to_s == "dsl"
+      # DSL triggers are recreated from the stored JSON definition (+build_trigger_sql_from_definition+).
+      # Other sources may persist a full trigger SQL payload in +function_body+.
+      sql = if source == "dsl"
               build_trigger_sql_from_definition
             else
               function_body.presence || build_trigger_sql_from_definition
@@ -431,7 +435,7 @@ module PgSqlTriggers
 
     # Build a CREATE TRIGGER SQL statement from the stored DSL definition JSON.
     # Used by re_execute! when function_body is absent (the normal case for DSL triggers).
-    def build_trigger_sql_from_definition # rubocop:disable Metrics/PerceivedComplexity
+    def build_trigger_sql_from_definition
       return nil if definition.blank?
 
       defn = JSON.parse(definition)
@@ -445,14 +449,16 @@ module PgSqlTriggers
                   else
                     (defn["timing"] || timing || "before").to_s.upcase
                   end
-      events = Array(defn["events"]).map { |e| e.to_s.upcase }.join(" OR ")
-      events = "INSERT" if events.blank?
+      events_sql = PgSqlTriggers::EventsChecksum.events_sql_fragment(
+        defn,
+        quote_column: ->(col) { quote_identifier(col) }
+      )
       cond = defn["condition"] || condition
       for_each_kw = (defn["for_each"] || for_each || "row").upcase
 
       create_kw = constraint ? "CREATE CONSTRAINT TRIGGER" : "CREATE TRIGGER"
       sql = "#{create_kw} #{quote_identifier(trigger_name)} "
-      sql += "#{timing_kw} #{events} ON #{quote_identifier(t_name)} "
+      sql += "#{timing_kw} #{events_sql} ON #{quote_identifier(t_name)} "
       deferral = deferral_sql_fragment(defn)
       sql += "#{deferral} " if deferral.present?
       sql += "FOR EACH #{for_each_kw} "
@@ -461,7 +467,7 @@ module PgSqlTriggers
       sql
     rescue JSON::ParserError
       nil
-    end # rubocop:enable Metrics/PerceivedComplexity
+    end
 
     def deferral_sql_fragment(defn)
       return "" unless ActiveModel::Type::Boolean.new.cast(defn["constraint_trigger"])

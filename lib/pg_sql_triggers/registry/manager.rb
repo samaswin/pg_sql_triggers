@@ -156,6 +156,7 @@ module PgSqlTriggers
             deferrable: definition.respond_to?(:deferrable) ? definition.deferrable : nil,
             initially: definition.respond_to?(:initially) ? definition.initially : nil
           )
+          events_segment = PgSqlTriggers::EventsChecksum.canonical_from_definition(definition.to_h)
           Digest::SHA256.hexdigest([
             definition.name,
             definition.table_name,
@@ -164,6 +165,7 @@ module PgSqlTriggers
             definition.condition || "",
             definition.timing || "before",
             definition.for_each || "row",
+            events_segment,
             *deferral
           ].join)
         end

@@ -47,8 +47,15 @@ module PgSqlTriggers
 
         instrument("pg_sql_triggers.drift_check", payload) do
           if alertable.any? && PgSqlTriggers.drift_notifier
-            PgSqlTriggers.drift_notifier.call(alertable, all_results: results)
-            notified = true
+            begin
+              PgSqlTriggers.drift_notifier.call(alertable, all_results: results)
+              notified = true
+            rescue StandardError => e
+              payload[:notifier_error] = e.message
+              if defined?(Rails.logger) && Rails.logger
+                Rails.logger.error("PgSqlTriggers drift_notifier failed: #{e.class}: #{e.message}")
+              end
+            end
           end
           payload[:notified] = notified
         end

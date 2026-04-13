@@ -138,6 +138,7 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
       ActiveRecord::Base.connection.execute(<<~SQL.squish)
         CREATE OR REPLACE FUNCTION test_function() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql;
       SQL
+      ActiveRecord::Base.connection.execute("DROP TRIGGER IF EXISTS test_trigger ON users")
       ActiveRecord::Base.connection.execute(<<~SQL.squish)
         CREATE TRIGGER test_trigger BEFORE INSERT ON users FOR EACH ROW EXECUTE FUNCTION test_function();
       SQL
@@ -871,6 +872,12 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
       create(:trigger_registry, :enabled, :with_function_body,
              trigger_name: trigger_name,
              table_name: "test_table",
+             definition: {
+               "function_name" => function_name,
+               "events" => ["insert"],
+               "timing" => "before",
+               "for_each" => "row"
+             }.to_json,
              function_body: "CREATE OR REPLACE FUNCTION #{function_name}() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql; CREATE TRIGGER #{trigger_name} BEFORE INSERT ON test_table FOR EACH ROW EXECUTE FUNCTION #{function_name}();")
     end
 
@@ -986,7 +993,7 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
     context "when function_body is missing" do
       before do
         # rubocop:disable Rails/SkipsModelValidations
-        registry.update_column(:function_body, nil)
+        registry.update_columns(function_body: nil, definition: nil)
         # rubocop:enable Rails/SkipsModelValidations
       end
 
@@ -1000,7 +1007,7 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
     context "when function_body is blank" do
       before do
         # rubocop:disable Rails/SkipsModelValidations
-        registry.update_column(:function_body, "")
+        registry.update_columns(function_body: "", definition: nil)
         # rubocop:enable Rails/SkipsModelValidations
       end
 
@@ -1008,6 +1015,21 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
         expect do
           registry.re_execute!(reason: "Fix", actor: actor)
         end.to raise_error(StandardError, /Cannot re-execute.*no SQL could be generated/)
+      end
+    end
+
+    context "when function_body is nil but definition is present" do
+      before do
+        # rubocop:disable Rails/SkipsModelValidations
+        registry.update_column(:function_body, nil)
+        # rubocop:enable Rails/SkipsModelValidations
+      end
+
+      it "recreates the trigger from the stored DSL definition" do
+        with_kill_switch_disabled do
+          expect { registry.re_execute!(reason: "Fix", actor: actor) }.not_to raise_error
+          expect(PgSqlTriggers::DatabaseIntrospection.new.trigger_exists?(trigger_name)).to be true
+        end
       end
     end
 
@@ -1058,13 +1080,9 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
 
     context "when trigger recreation fails" do
       before do
-        # Stub connection execute to fail for CREATE statements but delegate everything else
-        # This simulates database errors like syntax errors, permission issues, etc.
-        # Construct the expected function_body string to avoid accessing registry before it's created
-        expected_function_body = "CREATE OR REPLACE FUNCTION #{function_name}() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql; CREATE TRIGGER #{trigger_name} BEFORE INSERT ON test_table FOR EACH ROW EXECUTE FUNCTION #{function_name}();"
-
+        # Stub connection execute to fail for CREATE TRIGGER (DSL re-execute path) but delegate everything else
         allow(ActiveRecord::Base.connection).to receive(:execute).and_wrap_original do |original_method, sql, *args|
-          if sql.to_s.include?(expected_function_body)
+          if sql.to_s.match?(/CREATE TRIGGER/i) && sql.to_s.include?(trigger_name)
             raise ActiveRecord::StatementInvalid, "PG::Error: simulated SQL error"
           end
 
@@ -1174,6 +1192,12 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
         create(:trigger_registry, :disabled, :with_function_body,
                trigger_name: trigger_name,
                table_name: "test_table",
+               definition: {
+                 "function_name" => function_name,
+                 "events" => ["insert"],
+                 "timing" => "before",
+                 "for_each" => "row"
+               }.to_json,
                function_body: "CREATE OR REPLACE FUNCTION #{function_name}() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql; CREATE TRIGGER #{trigger_name} BEFORE INSERT ON test_table FOR EACH ROW EXECUTE FUNCTION #{function_name}();")
       end
 
@@ -1360,6 +1384,47 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
         sql = reg.send(:build_trigger_sql_from_definition)
         expect(sql).to include("NOT DEFERRABLE")
       end
+
+      it "outputs UPDATE OF for column-scoped update triggers" do
+        reg = create(:trigger_registry,
+                     source: "dsl",
+                     trigger_name: "col_trig",
+                     table_name: "users",
+                     timing: "before",
+                     for_each: "row",
+                     function_body: nil,
+                     checksum: Digest::SHA256.hexdigest("c"),
+                     definition: {
+                       "function_name" => "audit_fn",
+                       "events" => ["update"],
+                       "columns" => %w[email status],
+                       "timing" => "before",
+                       "for_each" => "row"
+                     }.to_json)
+        sql = reg.send(:build_trigger_sql_from_definition)
+        expect(sql).to include("UPDATE OF")
+        expect(sql).to match(/email.*status|status.*email/m)
+        expect(sql).to end_with("EXECUTE FUNCTION audit_fn();")
+      end
+
+      it "combines INSERT with UPDATE OF for multi-event triggers" do
+        reg = create(:trigger_registry,
+                     source: "dsl",
+                     trigger_name: "multi_trig",
+                     table_name: "users",
+                     function_body: nil,
+                     checksum: Digest::SHA256.hexdigest("m"),
+                     definition: {
+                       "function_name" => "mf",
+                       "events" => %w[insert update],
+                       "columns" => ["email"],
+                       "timing" => "after",
+                       "for_each" => "row"
+                     }.to_json)
+        sql = reg.send(:build_trigger_sql_from_definition)
+        expect(sql).to include("INSERT OR UPDATE OF")
+        expect(sql).to include("email")
+      end
     end
 
     describe "#verify!" do
@@ -1528,12 +1593,24 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
       create(:trigger_registry, :enabled, :with_function_body,
              trigger_name: trigger_name,
              table_name: "test_table",
+             definition: {
+               "function_name" => function_name,
+               "events" => ["insert"],
+               "timing" => "before",
+               "for_each" => "row"
+             }.to_json,
              function_body: "CREATE OR REPLACE FUNCTION #{function_name}() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql; CREATE TRIGGER #{trigger_name} BEFORE INSERT ON test_table FOR EACH ROW EXECUTE FUNCTION #{function_name}();")
     end
     let(:actor) { { type: "User", id: 1 } }
 
     before do
       create_test_table(:test_table, columns: { name: :string })
+      ActiveRecord::Base.connection.execute(<<~SQL.squish)
+        CREATE OR REPLACE FUNCTION #{function_name}() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql;
+      SQL
+      ActiveRecord::Base.connection.execute(<<~SQL.squish)
+        CREATE TRIGGER #{trigger_name} BEFORE INSERT ON test_table FOR EACH ROW EXECUTE FUNCTION #{function_name}();
+      SQL
     end
 
     after do
@@ -1542,8 +1619,6 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
 
     it "handles drift_result raising an error gracefully" do
       with_kill_switch_disabled do
-        create_test_table(:test_table, columns: { name: :string })
-
         # Mock drift_result to raise an error - it's called twice: once at the start and once in log_re_execute_attempt
         # The first call is in a begin/rescue block and should be caught
         # The second call in log_re_execute_attempt is not rescued, so we need to stub that too
@@ -1555,8 +1630,6 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
         # re-execute should still proceed
         expect { registry.re_execute!(reason: "Fix", actor: actor) }.not_to raise_error
         expect(registry.reload.enabled).to be(true)
-      ensure
-        drop_test_table(:test_table)
       end
     end
 
@@ -1583,6 +1656,12 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
       create(:trigger_registry, :enabled, :with_function_body,
              trigger_name: "test_trigger",
              table_name: "test_table",
+             definition: {
+               "function_name" => "test_function",
+               "events" => ["insert"],
+               "timing" => "before",
+               "for_each" => "row"
+             }.to_json,
              function_body: "CREATE OR REPLACE FUNCTION test_function() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql;")
     end
 
@@ -1695,6 +1774,9 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
       it "logs success when trigger recreation succeeds" do
         with_kill_switch_disabled do
           create_test_table(:test_table, columns: { name: :string })
+          ActiveRecord::Base.connection.execute(<<~SQL.squish)
+            CREATE OR REPLACE FUNCTION test_function() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql;
+          SQL
 
           if defined?(Rails.logger)
             expect(Rails.logger).to receive(:info).with(/TRIGGER_RE_EXECUTE.*Re-created trigger/)

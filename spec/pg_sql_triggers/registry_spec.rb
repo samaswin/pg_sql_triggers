@@ -577,6 +577,12 @@ RSpec.describe PgSqlTriggers::Registry::Manager do
       create(:trigger_registry, :disabled, :with_function_body,
              trigger_name: "test_trigger",
              table_name: "users",
+             definition: {
+               "function_name" => "test_trigger_function",
+               "events" => ["insert"],
+               "timing" => "before",
+               "for_each" => "row"
+             }.to_json,
              function_body: "CREATE OR REPLACE FUNCTION test_trigger_function() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql;")
     end
 
@@ -792,6 +798,21 @@ RSpec.describe PgSqlTriggers::Registry::Manager do
     end
 
     describe ".re_execute" do
+      before do
+        create_users_table
+        ActiveRecord::Base.connection.execute(<<~SQL.squish)
+          CREATE OR REPLACE FUNCTION test_trigger_function() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql;
+        SQL
+        ActiveRecord::Base.connection.execute("DROP TRIGGER IF EXISTS test_trigger ON users")
+        ActiveRecord::Base.connection.execute(<<~SQL.squish)
+          CREATE TRIGGER test_trigger BEFORE INSERT ON users FOR EACH ROW EXECUTE FUNCTION test_trigger_function();
+        SQL
+      end
+
+      after do
+        ActiveRecord::Base.connection.execute("DROP TRIGGER IF EXISTS test_trigger ON users")
+      end
+
       context "with admin permissions" do
         around do |example|
           with_kill_switch_disabled do
@@ -930,9 +951,20 @@ RSpec.describe PgSqlTriggers::Registry::Manager do
 
         # Verify that allowing drop_trigger permission works for re_execute
         with_permission_checker(drop_trigger: true) do
+          create_users_table
+          ActiveRecord::Base.connection.execute(<<~SQL.squish)
+            CREATE OR REPLACE FUNCTION test_trigger_function() RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql;
+          SQL
+          ActiveRecord::Base.connection.execute("DROP TRIGGER IF EXISTS test_trigger ON users")
+          ActiveRecord::Base.connection.execute(<<~SQL.squish)
+            CREATE TRIGGER test_trigger BEFORE INSERT ON users FOR EACH ROW EXECUTE FUNCTION test_trigger_function();
+          SQL
+
           expect do
             PgSqlTriggers::Registry.re_execute("test_trigger", actor: actor, reason: "Fix drift")
           end.not_to raise_error
+        ensure
+          ActiveRecord::Base.connection.execute("DROP TRIGGER IF EXISTS test_trigger ON users")
         end
       end
     end
