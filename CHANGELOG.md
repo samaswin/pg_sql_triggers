@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+These notes follow the phased gap analysis in [`IMPLEMENTATION_PLAN.md`](IMPLEMENTATION_PLAN.md)
+(baseline **v1.4.0**). Shipped work below is present on the main branch but not yet tagged;
+**Planned** lists remaining items from that document (or follow-ups).
+
 ### Added
 
 - **Drift alerting** — Configurable `PgSqlTriggers.drift_notifier` for external notification when
@@ -20,6 +24,82 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   [lib/tasks/trigger_migrations.rake](lib/tasks/trigger_migrations.rake),
   [lib/pg_sql_triggers/rake_development_boot.rb](lib/pg_sql_triggers/rake_development_boot.rb),
   [docs/configuration.md](docs/configuration.md))
+
+- **Column-level `UPDATE OF` triggers** — DSL method `on_update_of(*columns)` sets the event to
+  `update` and records column names; SQL generation and checksums use `EventsChecksum` so
+  `UPDATE OF "col1", "col2"` is represented consistently in drift detection. Registry validation
+  rejects column lists unless an update event is present.
+  ([lib/pg_sql_triggers/dsl/trigger_definition.rb](lib/pg_sql_triggers/dsl/trigger_definition.rb),
+  [lib/pg_sql_triggers/events_checksum.rb](lib/pg_sql_triggers/events_checksum.rb),
+  [lib/pg_sql_triggers/registry/validator.rb](lib/pg_sql_triggers/registry/validator.rb))
+
+- **Constraint triggers and deferral** — DSL supports `constraint_trigger!` with `deferrable` /
+  `initially` (constraint triggers only). Registry migration
+  `20260412185841_add_constraint_deferral_to_pg_sql_triggers_registry.rb` adds `constraint_trigger`,
+  `deferrable`, and `initially` columns. Validator and drift checksum paths normalize deferral using
+  catalog fields such as `tgdeferrable` / `tginitdeferred` where applicable.
+  ([db/migrate/20260412185841_add_constraint_deferral_to_pg_sql_triggers_registry.rb](db/migrate/20260412185841_add_constraint_deferral_to_pg_sql_triggers_registry.rb),
+  [lib/pg_sql_triggers/dsl/trigger_definition.rb](lib/pg_sql_triggers/dsl/trigger_definition.rb),
+  [lib/pg_sql_triggers/registry/validator.rb](lib/pg_sql_triggers/registry/validator.rb))
+
+- **Trigger ordering hints (`depends_on`)** — Optional `depends_on(*names)` on the DSL records
+  intended ordering relative to PostgreSQL’s alphabetical firing order. `Registry::Validator` checks
+  same-table scope, timing/`FOR EACH` consistency, absence of cycles, and name ordering; Rake task
+  `trigger:validate_order` runs the same rules from the CLI.
+  ([lib/pg_sql_triggers/dsl/trigger_definition.rb](lib/pg_sql_triggers/dsl/trigger_definition.rb),
+  [lib/pg_sql_triggers/registry/validator.rb](lib/pg_sql_triggers/registry/validator.rb),
+  [lib/tasks/trigger_migrations.rake](lib/tasks/trigger_migrations.rake))
+
+- **Dashboard search, filters, and pagination** — Trigger index supports query parameters
+  (`table`, `state`, `source`, `q`) with offset/limit pagination for large registries.
+  ([app/controllers/pg_sql_triggers/dashboard_controller.rb](app/controllers/pg_sql_triggers/dashboard_controller.rb))
+
+- **`schema.rb` awareness and trigger SQL snapshots** — `ActiveRecord::SchemaDumper` is prepended
+  with `SchemaDumperExtension` to append optional comments pointing at trigger workflows when
+  `PgSqlTriggers.append_trigger_notes_to_schema_dump` is true (default). Rake tasks `trigger:dump`
+  and `trigger:load` round-trip `db/trigger_structure.sql` via `TriggerStructureDumper`; path is
+  configurable with `PgSqlTriggers.trigger_structure_sql_path`. When
+  `PgSqlTriggers.migrate_triggers_after_schema_load` is true (default), `db:schema:load` can chain
+  to `trigger:migrate` (skippable with `SKIP_TRIGGER_MIGRATE_AFTER_SCHEMA_LOAD`).
+  ([lib/pg_sql_triggers/schema_dumper_extension.rb](lib/pg_sql_triggers/schema_dumper_extension.rb),
+  [lib/pg_sql_triggers/trigger_structure_dumper.rb](lib/pg_sql_triggers/trigger_structure_dumper.rb),
+  [lib/pg_sql_triggers/engine.rb](lib/pg_sql_triggers/engine.rb),
+  [lib/tasks/trigger_migrations.rake](lib/tasks/trigger_migrations.rake),
+  [lib/pg_sql_triggers.rb](lib/pg_sql_triggers.rb))
+
+- **Engine routing coverage** — Declarative routing specs for the mountable engine.
+  ([spec/routing/pg_sql_triggers_routes_spec.rb](spec/routing/pg_sql_triggers_routes_spec.rb))
+
+### Changed
+
+- **SQL permission helper naming** — View and controller helpers use `can_execute_sql_operations?`
+  instead of capsule-era `can_execute_sql?`, with comments aligned to migration-style SQL execution.
+  ([app/helpers/pg_sql_triggers/permissions_helper.rb](app/helpers/pg_sql_triggers/permissions_helper.rb),
+  [app/controllers/concerns/pg_sql_triggers/permission_checking.rb](app/controllers/concerns/pg_sql_triggers/permission_checking.rb))
+
+- **`TriggerRegistry#recreate_trigger`** — Uses an explicit `source == "dsl"` branch before the
+  `function_body` path so DSL re-execution is obvious to readers.
+  ([app/models/pg_sql_triggers/trigger_registry.rb](app/models/pg_sql_triggers/trigger_registry.rb))
+
+### Fixed
+
+- **`can_generate_triggers?` permission alignment** — Helper and concern both use the
+  `:generate_trigger` action so UI and controller authorization stay consistent.
+  ([app/helpers/pg_sql_triggers/permissions_helper.rb](app/helpers/pg_sql_triggers/permissions_helper.rb),
+  [app/controllers/concerns/pg_sql_triggers/permission_checking.rb](app/controllers/concerns/pg_sql_triggers/permission_checking.rb))
+
+### Planned
+
+- **Documentation accuracy** — Regenerate [`COVERAGE.md`](COVERAGE.md) from the current tree with
+  SimpleCov (plan §1.1); keep user-facing docs in sync with removed v1.4.0 features where files
+  still exist.
+
+- **Test hardening** — Additional request/controller specs for migration error paths and
+  permission edge cases (plan §4.2–4.3); extend coverage for notifier and dashboard filter
+  behaviour where gaps remain (plan Phase 1–2).
+
+- **Optional (Phase 4)** — Kill-switch time-window auto-lock; trigger definition export/import
+  (JSON/YAML) and related Rake tasks.
 
 ## [1.4.0] - 2026-03-01
 
