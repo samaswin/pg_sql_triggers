@@ -993,7 +993,7 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
       it "raises StandardError" do
         expect do
           registry.re_execute!(reason: "Fix", actor: actor)
-        end.to raise_error(StandardError, /Cannot re-execute.*missing function_body/)
+        end.to raise_error(StandardError, /Cannot re-execute.*no SQL could be generated/)
       end
     end
 
@@ -1007,7 +1007,7 @@ RSpec.describe PgSqlTriggers::TriggerRegistry do
       it "raises StandardError" do
         expect do
           registry.re_execute!(reason: "Fix", actor: actor)
-        end.to raise_error(StandardError, /Cannot re-execute.*missing function_body/)
+        end.to raise_error(StandardError, /Cannot re-execute.*no SQL could be generated/)
       end
     end
 

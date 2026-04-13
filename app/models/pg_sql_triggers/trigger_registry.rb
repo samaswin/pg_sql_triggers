@@ -273,8 +273,9 @@ module PgSqlTriggers
     # @param reason [String] Required reason for re-executing the trigger
     # @param confirmation [String, nil] Optional confirmation text for kill switch protection
     # @param actor [Hash, nil] Information about who is performing the action (must have :type and :id keys)
-    # @raise [ArgumentError] If reason is missing or empty, or if function_body is blank
+    # @raise [ArgumentError] If reason is missing or empty
     # @raise [PgSqlTriggers::KillSwitchError] If kill switch blocks the operation
+    # @raise [StandardError] If SQL cannot be generated to recreate the trigger
     # @return [PgSqlTriggers::TriggerRegistry] self
     def re_execute!(reason:, confirmation: nil, actor: nil)
       actor ||= { type: "Console", id: "TriggerRegistry#re_execute!" }
@@ -409,8 +410,13 @@ module PgSqlTriggers
     end
 
     def recreate_trigger
-      sql = function_body.presence || build_trigger_sql_from_definition
-      raise StandardError, "Cannot re-execute: missing function_body" if sql.blank?
+      sql = if source.to_s == "dsl"
+              build_trigger_sql_from_definition
+            else
+              function_body.presence || build_trigger_sql_from_definition
+            end
+
+      raise StandardError, "Cannot re-execute: no SQL could be generated" if sql.blank?
 
       ActiveRecord::Base.connection.execute(sql)
       if defined?(Rails) && Rails.respond_to?(:logger) && Rails.logger
