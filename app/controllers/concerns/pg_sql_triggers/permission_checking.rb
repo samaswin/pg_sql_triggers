@@ -107,7 +107,7 @@ module PgSqlTriggers
 
     # @return [Boolean] true if current actor can generate triggers
     def can_generate_triggers?
-      PgSqlTriggers::Permissions.can?(current_actor, :apply_trigger, environment: current_environment)
+      PgSqlTriggers::Permissions.can?(current_actor, :generate_trigger, environment: current_environment)
     end
 
     # @return [Boolean] true if current actor can apply triggers

@@ -120,13 +120,14 @@ module PgSqlTriggers
         # Target version is not applied yet, just run it up
         PgSqlTriggers::Migrator.run_up(target_version)
         flash[:success] = "Migration #{target_version} redone successfully."
-        redirect_to root_path
         return
       end
 
       # Now run up to the target version
       PgSqlTriggers::Migrator.run_up(target_version)
-      flash.now[:success] = "Migration #{target_version} redone successfully."
+      # rubocop:disable Rails/ActionControllerFlashBeforeRender -- `redo` redirects after this helper returns
+      flash[:success] = "Migration #{target_version} redone successfully."
+      # rubocop:enable Rails/ActionControllerFlashBeforeRender
     end
 
     def rollback_to_before_target(target_version)

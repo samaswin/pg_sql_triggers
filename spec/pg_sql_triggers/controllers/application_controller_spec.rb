@@ -97,11 +97,18 @@ RSpec.describe PgSqlTriggers::ApplicationController, type: :controller do
   describe "PermissionChecking concern" do
     # Test PermissionChecking concern's can_* methods directly (not PermissionsHelper's overrides)
     # by testing on a controller that only includes PermissionChecking
+    # Inherit ActionController::Base (not ApplicationController): the engine base already
+    # includes PermissionsHelper after PermissionChecking, which shadows these predicate helpers;
+    # re-including PermissionChecking is a no-op, so the concern bodies would never run under tests.
     let(:permission_checking_controller_class) do
-      Class.new(PgSqlTriggers::ApplicationController) do
+      # rubocop:disable Rails/ApplicationController -- intentional minimal controller for concern coverage
+      controller_class = Class.new(ActionController::Base) do
+        include PgSqlTriggers::Engine.routes.url_helpers
         include PgSqlTriggers::KillSwitchProtection
         include PgSqlTriggers::PermissionChecking
       end
+      # rubocop:enable Rails/ApplicationController
+      controller_class
     end
 
     describe "helper method declarations" do
@@ -595,6 +602,75 @@ RSpec.describe PgSqlTriggers::ApplicationController, type: :controller do
 
         it "returns false" do
           expect(test_controller.send(:can_apply_triggers?)).to be false
+        end
+      end
+    end
+
+    describe "PermissionChecking predicate edge cases" do
+      let(:test_controller) { permission_checking_controller_class.new }
+
+      context "when current_actor is nil" do
+        before do
+          allow(test_controller).to receive_messages(current_actor: nil, current_environment: "production")
+          allow(PgSqlTriggers::Permissions).to receive(:can?)
+            .with(nil, :view_triggers, environment: "production")
+            .and_return(false)
+        end
+
+        it "passes nil through to Permissions.can? for #can_view_triggers?" do
+          expect(test_controller.send(:can_view_triggers?)).to be false
+          expect(PgSqlTriggers::Permissions).to have_received(:can?)
+            .with(nil, :view_triggers, environment: "production")
+        end
+      end
+
+      context "when Permissions.can? raises in a predicate helper" do
+        before do
+          allow(test_controller).to receive_messages(
+            current_actor: { type: "User", id: "1" },
+            current_environment: "production"
+          )
+          allow(PgSqlTriggers::Permissions).to receive(:can?)
+            .with({ type: "User", id: "1" }, :view_triggers, environment: "production")
+            .and_raise(StandardError, "permission backend unavailable")
+        end
+
+        it "does not rescue; the error propagates" do
+          expect { test_controller.send(:can_view_triggers?) }
+            .to raise_error(StandardError, "permission backend unavailable")
+        end
+      end
+
+      context "when a custom permission_checker differentiates by environment" do
+        around do |example|
+          previous = PgSqlTriggers.permission_checker
+          PgSqlTriggers.permission_checker = lambda do |_actor, action, env|
+            action == :view_triggers && env == "development"
+          end
+          example.run
+        ensure
+          PgSqlTriggers.permission_checker = previous
+        end
+
+        before do
+          allow(test_controller).to receive_messages(
+            current_actor: { type: "User", id: "1" },
+            current_environment: environment
+          )
+        end
+
+        let(:environment) { "development" }
+
+        it "returns true when the checker allows development" do
+          expect(test_controller.send(:can_view_triggers?)).to be true
+        end
+
+        context "when current_environment is production" do
+          let(:environment) { "production" }
+
+          it "returns false when the checker denies non-development" do
+            expect(test_controller.send(:can_view_triggers?)).to be false
+          end
         end
       end
     end
