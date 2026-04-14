@@ -11,6 +11,8 @@ Complete reference for configuring PgSqlTriggers in your Rails application.
 - [Permission System](#permission-system)
 - [Environment Detection](#environment-detection)
 - [Drift alerting](#drift-alerting)
+- [schema.rb and structure.sql integration](#schemarb-and-structuresql-integration)
+- [Migration and Safety Settings](#migration-and-safety-settings)
 - [Advanced Configuration](#advanced-configuration)
 - [Examples](#examples)
 
@@ -424,6 +426,90 @@ PgSqlTriggers.configure do |config|
     Net::HTTP.post(uri, body.to_json, "Content-Type" => "application/json")
   end
 end
+```
+
+## schema.rb and structure.sql integration
+
+`rails db:schema:dump` cannot represent PostgreSQL triggers in `schema.rb`. PgSqlTriggers ships
+three opt-in hooks that keep triggers aligned with the Rails schema workflow.
+
+### `append_trigger_notes_to_schema_dump`
+
+When `true` (default), the engine prepends an extension onto `ActiveRecord::SchemaDumper` that
+appends a short comment block to `schema.rb` listing managed triggers and pointing at the
+relevant rake tasks. Disable it if you prefer `schema.rb` to be untouched.
+
+- **Type**: Boolean
+- **Default**: `true`
+
+```ruby
+config.append_trigger_notes_to_schema_dump = false
+```
+
+The annotation is suppressed automatically when `config.active_record.schema_format = :sql`.
+
+### `trigger_structure_sql_path`
+
+Path (or callable returning a path) for the SQL snapshot written by `rake trigger:dump` and
+read by `rake trigger:load`. Defaults to `Rails.root.join("db/trigger_structure.sql")`.
+
+- **Type**: `String`, `Pathname`, or callable returning one
+- **Default**: `nil` (uses `db/trigger_structure.sql`)
+
+```ruby
+config.trigger_structure_sql_path = Rails.root.join("db/triggers/snapshot.sql")
+
+# Or a lambda (useful for multi-tenant setups)
+config.trigger_structure_sql_path = -> {
+  Rails.root.join("db/triggers", "#{Apartment::Tenant.current}.sql")
+}
+```
+
+`FILE=path` or `TRIGGER_STRUCTURE_SQL=path` on the rake command line overrides this value per
+invocation.
+
+### `migrate_triggers_after_schema_load`
+
+When `true` (default), `db:schema:load` is enhanced to automatically invoke `trigger:migrate`
+after the schema has been loaded so pending trigger migrations apply to a freshly-loaded
+database.
+
+- **Type**: Boolean
+- **Default**: `true`
+
+```ruby
+config.migrate_triggers_after_schema_load = false
+```
+
+Set the environment variable `SKIP_TRIGGER_MIGRATE_AFTER_SCHEMA_LOAD=1` to skip the hook for a
+single invocation without changing configuration.
+
+## Migration and Safety Settings
+
+### `excluded_tables`
+
+Tables whose triggers are ignored by drift detection and registry listings. Useful when other
+systems (e.g. auditing extensions, logical replication) manage triggers on tables you do not
+want pg_sql_triggers to touch.
+
+- **Type**: Array of strings/symbols
+- **Default**: `[]`
+
+```ruby
+config.excluded_tables = %w[ar_internal_metadata schema_migrations]
+```
+
+### `allow_unsafe_migrations`
+
+When `false` (default), trigger migrations are vetted by `PgSqlTriggers::Migrator::SafetyValidator`
+before they execute. Setting this to `true` bypasses safety checks entirely — intended only for
+local development or one-off recovery operations.
+
+- **Type**: Boolean
+- **Default**: `false`
+
+```ruby
+config.allow_unsafe_migrations = Rails.env.development?
 ```
 
 ## Advanced Configuration

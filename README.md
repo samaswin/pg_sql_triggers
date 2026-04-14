@@ -112,6 +112,14 @@ For a single SQL artifact that includes tables and triggers, set `config.active_
 ### Drift Detection
 Automatically detect when database triggers drift from your DSL definitions. N+1-free bulk detection across all triggers.
 
+### Drift Alerting
+Configure `PgSqlTriggers.drift_notifier` to push alerts to Slack, PagerDuty, email, or any external system when drift detection finds drifted, dropped, or unknown triggers. Schedule `rake trigger:check_drift` (with optional `FAIL_ON_DRIFT=1`) for CI or cron-based monitoring. An `ActiveSupport::Notifications` event `pg_sql_triggers.drift_check` is emitted on every run for APM instrumentation.
+
+### Advanced PostgreSQL Trigger Features
+- **Column-level `UPDATE OF` triggers** — `on_update_of(:email, :status)` fires only when specific columns change, a common audit/performance optimisation.
+- **Constraint triggers with deferral** — `constraint_trigger!` plus `deferrable` / `initially` options emit `CREATE CONSTRAINT TRIGGER ... DEFERRABLE INITIALLY DEFERRED` for referential-integrity patterns that need to fire at transaction commit.
+- **Ordering hints** — `depends_on "other_trigger"` captures intended firing order among same-table triggers. PostgreSQL fires same-kind triggers alphabetically; `rake trigger:validate_order` (and `Registry.validate!`) verifies declared dependencies, flags cycles, and enforces name-ordering so declared order matches execution order.
+
 ### Production Kill Switch
 Multi-layered safety mechanism preventing accidental destructive operations in production environments.
 
@@ -121,6 +129,7 @@ Visual interface for managing triggers and running migrations. Includes:
 - **Last Applied Tracking**: See when triggers were last applied with human-readable timestamps
 - **Breadcrumb Navigation**: Easy navigation between dashboard, tables, and triggers
 - **Permission-Aware UI**: Buttons show/hide based on user role
+- **Search, Filter, and Pagination**: Filter triggers by table, drift state, or source; full-text search on name/table; offset/limit pagination (`?table=users&state=drifted&source=dsl&q=email&trigger_page=2&trigger_per_page=20`)
 
 ### Audit Logging
 Comprehensive audit trail for all trigger operations:
@@ -183,9 +192,9 @@ To install this gem locally, run `bundle exec rake install`. To release a new ve
 
 ## Test Coverage
 
-See [COVERAGE.md](COVERAGE.md) for detailed coverage information.
-
-**Total Coverage: 84.97%**
+See [COVERAGE.md](COVERAGE.md) for detailed coverage information. The bundled report was
+generated against an earlier tree and will be regenerated as part of the next release cycle
+(run `bundle exec rspec` with SimpleCov, then `ruby scripts/generate_coverage_report.rb`).
 
 ## Contributing
 

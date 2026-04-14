@@ -7,9 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+No changes yet.
+
+## [1.5.0] - 2026-04-14
+
 These notes follow the phased gap analysis in [`IMPLEMENTATION_PLAN.md`](IMPLEMENTATION_PLAN.md)
-(baseline **v1.4.0**). Shipped work below is present on the main branch but not yet tagged;
-**Planned** lists remaining items from that document (or follow-ups).
+(baseline **v1.4.0**). This release ships Phase 0 cleanup, Phase 1 routing-test hardening,
+Phase 2 production readiness (drift alerting, dashboard search/filter/pagination), Phase 3
+PostgreSQL feature parity (column-level `UPDATE OF`, constraint triggers with deferral,
+`schema.rb` / `structure.sql` integration), and Phase 4 trigger ordering hints.
 
 ### Added
 

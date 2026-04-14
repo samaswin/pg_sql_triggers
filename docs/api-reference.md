@@ -607,6 +607,111 @@ timing :after   # Trigger fires after constraint checks
 **Parameters**:
 - `timing_value` (Symbol or String): Either `:before` or `:after`
 
+#### `on_update_of(*columns)`
+
+Column-level trigger. Sets the event to `update` and records the column list; the generated
+SQL emits `UPDATE OF "col1", "col2"` so the trigger only fires when those columns change.
+
+```ruby
+on_update_of :email, :status
+```
+
+**Parameters**:
+- `columns` (Symbols or Strings): One or more simple SQL identifiers
+
+Notes: calling `on(...)` clears the column list. The column list is part of the checksum.
+Names must match `[a-zA-Z_][a-zA-Z0-9_]*` — invalid identifiers are rejected by the validator.
+
+#### `constraint_trigger!` / `self.deferrable =` / `self.initially =`
+
+Declares a `CREATE CONSTRAINT TRIGGER` (instead of a regular `CREATE TRIGGER`) and optionally
+makes it deferrable.
+
+```ruby
+constraint_trigger!
+self.deferrable = :deferrable
+self.initially  = :deferred
+```
+
+**Valid values**:
+- `deferrable`: `:deferrable`, `:not_deferrable`, or `nil`
+- `initially`: `:deferred`, `:immediate`, or `nil` (only when `deferrable == :deferrable`)
+
+**Rules** enforced by `Registry::Validator`:
+- `deferrable` / `initially` require `constraint_trigger!`.
+- Constraint triggers must use `timing :after` and cannot use `:truncate` events.
+- `initially` requires `deferrable = :deferrable`.
+
+Drift detection reads deferral state from `pg_trigger.tgdeferrable` and `pg_trigger.tginitdeferred`,
+so out-of-band modifications are detected.
+
+#### `depends_on(*names)`
+
+Declares that this trigger must run after the named trigger(s) on the same table. PostgreSQL
+fires same-kind triggers in **alphabetical name order**, so `depends_on` does not change runtime
+ordering — it is a metadata hint that `Registry::Validator` uses to verify declared intent
+matches naming.
+
+```ruby
+depends_on "validate_user_email"
+depends_on "a_trigger", "b_trigger"
+```
+
+**Validation** (`rake trigger:validate_order` or `Registry.validate!`) checks:
+- Referenced triggers exist as DSL entries.
+- Prerequisite is on the same table with the same timing and `FOR EACH` granularity.
+- Events overlap with the dependent.
+- No circular dependencies.
+- The prerequisite's name sorts alphabetically before the dependent's.
+
+Related DSL triggers are surfaced on the trigger detail page via
+`Registry::Validator.related_triggers_for_show`.
+
+## Drift Alerting API
+
+### `PgSqlTriggers::Drift.check_and_notify`
+
+Convenience wrapper for `PgSqlTriggers::Alerting.check_and_notify`. Runs full drift detection,
+invokes `PgSqlTriggers.drift_notifier` when any result is in a drifted / dropped / unknown
+state, and emits an `ActiveSupport::Notifications` event `pg_sql_triggers.drift_check`.
+
+```ruby
+outcome = PgSqlTriggers::Drift.check_and_notify
+outcome[:results]    # All drift detection results
+outcome[:alertable]  # Subset that triggered notification
+outcome[:notified]   # true if the drift_notifier was called successfully
+```
+
+**Notifier signature**:
+```ruby
+PgSqlTriggers.drift_notifier = lambda do |drift_results, all_results:|
+  # drift_results: Array of alertable hashes (drifted / dropped / unknown)
+  # all_results: full result set for context
+end
+```
+
+Errors raised by the notifier are caught, logged to `Rails.logger`, and surfaced via the
+`:notifier_error` key on the `pg_sql_triggers.drift_check` notification payload.
+
+## Registry Validator API
+
+### `PgSqlTriggers::Registry::Validator.validate!`
+
+Loads all DSL triggers from the registry and raises `PgSqlTriggers::ValidationError` when any
+are misconfigured. Validates events, timing, `for_each`, column lists, deferral combinations,
+and `depends_on` references (existence, table/timing/granularity/event overlap, cycles, and
+alphabetical name order).
+
+### `PgSqlTriggers::Registry::Validator.trigger_order_validation_errors`
+
+Returns only the dependency/order error messages (without raising). Used by
+`rake trigger:validate_order`.
+
+### `PgSqlTriggers::Registry::Validator.related_triggers_for_show(record)`
+
+Returns `{ prerequisites: [...], dependents: [...] }` — arrays of `TriggerRegistry` records
+declared via `depends_on`. Used by the trigger detail view.
+
 ## TriggerRegistry Model
 
 The `TriggerRegistry` ActiveRecord model represents a trigger in the registry.
@@ -778,6 +883,34 @@ prod_triggers = PgSqlTriggers::TriggerRegistry.for_environment("production")
 - `env` (String or Symbol): Environment name
 
 **Returns**: Array of `TriggerRegistry` records
+
+## Rake Tasks
+
+| Task | Description |
+|------|-------------|
+| `trigger:migrate` | Apply pending trigger migrations (respects kill switch). |
+| `trigger:rollback [STEP=n]` | Rollback trigger migrations. |
+| `trigger:migrate:status` | Show status of all trigger migrations. |
+| `trigger:migrate:up VERSION=…` | Run a specific migration up. |
+| `trigger:migrate:down VERSION=…` | Run a specific migration down. |
+| `trigger:migrate:redo [STEP=n\|VERSION=…]` | Rollback and re-apply. |
+| `trigger:version` | Print the current trigger migration version. |
+| `trigger:abort_if_pending_migrations` | Raise if pending trigger migrations exist. |
+| `trigger:check_drift [FAIL_ON_DRIFT=1]` | Run drift detection; invoke `drift_notifier`; optionally exit non-zero on drift. |
+| `trigger:validate_order` | Validate `depends_on` references, cycles, compatibility, and PostgreSQL name order. |
+| `trigger:dump [FILE=…]` | Write managed triggers to `db/trigger_structure.sql` (or `FILE=…`). |
+| `trigger:load [FILE=…]` | Execute SQL from the snapshot file (respects kill switch). |
+| `db:migrate:with_triggers` | Run `db:migrate` then `trigger:migrate`. |
+| `db:rollback:with_triggers` | Rollback the most recent schema or trigger migration. |
+| `db:migrate:status:with_triggers` | Show both schema and trigger migration status. |
+| `db:version:with_triggers` | Show both schema and trigger current versions. |
+
+`ENV` flags that apply across tasks:
+
+- `CONFIRMATION_TEXT=…` — satisfy the kill switch in protected environments.
+- `SKIP_TRIGGER_MIGRATE_AFTER_SCHEMA_LOAD=1` — skip the `db:schema:load` → `trigger:migrate`
+  hook for a single invocation.
+- `TRIGGER_STRUCTURE_SQL=path` — alternative to `FILE=path` for `trigger:dump` / `trigger:load`.
 
 ## Usage Examples
 

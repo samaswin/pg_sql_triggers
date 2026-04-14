@@ -91,6 +91,80 @@ timing :before  # Trigger fires before constraint checks (default)
 timing :after   # Trigger fires after constraint checks
 ```
 
+#### `on_update_of`
+Declares a **column-level** trigger that fires only when specific columns change
+(PostgreSQL `UPDATE OF col1, col2`). This is a common performance optimisation for audit
+triggers: they run only when the columns you care about are modified.
+
+```ruby
+on_update_of :email, :status   # Sets event to UPDATE and records columns
+```
+
+Notes:
+- `on_update_of` sets the event to `update` and stores the column list; calling `on(...)` again
+  clears the column list.
+- Column names must be simple SQL identifiers (`[a-zA-Z_][a-zA-Z0-9_]*`). The gem quotes them
+  in generated SQL, so pass them unquoted.
+- The column list is included in the checksum, so changing the list is detected as drift.
+
+#### `constraint_trigger!` / `deferrable` / `initially`
+Declares a **constraint trigger** (`CREATE CONSTRAINT TRIGGER`) with optional deferral. Constraint
+triggers must be `AFTER` triggers, cannot use `TRUNCATE`, and are the only triggers that can be
+deferred.
+
+```ruby
+PgSqlTriggers::DSL.pg_sql_trigger "orders_integrity_check" do
+  table :orders
+  on :insert, :update
+  function :check_orders_referential_integrity
+
+  constraint_trigger!         # Emits CREATE CONSTRAINT TRIGGER, forces timing :after
+  self.deferrable = :deferrable
+  self.initially  = :deferred # Evaluate at transaction commit
+end
+```
+
+Valid combinations:
+
+| `deferrable`        | `initially`                | SQL clause                          |
+|---------------------|----------------------------|-------------------------------------|
+| `:deferrable`       | `:deferred`                | `DEFERRABLE INITIALLY DEFERRED`     |
+| `:deferrable`       | `:immediate` (or `nil`)    | `DEFERRABLE INITIALLY IMMEDIATE`    |
+| `:not_deferrable`   | (must be `nil`)            | `NOT DEFERRABLE`                    |
+| `nil`               | `nil`                      | (no deferral clause)                |
+
+`Registry::Validator` rejects `deferrable`/`initially` unless `constraint_trigger!` is set,
+and rejects constraint triggers that use `:before` timing or `TRUNCATE` events. Drift detection
+reads deferral state from `pg_trigger.tgdeferrable` / `tginitdeferred` so changes made outside
+the gem are surfaced as drift.
+
+#### `depends_on`
+Declares an **ordering hint** relative to another trigger on the same table. PostgreSQL fires
+same-kind triggers in alphabetical order by name; `depends_on` captures the intended order so the
+registry validator can verify that naming matches dependency declarations.
+
+```ruby
+PgSqlTriggers::DSL.pg_sql_trigger "log_user_change" do
+  table :users
+  on :insert, :update
+  function :log_user_change
+  timing :after
+
+  depends_on "validate_user_email"   # Must exist on same table, same timing/FOR EACH, overlapping events
+end
+```
+
+Run `rake trigger:validate_order` (or `PgSqlTriggers::Registry.validate!`) to enforce:
+
+- Referenced prerequisite triggers exist and are on the same table.
+- Prerequisites share timing (`before`/`after`), `FOR EACH` granularity, and have at least one
+  overlapping event with the dependent.
+- There are no circular dependencies.
+- Names sort alphabetically in the required order (the prerequisite's name must sort before
+  the dependent's).
+
+The trigger detail page in the web UI displays prerequisites and dependents for DSL triggers.
+
 ### Complete Example
 
 ```ruby
