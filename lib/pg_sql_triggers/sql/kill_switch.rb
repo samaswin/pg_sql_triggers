@@ -51,7 +51,8 @@ module PgSqlTriggers
         if PgSqlTriggers.respond_to?(:default_environment) && PgSqlTriggers.default_environment.respond_to?(:call)
           begin
             return PgSqlTriggers.default_environment.call.to_s
-          rescue NameError, NoMethodError => e # rubocop:disable Lint/ShadowedException
+          rescue NameError => e
+            # NoMethodError inherits from NameError, so both are rescued by this clause.
             logger&.debug "[KILL_SWITCH] Could not resolve default_environment: #{e.message}"
           end
         end

@@ -17,70 +17,52 @@ module PgSqlTriggers
     validates :operation, presence: true
     validates :status, presence: true, inclusion: { in: %w[success failure] }
 
+    # Known keyword options accepted by log_success / log_failure, in addition to
+    # +operation+ (required for both) and +error_message+ (required for log_failure).
+    SUCCESS_ATTRS = %i[trigger_name actor environment reason confirmation_text
+                       before_state after_state diff].freeze
+    FAILURE_ATTRS = %i[trigger_name actor environment reason confirmation_text before_state].freeze
+
     # Class methods for logging operations
     class << self
-      # Log a successful operation
+      # Log a successful operation.
       #
-      # @param operation [Symbol, String] The operation being performed
-      # @param trigger_name [String, nil] The trigger name (if applicable)
-      # @param actor [Hash] Information about who performed the action
-      # @param environment [String, nil] The environment
-      # @param reason [String, nil] Reason for the operation
-      # @param confirmation_text [String, nil] Confirmation text used
-      # @param before_state [Hash, nil] State before operation
-      # @param after_state [Hash, nil] State after operation
-      # @param diff [String, nil] Diff information
-      # rubocop:disable Metrics/ParameterLists
-      def log_success(operation:, trigger_name: nil, actor: nil, environment: nil,
-                      reason: nil, confirmation_text: nil, before_state: nil,
-                      after_state: nil, diff: nil)
+      # Required: +operation:+ (Symbol/String).
+      # Optional (all via keyword args): trigger_name, actor, environment, reason,
+      # confirmation_text, before_state, after_state, diff.
+      def log_success(operation:, **options)
+        attrs = options.slice(*SUCCESS_ATTRS)
         create!(
-          trigger_name: trigger_name,
-          operation: operation.to_s,
-          actor: serialize_actor(actor),
-          environment: environment,
-          status: "success",
-          reason: reason,
-          confirmation_text: confirmation_text,
-          before_state: before_state,
-          after_state: after_state,
-          diff: diff
+          attrs.merge(
+            operation: operation.to_s,
+            actor: serialize_actor(attrs[:actor]),
+            status: "success"
+          )
         )
       rescue StandardError => e
         Rails.logger.error("Failed to log audit entry: #{e.message}") if defined?(Rails.logger)
         nil
       end
-      # rubocop:enable Metrics/ParameterLists
 
-      # Log a failed operation
+      # Log a failed operation.
       #
-      # @param operation [Symbol, String] The operation being performed
-      # @param trigger_name [String, nil] The trigger name (if applicable)
-      # @param actor [Hash] Information about who performed the action
-      # @param environment [String, nil] The environment
-      # @param error_message [String] Error message
-      # @param reason [String, nil] Reason for the operation (if provided before failure)
-      # @param confirmation_text [String, nil] Confirmation text used
-      # @param before_state [Hash, nil] State before operation
-      # rubocop:disable Metrics/ParameterLists
-      def log_failure(operation:, error_message:, trigger_name: nil, actor: nil, environment: nil, reason: nil,
-                      confirmation_text: nil, before_state: nil)
+      # Required: +operation:+ (Symbol/String) and +error_message:+ (String).
+      # Optional (all via keyword args): trigger_name, actor, environment, reason,
+      # confirmation_text, before_state.
+      def log_failure(operation:, error_message:, **options)
+        attrs = options.slice(*FAILURE_ATTRS)
         create!(
-          trigger_name: trigger_name,
-          operation: operation.to_s,
-          actor: serialize_actor(actor),
-          environment: environment,
-          status: "failure",
-          error_message: error_message,
-          reason: reason,
-          confirmation_text: confirmation_text,
-          before_state: before_state
+          attrs.merge(
+            operation: operation.to_s,
+            actor: serialize_actor(attrs[:actor]),
+            status: "failure",
+            error_message: error_message
+          )
         )
       rescue StandardError => e
         Rails.logger.error("Failed to log audit entry: #{e.message}") if defined?(Rails.logger)
         nil
       end
-      # rubocop:enable Metrics/ParameterLists
 
       # Get audit log entries for a specific trigger
       #

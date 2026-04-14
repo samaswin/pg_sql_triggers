@@ -18,7 +18,6 @@ RSpec.describe PgSqlTriggers::Drift::Detector do
   end
 
   describe ".detect" do
-    # rubocop:disable RSpec/MultipleMemoizedHelpers
     context "when trigger is in sync" do
       let!(:registry_entry) do
         create(:trigger_registry, :enabled, :dsl_source, :in_sync,
@@ -208,10 +207,8 @@ RSpec.describe PgSqlTriggers::Drift::Detector do
         expect(result[:details]).to include("manual")
       end
     end
-    # rubocop:enable RSpec/MultipleMemoizedHelpers
   end
 
-  # rubocop:disable RSpec/MultipleMemoizedHelpers
   describe ".detect_all" do
     let(:db_triggers) do
       [
@@ -270,9 +267,7 @@ RSpec.describe PgSqlTriggers::Drift::Detector do
       expect(unknown[:state]).to eq(PgSqlTriggers::DRIFT_STATE_UNKNOWN)
     end
   end
-  # rubocop:enable RSpec/MultipleMemoizedHelpers
 
-  # rubocop:disable RSpec/MultipleMemoizedHelpers
   describe ".detect_for_table" do
     let(:users_db_triggers) do
       [
@@ -318,5 +313,4 @@ RSpec.describe PgSqlTriggers::Drift::Detector do
       expect(results.first[:state]).to eq(PgSqlTriggers::DRIFT_STATE_IN_SYNC)
     end
   end
-  # rubocop:enable RSpec/MultipleMemoizedHelpers
 end

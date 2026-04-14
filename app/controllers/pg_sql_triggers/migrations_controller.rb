@@ -82,13 +82,13 @@ module PgSqlTriggers
         return
       end
 
-      if target_version
-        redo_target_migration(target_version, current_version)
-      else
-        PgSqlTriggers::Migrator.run_down
-        PgSqlTriggers::Migrator.run_up
-        flash[:success] = "Last migration redone successfully."
-      end
+      flash[:success] = if target_version
+                          redo_target_migration(target_version, current_version)
+                        else
+                          PgSqlTriggers::Migrator.run_down
+                          PgSqlTriggers::Migrator.run_up
+                          "Last migration redone successfully."
+                        end
       redirect_to root_path
     rescue PgSqlTriggers::KillSwitchError => e
       flash[:error] = e.message
@@ -107,10 +107,11 @@ module PgSqlTriggers
       redirect_to root_path, alert: "Insufficient permissions. Operator role required."
     end
 
+    # Returns the flash message that should be set by the caller after a successful redo.
     def redo_target_migration(target_version, current_version)
-      # For redo, we need to rollback the specific migration and re-apply it
-      # If target_version is the current version, rollback the last migration
-      # Otherwise, rollback to one version before target, then run up to target
+      # For redo, we need to rollback the specific migration and re-apply it.
+      # If target_version is the current version, rollback the last migration.
+      # Otherwise, rollback to one version before target, then run up to target.
       if current_version == target_version
         # Rollback the last migration (which is the target)
         PgSqlTriggers::Migrator.run_down
@@ -119,15 +120,12 @@ module PgSqlTriggers
       else
         # Target version is not applied yet, just run it up
         PgSqlTriggers::Migrator.run_up(target_version)
-        flash[:success] = "Migration #{target_version} redone successfully."
-        return
+        return "Migration #{target_version} redone successfully."
       end
 
       # Now run up to the target version
       PgSqlTriggers::Migrator.run_up(target_version)
-      # rubocop:disable Rails/ActionControllerFlashBeforeRender -- `redo` redirects after this helper returns
-      flash[:success] = "Migration #{target_version} redone successfully."
-      # rubocop:enable Rails/ActionControllerFlashBeforeRender
+      "Migration #{target_version} redone successfully."
     end
 
     def rollback_to_before_target(target_version)

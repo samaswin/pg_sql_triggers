@@ -18,61 +18,75 @@ module PgSqlTriggers
     SOURCE_OPTIONS = %w[dsl generated manual_sql].freeze
 
     def index
+      load_filters
+      load_triggers
+      load_migration_status
+    end
+
+    private
+
+    def load_filters
       @filter_table = params[:table].presence
       @filter_state = params[:state].presence
       @filter_source = params[:source].presence
       @filter_query = params[:q].presence
+    end
 
+    def load_triggers
       ordered = PgSqlTriggers::TriggerRegistry.order(
         Arel.sql("COALESCE(installed_at, created_at) DESC")
       )
-
       drift_results = PgSqlTriggers::Drift::Detector.detect_all
       @stats = build_stats(ordered, drift_results)
 
       filtered = apply_trigger_filters(ordered, drift_results)
       @trigger_list_total = filtered.count
 
-      @trigger_per_page = (params[:trigger_per_page] || 20).to_i
-      @trigger_per_page = [@trigger_per_page, 100].min
+      paginate_triggers(filtered)
+      @filter_table_names = PgSqlTriggers::TriggerRegistry.distinct.order(:table_name).pluck(:table_name)
+    end
+
+    def paginate_triggers(filtered)
+      @trigger_per_page = [(params[:trigger_per_page] || 20).to_i, 100].min
       @trigger_page = (params[:trigger_page] || 1).to_i
       @trigger_total_pages = @trigger_list_total.positive? ? (@trigger_list_total.to_f / @trigger_per_page).ceil : 1
       @trigger_page = @trigger_page.clamp(1, [@trigger_total_pages, 1].max)
 
       offset = (@trigger_page - 1) * @trigger_per_page
       @triggers = filtered.offset(offset).limit(@trigger_per_page)
-
-      @filter_table_names = PgSqlTriggers::TriggerRegistry.distinct.order(:table_name).pluck(:table_name)
-
-      # Migration status with pagination
-      begin
-        all_migrations = PgSqlTriggers::Migrator.status
-        @pending_migrations = PgSqlTriggers::Migrator.pending_migrations
-        @current_migration_version = PgSqlTriggers::Migrator.current_version
-
-        # Pagination (migrations use page / per_page)
-        @per_page = (params[:per_page] || 20).to_i
-        @per_page = [@per_page, 100].min # Cap at 100
-        @page = (params[:page] || 1).to_i
-        @total_migrations = all_migrations.count
-        @total_pages = @total_migrations.positive? ? (@total_migrations.to_f / @per_page).ceil : 1
-        @page = @page.clamp(1, @total_pages) # Ensure page is within valid range
-
-        migration_offset = (@page - 1) * @per_page
-        @migration_status = all_migrations.slice(migration_offset, @per_page) || []
-      rescue StandardError => e
-        Rails.logger.error("Failed to fetch migration status: #{e.message}")
-        @migration_status = []
-        @pending_migrations = []
-        @current_migration_version = 0
-        @total_migrations = 0
-        @total_pages = 1
-        @page = 1
-        @per_page = 20
-      end
     end
 
-    private
+    def load_migration_status
+      all_migrations = PgSqlTriggers::Migrator.status
+      @pending_migrations = PgSqlTriggers::Migrator.pending_migrations
+      @current_migration_version = PgSqlTriggers::Migrator.current_version
+
+      paginate_migrations(all_migrations)
+    rescue StandardError => e
+      Rails.logger.error("Failed to fetch migration status: #{e.message}")
+      reset_migration_defaults
+    end
+
+    def paginate_migrations(all_migrations)
+      @per_page = [(params[:per_page] || 20).to_i, 100].min
+      @page = (params[:page] || 1).to_i
+      @total_migrations = all_migrations.count
+      @total_pages = @total_migrations.positive? ? (@total_migrations.to_f / @per_page).ceil : 1
+      @page = @page.clamp(1, @total_pages)
+
+      migration_offset = (@page - 1) * @per_page
+      @migration_status = all_migrations.slice(migration_offset, @per_page) || []
+    end
+
+    def reset_migration_defaults
+      @migration_status = []
+      @pending_migrations = []
+      @current_migration_version = 0
+      @total_migrations = 0
+      @total_pages = 1
+      @page = 1
+      @per_page = 20
+    end
 
     def build_stats(ordered_scope, drift_results)
       {

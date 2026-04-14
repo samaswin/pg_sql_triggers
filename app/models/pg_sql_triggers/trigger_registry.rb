@@ -21,7 +21,9 @@ module PgSqlTriggers
   # @example Drop and re-execute triggers
   #   trigger.drop!(reason: "No longer needed", actor: current_user, confirmation: "EXECUTE TRIGGER_DROP")
   #   trigger.re_execute!(reason: "Fix drift", actor: current_user, confirmation: "EXECUTE TRIGGER_RE_EXECUTE")
-  # rubocop:disable Metrics/ClassLength
+  # rubocop:disable Metrics/ClassLength -- core AR model: groups lifecycle operations
+  # (enable!/disable!/drop!/re_execute!), drift helpers, audit hooks, and SQL builders.
+  # Splitting further would fragment tightly-coupled state and audit concerns.
   class TriggerRegistry < PgSqlTriggers::ApplicationRecord
     self.table_name = "pg_sql_triggers_registry"
 
@@ -129,32 +131,12 @@ module PgSqlTriggers
         end
       end
 
-      # Update the registry record (always update, even if trigger doesn't exist)
-      begin
-        update!(enabled: true)
-        after_state = capture_state
-        log_audit_success(:trigger_enable, actor, before_state: before_state, after_state: after_state)
-      rescue ActiveRecord::StatementInvalid, StandardError => e
-        # If update! fails, try update_column which bypasses validations and callbacks
-        # and might not use execute in the same way
-        Rails.logger.warn("Could not update registry via update!: #{e.message}") if defined?(Rails.logger)
-        begin
-          # rubocop:disable Rails/SkipsModelValidations
-          update_column(:enabled, true)
-          # rubocop:enable Rails/SkipsModelValidations
-          after_state = capture_state
-          log_audit_success(:trigger_enable, actor, before_state: before_state, after_state: after_state)
-        rescue StandardError => update_error
-          # If update_column also fails, just set the in-memory attribute
-          # The test might reload, but we've done our best
-          # rubocop:disable Layout/LineLength
-          Rails.logger.warn("Could not update registry via update_column: #{update_error.message}") if defined?(Rails.logger)
-          # rubocop:enable Layout/LineLength
-          self.enabled = true
-          after_state = capture_state
-          log_audit_success(:trigger_enable, actor, before_state: before_state, after_state: after_state)
-        end
-      end
+      # Update the registry record (always update, even if trigger doesn't exist).
+      # If persistence fails for any reason, fall back to the in-memory attribute so
+      # callers/observers still see a consistent state for this request.
+      persist_enabled_state(true)
+      after_state = capture_state
+      log_audit_success(:trigger_enable, actor, before_state: before_state, after_state: after_state)
     end
 
     # Disables this trigger in the database and updates the registry.
@@ -201,32 +183,12 @@ module PgSqlTriggers
         end
       end
 
-      # Update the registry record (always update, even if trigger doesn't exist)
-      begin
-        update!(enabled: false)
-        after_state = capture_state
-        log_audit_success(:trigger_disable, actor, before_state: before_state, after_state: after_state)
-      rescue ActiveRecord::StatementInvalid, StandardError => e
-        # If update! fails, try update_column which bypasses validations and callbacks
-        # and might not use execute in the same way
-        Rails.logger.warn("Could not update registry via update!: #{e.message}") if defined?(Rails.logger)
-        begin
-          # rubocop:disable Rails/SkipsModelValidations
-          update_column(:enabled, false)
-          # rubocop:enable Rails/SkipsModelValidations
-          after_state = capture_state
-          log_audit_success(:trigger_disable, actor, before_state: before_state, after_state: after_state)
-        rescue StandardError => update_error
-          # If update_column also fails, just set the in-memory attribute
-          # The test might reload, but we've done our best
-          # rubocop:disable Layout/LineLength
-          Rails.logger.warn("Could not update registry via update_column: #{update_error.message}") if defined?(Rails.logger)
-          # rubocop:enable Layout/LineLength
-          self.enabled = false
-          after_state = capture_state
-          log_audit_success(:trigger_disable, actor, before_state: before_state, after_state: after_state)
-        end
-      end
+      # Update the registry record (always update, even if trigger doesn't exist).
+      # If persistence fails for any reason, fall back to the in-memory attribute so
+      # callers/observers still see a consistent state for this request.
+      persist_enabled_state(false)
+      after_state = capture_state
+      log_audit_success(:trigger_disable, actor, before_state: before_state, after_state: after_state)
     end
 
     # Drops this trigger from the database and removes it from the registry.
@@ -515,9 +477,7 @@ module PgSqlTriggers
       }
     end
 
-    # rubocop:disable Metrics/ParameterLists
-    def log_audit_success(operation, actor, reason: nil, confirmation_text: nil,
-                          before_state: nil, after_state: nil, diff: nil)
+    def log_audit_success(operation, actor, **options)
       return unless defined?(PgSqlTriggers::AuditLog)
 
       PgSqlTriggers::AuditLog.log_success(
@@ -525,18 +485,13 @@ module PgSqlTriggers
         trigger_name: trigger_name,
         actor: actor,
         environment: Rails.env,
-        reason: reason,
-        confirmation_text: confirmation_text,
-        before_state: before_state,
-        after_state: after_state,
-        diff: diff
+        **options
       )
     rescue StandardError => e
       Rails.logger.error("Failed to log audit entry: #{e.message}") if defined?(Rails.logger)
     end
 
-    def log_audit_failure(operation, actor, error_message, reason: nil,
-                          confirmation_text: nil, before_state: nil)
+    def log_audit_failure(operation, actor, error_message, **options)
       return unless defined?(PgSqlTriggers::AuditLog)
 
       PgSqlTriggers::AuditLog.log_failure(
@@ -545,14 +500,22 @@ module PgSqlTriggers
         actor: actor,
         environment: Rails.env,
         error_message: error_message,
-        reason: reason,
-        confirmation_text: confirmation_text,
-        before_state: before_state
+        **options
       )
     rescue StandardError => e
       Rails.logger.error("Failed to log audit entry: #{e.message}") if defined?(Rails.logger)
     end
-    # rubocop:enable Metrics/ParameterLists
+
+    # Persist the +enabled+ flag, with an in-memory fallback if the DB write fails.
+    # Returns true when the update was persisted, false when only the in-memory value changed.
+    def persist_enabled_state(value)
+      update!(enabled: value)
+      true
+    rescue ActiveRecord::StatementInvalid, StandardError => e
+      Rails.logger.warn("Could not persist enabled=#{value} on registry: #{e.message}") if defined?(Rails.logger)
+      self.enabled = value
+      false
+    end
   end
   # rubocop:enable Metrics/ClassLength
 end

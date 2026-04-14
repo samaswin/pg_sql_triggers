@@ -8,7 +8,9 @@ require_relative "migrator/pre_apply_diff_reporter"
 require_relative "migrator/safety_validator"
 
 module PgSqlTriggers
-  # rubocop:disable Metrics/ClassLength
+  # rubocop:disable Metrics/ClassLength -- singleton orchestrator for migration discovery,
+  # safety validation, pre-apply comparison, application, and registry cleanup.
+  # The class-method API is the public surface; splitting into collaborators would break callers.
   class Migrator
     MIGRATIONS_TABLE_NAME = "trigger_migrations"
 
@@ -162,108 +164,18 @@ module PgSqlTriggers
         end
       end
 
-      # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
       def run_migration(migration, direction)
         require migration.path
-
-        # Extract class name from migration name
-        # e.g., "posts_comment_count_validation" -> "PostsCommentCountValidation"
-        base_class_name = migration.name.camelize
-
-        # Try to find the class, trying multiple patterns:
-        # 1. Direct name (for backwards compatibility)
-        # 2. With "Add" prefix (for new migrations following Rails conventions)
-        # 3. With PgSqlTriggers namespace
-        migration_class = begin
-          base_class_name.constantize
-        rescue NameError
-          begin
-            # Try with "Add" prefix (Rails migration naming convention)
-            "Add#{base_class_name}".constantize
-          rescue NameError
-            begin
-              # Try with PgSqlTriggers namespace
-              "PgSqlTriggers::#{base_class_name}".constantize
-            rescue NameError
-              # Try with both Add prefix and PgSqlTriggers namespace
-              "PgSqlTriggers::Add#{base_class_name}".constantize
-            end
-          end
-        end
+        migration_class = resolve_migration_class(migration.name)
 
         # Capture SQL once from a single inspection instance so that both the
         # safety validator and comparator work from the same snapshot without
         # running the migration code a second time.
         captured_sql = capture_migration_sql(migration_class.new, direction)
 
-        # Perform safety validation (prevent unsafe DROP + CREATE operations)
-        begin
-          allow_unsafe = ENV["ALLOW_UNSAFE_MIGRATIONS"] == "true" ||
-                         (defined?(PgSqlTriggers) && PgSqlTriggers.allow_unsafe_migrations == true)
-
-          SafetyValidator.validate_sql!(captured_sql, direction: direction, allow_unsafe: allow_unsafe)
-        rescue SafetyValidator::UnsafeOperationError => e
-          # Safety validation failed - block the migration
-          error_msg = "\n#{e.message}\n\n"
-          Rails.logger.error(error_msg) if defined?(Rails.logger)
-          Rails.logger.debug error_msg if ENV["VERBOSE"] != "false" || defined?(Rails::Console)
-          raise StandardError, "Migration blocked due to unsafe DROP + CREATE operations. " \
-                               "Review the errors above and set ALLOW_UNSAFE_MIGRATIONS=true if you must proceed."
-        rescue StandardError => e
-          # Don't fail the migration if validation fails for other reasons - just log it
-          if defined?(Rails.logger)
-            Rails.logger.warn("Safety validation failed for migration #{migration.name}: #{e.message}")
-          end
-        end
-
-        # Perform pre-apply comparison (diff expected vs actual) using the same captured SQL
-        begin
-          diff_result = PreApplyComparator.compare_sql(captured_sql)
-
-          # Log the comparison result
-          if diff_result[:has_differences]
-            diff_report = PreApplyDiffReporter.format(diff_result, migration_name: migration.name)
-            if defined?(Rails.logger)
-              Rails.logger.warn("Pre-apply comparison for migration #{migration.name}:\n#{diff_report}")
-            end
-
-            # In verbose mode or when called from console, print the diff
-            if ENV["VERBOSE"] != "false" || defined?(Rails::Console)
-              Rails.logger.debug { "\n#{PreApplyDiffReporter.format_summary(diff_result)}\n" }
-            end
-          elsif defined?(Rails.logger)
-            Rails.logger.info(
-              "Pre-apply comparison: No differences detected for migration #{migration.name}"
-            )
-          end
-        rescue StandardError => e
-          # Don't fail the migration if comparison fails - just log it
-          if defined?(Rails.logger)
-            Rails.logger.warn("Pre-apply comparison failed for migration #{migration.name}: #{e.message}")
-          end
-        end
-
-        ActiveRecord::Base.transaction do
-          # Create a fresh instance for actual execution
-          migration_instance = migration_class.new
-          migration_instance.public_send(direction)
-
-          connection = ActiveRecord::Base.connection
-          version_str = connection.quote(migration.version.to_s)
-
-          if direction == :up
-            connection.execute(
-              "INSERT INTO #{MIGRATIONS_TABLE_NAME} (version) VALUES (#{version_str})"
-            )
-          else
-            connection.execute(
-              "DELETE FROM #{MIGRATIONS_TABLE_NAME} WHERE version = #{version_str}"
-            )
-            # Clean up registry entries for triggers that no longer exist in database
-            cleanup_orphaned_registry_entries
-          end
-        end
-
+        perform_safety_validation(captured_sql, migration)
+        perform_pre_apply_comparison(captured_sql, migration)
+        apply_migration(migration_class, migration, direction)
         enforce_disabled_triggers if direction == :up
       rescue LoadError => e
         raise StandardError, "Error loading trigger migration #{migration.filename}: #{e.message}"
@@ -271,7 +183,91 @@ module PgSqlTriggers
         raise StandardError,
               "Error running trigger migration #{migration.filename}: #{e.message}\n#{e.backtrace.first(5).join("\n")}"
       end
-      # rubocop:enable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
+
+      # Resolve the migration class from its snake_case filename. Tries several naming patterns
+      # so migrations can use plain CamelCase, "Add" prefix, or be nested under PgSqlTriggers.
+      def resolve_migration_class(migration_name)
+        base_class_name = migration_name.camelize
+        candidates = [
+          base_class_name,
+          "Add#{base_class_name}",
+          "PgSqlTriggers::#{base_class_name}",
+          "PgSqlTriggers::Add#{base_class_name}"
+        ]
+        last_error = nil
+        candidates.each do |candidate|
+          return candidate.constantize
+        rescue NameError => e
+          last_error = e
+        end
+        raise last_error
+      end
+
+      # Run the safety validator against captured SQL and translate any
+      # UnsafeOperationError into a generic StandardError that halts the migration.
+      def perform_safety_validation(captured_sql, migration)
+        allow_unsafe = ENV["ALLOW_UNSAFE_MIGRATIONS"] == "true" ||
+                       (defined?(PgSqlTriggers) && PgSqlTriggers.allow_unsafe_migrations == true)
+        SafetyValidator.validate_sql!(captured_sql, allow_unsafe: allow_unsafe)
+      rescue SafetyValidator::UnsafeOperationError => e
+        error_msg = "\n#{e.message}\n\n"
+        Rails.logger.error(error_msg) if defined?(Rails.logger)
+        Rails.logger.debug error_msg if ENV["VERBOSE"] != "false" || defined?(Rails::Console)
+        raise StandardError, "Migration blocked due to unsafe DROP + CREATE operations. " \
+                             "Review the errors above and set ALLOW_UNSAFE_MIGRATIONS=true if you must proceed."
+      rescue StandardError => e
+        # Don't fail the migration if validation fails for other reasons – just log it
+        return unless defined?(Rails.logger)
+
+        Rails.logger.warn("Safety validation failed for migration #{migration.name}: #{e.message}")
+      end
+
+      # Run the pre-apply comparator and log the results.
+      # Any failure in the comparator itself is swallowed and logged to avoid
+      # breaking migrations that are otherwise safe.
+      def perform_pre_apply_comparison(captured_sql, migration)
+        diff_result = PreApplyComparator.compare_sql(captured_sql)
+
+        if diff_result[:has_differences]
+          log_pre_apply_differences(diff_result, migration)
+        elsif defined?(Rails.logger)
+          Rails.logger.info("Pre-apply comparison: No differences detected for migration #{migration.name}")
+        end
+      rescue StandardError => e
+        return unless defined?(Rails.logger)
+
+        Rails.logger.warn("Pre-apply comparison failed for migration #{migration.name}: #{e.message}")
+      end
+
+      def log_pre_apply_differences(diff_result, migration)
+        diff_report = PreApplyDiffReporter.format(diff_result, migration_name: migration.name)
+        if defined?(Rails.logger)
+          msg = "Pre-apply comparison for migration #{migration.name}:\n#{diff_report}"
+          Rails.logger.warn(msg)
+        end
+        return unless ENV["VERBOSE"] != "false" || defined?(Rails::Console)
+
+        Rails.logger.debug { "\n#{PreApplyDiffReporter.format_summary(diff_result)}\n" }
+      end
+
+      # Execute the migration inside a transaction and record the version change.
+      def apply_migration(migration_class, migration, direction)
+        ActiveRecord::Base.transaction do
+          migration_class.new.public_send(direction)
+          record_migration_version(migration.version, direction)
+          cleanup_orphaned_registry_entries if direction == :down
+        end
+      end
+
+      def record_migration_version(version, direction)
+        connection = ActiveRecord::Base.connection
+        version_str = connection.quote(version.to_s)
+        if direction == :up
+          connection.execute("INSERT INTO #{MIGRATIONS_TABLE_NAME} (version) VALUES (#{version_str})")
+        else
+          connection.execute("DELETE FROM #{MIGRATIONS_TABLE_NAME} WHERE version = #{version_str}")
+        end
+      end
 
       def status
         ensure_migrations_table!

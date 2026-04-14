@@ -5,8 +5,9 @@ require_relative "../drift/db_queries"
 module PgSqlTriggers
   class Migrator
     # Pre-apply comparator that extracts expected SQL from migrations
-    # and compares it with the current database state
-    # rubocop:disable Metrics/ClassLength
+    # and compares it with the current database state.
+    # rubocop:disable Metrics/ClassLength -- all SQL parsing + diffing lives here so the two
+    # halves (parse migration SQL -> expected state, diff against actual) stay co-located.
     class PreApplyComparator
       class << self
         # Compare expected state from migration with actual database state
@@ -193,7 +194,6 @@ module PgSqlTriggers
         end
 
         # Generate diff between expected and actual state
-        # rubocop:disable Metrics/MethodLength
         def generate_diff(expected, actual)
           diff = {
             has_differences: false,
@@ -202,80 +202,84 @@ module PgSqlTriggers
             drops: expected[:drops] || []
           }
 
-          # Compare functions
           expected[:functions].each do |expected_func|
-            func_name = expected_func[:function_name]
-            actual_func = actual[:functions][func_name]
-
-            if !actual_func || !actual_func[:exists]
-              diff[:functions] << {
-                function_name: func_name,
-                status: :new,
-                expected: expected_func[:function_body],
-                actual: nil,
-                message: "Function will be created"
-              }
-              diff[:has_differences] = true
-            elsif actual_func[:function_body] != expected_func[:function_body]
-              diff[:functions] << {
-                function_name: func_name,
-                status: :modified,
-                expected: expected_func[:function_body],
-                actual: actual_func[:function_body],
-                message: "Function body differs from expected"
-              }
-              diff[:has_differences] = true
-            else
-              diff[:functions] << {
-                function_name: func_name,
-                status: :unchanged,
-                message: "Function matches expected state"
-              }
-            end
+            diff_entry = diff_function_entry(expected_func, actual[:functions][expected_func[:function_name]])
+            diff[:functions] << diff_entry
+            diff[:has_differences] = true if diff_entry[:status] != :unchanged
           end
 
-          # Compare triggers
           expected[:triggers].each do |expected_trigger|
-            trigger_name = expected_trigger[:trigger_name]
-            actual_trigger = actual[:triggers][trigger_name]
-
-            if !actual_trigger || !actual_trigger[:exists]
-              diff[:triggers] << {
-                trigger_name: trigger_name,
-                status: :new,
-                expected: expected_trigger[:full_sql],
-                actual: nil,
-                message: "Trigger will be created"
-              }
-              diff[:has_differences] = true
-            else
-              # Compare trigger definitions
-              expected_def = normalize_trigger_definition(expected_trigger)
-              actual_def = normalize_trigger_definition_from_db(actual_trigger)
-
-              if expected_def == actual_def
-                diff[:triggers] << {
-                  trigger_name: trigger_name,
-                  status: :unchanged,
-                  message: "Trigger matches expected state"
-                }
-              else
-                diff[:triggers] << {
-                  trigger_name: trigger_name,
-                  status: :modified,
-                  expected: expected_trigger[:full_sql],
-                  actual: actual_trigger[:trigger_definition],
-                  message: "Trigger definition differs from expected",
-                  differences: compare_trigger_details(expected_trigger, actual_trigger)
-                }
-                diff[:has_differences] = true
-              end
-            end
+            diff_entry = diff_trigger_entry(expected_trigger, actual[:triggers][expected_trigger[:trigger_name]])
+            diff[:triggers] << diff_entry
+            diff[:has_differences] = true if diff_entry[:status] != :unchanged
           end
 
           diff
         end
-        # rubocop:enable Metrics/MethodLength
+
+        # Build a single function diff entry (:new / :modified / :unchanged).
+        def diff_function_entry(expected_func, actual_func)
+          func_name = expected_func[:function_name]
+
+          if !actual_func || !actual_func[:exists]
+            {
+              function_name: func_name,
+              status: :new,
+              expected: expected_func[:function_body],
+              actual: nil,
+              message: "Function will be created"
+            }
+          elsif actual_func[:function_body] != expected_func[:function_body]
+            {
+              function_name: func_name,
+              status: :modified,
+              expected: expected_func[:function_body],
+              actual: actual_func[:function_body],
+              message: "Function body differs from expected"
+            }
+          else
+            {
+              function_name: func_name,
+              status: :unchanged,
+              message: "Function matches expected state"
+            }
+          end
+        end
+
+        # Build a single trigger diff entry (:new / :modified / :unchanged).
+        def diff_trigger_entry(expected_trigger, actual_trigger)
+          trigger_name = expected_trigger[:trigger_name]
+
+          if !actual_trigger || !actual_trigger[:exists]
+            return {
+              trigger_name: trigger_name,
+              status: :new,
+              expected: expected_trigger[:full_sql],
+              actual: nil,
+              message: "Trigger will be created"
+            }
+          end
+
+          expected_def = normalize_trigger_definition(expected_trigger)
+          actual_def = normalize_trigger_definition_from_db(actual_trigger)
+
+          if expected_def == actual_def
+            {
+              trigger_name: trigger_name,
+              status: :unchanged,
+              message: "Trigger matches expected state"
+            }
+          else
+            {
+              trigger_name: trigger_name,
+              status: :modified,
+              expected: expected_trigger[:full_sql],
+              actual: actual_trigger[:trigger_definition],
+              message: "Trigger definition differs from expected",
+              differences: compare_trigger_details(expected_trigger, actual_trigger)
+            }
+          end
+        end
 
         # Normalize trigger definition for comparison
         def normalize_trigger_definition(trigger)

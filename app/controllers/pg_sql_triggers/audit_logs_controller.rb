@@ -4,45 +4,62 @@ module PgSqlTriggers
   class AuditLogsController < ApplicationController
     before_action :check_viewer_permission
 
-    # rubocop:disable Layout/LineLength -- single SQL fragment for WHERE
-    TEXT_SEARCH_SQL = "trigger_name ILIKE :t OR operation ILIKE :t OR COALESCE(reason, '') ILIKE :t OR COALESCE(error_message, '') ILIKE :t"
-    # rubocop:enable Layout/LineLength
+    TEXT_SEARCH_SQL = [
+      "trigger_name ILIKE :t",
+      "operation ILIKE :t",
+      "COALESCE(reason, '') ILIKE :t",
+      "COALESCE(error_message, '') ILIKE :t"
+    ].join(" OR ").freeze
+
+    CSV_HEADERS = [
+      "ID", "Trigger Name", "Operation", "Status", "Environment",
+      "Actor Type", "Actor ID", "Reason", "Error Message",
+      "Created At"
+    ].freeze
 
     # GET /audit_logs
     # Display audit log entries with filtering and sorting
     def index
-      @audit_logs = PgSqlTriggers::AuditLog.all
+      scope = apply_filters(PgSqlTriggers::AuditLog.all)
+      @audit_logs = scope.order(created_at: sort_direction)
 
-      # Filter by trigger name
-      @audit_logs = @audit_logs.for_trigger(params[:trigger_name]) if params[:trigger_name].present?
+      paginate_audit_logs
+      load_filter_options
 
-      # Filter by operation
-      @audit_logs = @audit_logs.for_operation(params[:operation]) if params[:operation].present?
-
-      # Filter by status
-      if params[:status].present? && %w[success failure].include?(params[:status])
-        @audit_logs = @audit_logs.where(status: params[:status])
+      respond_to do |format|
+        format.html
+        format.csv { send_csv_response(scope) }
       end
+    end
 
-      # Filter by environment
-      @audit_logs = @audit_logs.for_environment(params[:environment]) if params[:environment].present?
+    private
 
-      # Filter by actor (search in JSONB field)
-      @audit_logs = @audit_logs.where("actor->>'id' = ?", params[:actor_id]) if params[:actor_id].present?
+    def apply_filters(scope)
+      scope = scope.for_trigger(params[:trigger_name]) if params[:trigger_name].present?
+      scope = scope.for_operation(params[:operation]) if params[:operation].present?
+      scope = scope.where(status: params[:status]) if valid_status?(params[:status])
+      scope = scope.for_environment(params[:environment]) if params[:environment].present?
+      scope = scope.where("actor->>'id' = ?", params[:actor_id]) if params[:actor_id].present?
+      apply_text_search(scope)
+    end
 
-      # Free-text search across common columns
-      if params[:q].present?
-        term = "%#{ActiveRecord::Base.sanitize_sql_like(params[:q].to_s.strip)}%"
-        @audit_logs = @audit_logs.where(TEXT_SEARCH_SQL, t: term)
-      end
+    def apply_text_search(scope)
+      return scope if params[:q].blank?
 
-      # Sort by date (default: most recent first)
-      sort_direction = params[:sort] == "asc" ? :asc : :desc
-      @audit_logs = @audit_logs.order(created_at: sort_direction)
+      term = "%#{ActiveRecord::Base.sanitize_sql_like(params[:q].to_s.strip)}%"
+      scope.where(TEXT_SEARCH_SQL, t: term)
+    end
 
-      # Pagination
-      @per_page = (params[:per_page] || 50).to_i
-      @per_page = [@per_page, 200].min # Cap at 200
+    def valid_status?(status)
+      status.present? && %w[success failure].include?(status)
+    end
+
+    def sort_direction
+      params[:sort] == "asc" ? :asc : :desc
+    end
+
+    def paginate_audit_logs
+      @per_page = [(params[:per_page] || 50).to_i, 200].min
       @page = (params[:page] || 1).to_i
       @total_count = @audit_logs.count
       @total_pages = @total_count.positive? ? (@total_count.to_f / @per_page).ceil : 1
@@ -50,68 +67,53 @@ module PgSqlTriggers
 
       offset = (@page - 1) * @per_page
       @audit_logs = @audit_logs.offset(offset).limit(@per_page)
+    end
 
-      # Get distinct values for filter dropdowns
+    def load_filter_options
       @available_trigger_names = PgSqlTriggers::AuditLog.distinct.pluck(:trigger_name).compact.sort
       @available_operations = PgSqlTriggers::AuditLog.distinct.pluck(:operation).compact.sort
       @available_environments = PgSqlTriggers::AuditLog.distinct.pluck(:environment).compact.sort
+    end
 
-      respond_to do |format|
-        format.html
-        format.csv do
-          send_data generate_csv, filename: "audit_logs_#{Time.current.strftime('%Y%m%d_%H%M%S')}.csv",
-                                  type: "text/csv", disposition: "attachment"
+    def send_csv_response(scope)
+      send_data generate_csv(scope),
+                filename: "audit_logs_#{Time.current.strftime('%Y%m%d_%H%M%S')}.csv",
+                type: "text/csv",
+                disposition: "attachment"
+    end
+
+    def generate_csv(scope)
+      require "csv"
+
+      CSV.generate(headers: true) do |csv|
+        csv << CSV_HEADERS
+        scope.order(created_at: :desc).find_each do |log|
+          csv << csv_row_for(log)
         end
       end
     end
 
-    private
+    def csv_row_for(log)
+      actor_type, actor_id = extract_actor_fields(log.actor)
 
-    def generate_csv
-      require "csv"
+      [
+        log.id,
+        log.trigger_name || "",
+        log.operation,
+        log.status,
+        log.environment || "",
+        actor_type || "",
+        actor_id || "",
+        log.reason || "",
+        log.error_message || "",
+        log.created_at&.iso8601 || ""
+      ]
+    end
 
-      # Get all audit logs (no pagination for CSV)
-      audit_logs = PgSqlTriggers::AuditLog.all
+    def extract_actor_fields(actor)
+      return [nil, nil] unless actor.is_a?(Hash)
 
-      # Apply filters
-      audit_logs = audit_logs.for_trigger(params[:trigger_name]) if params[:trigger_name].present?
-      audit_logs = audit_logs.for_operation(params[:operation]) if params[:operation].present?
-      if params[:status].present? && %w[success failure].include?(params[:status])
-        audit_logs = audit_logs.where(status: params[:status])
-      end
-      audit_logs = audit_logs.for_environment(params[:environment]) if params[:environment].present?
-      audit_logs = audit_logs.where("actor->>'id' = ?", params[:actor_id]) if params[:actor_id].present?
-
-      if params[:q].present?
-        term = "%#{ActiveRecord::Base.sanitize_sql_like(params[:q].to_s.strip)}%"
-        audit_logs = audit_logs.where(TEXT_SEARCH_SQL, t: term)
-      end
-
-      CSV.generate(headers: true) do |csv|
-        csv << [
-          "ID", "Trigger Name", "Operation", "Status", "Environment",
-          "Actor Type", "Actor ID", "Reason", "Error Message",
-          "Created At"
-        ]
-
-        audit_logs.order(created_at: :desc).find_each do |log|
-          actor_type = log.actor.is_a?(Hash) ? log.actor["type"] || log.actor[:type] : nil
-          actor_id = log.actor.is_a?(Hash) ? log.actor["id"] || log.actor[:id] : nil
-
-          csv << [
-            log.id,
-            log.trigger_name || "",
-            log.operation,
-            log.status,
-            log.environment || "",
-            actor_type || "",
-            actor_id || "",
-            log.reason || "",
-            log.error_message || "",
-            log.created_at&.iso8601 || ""
-          ]
-        end
-      end
+      [actor["type"] || actor[:type], actor["id"] || actor[:id]]
     end
   end
 end

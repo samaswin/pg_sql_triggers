@@ -154,7 +154,6 @@ RSpec.describe PgSqlTriggers::Drift::Reporter do
              condition: condition)
     end
 
-    # rubocop:disable RSpec/MultipleMemoizedHelpers
     context "when trigger has drifted" do
       let(:modified_function_body) { "MODIFIED FUNCTION BODY" }
       let(:db_trigger) do
@@ -192,7 +191,6 @@ RSpec.describe PgSqlTriggers::Drift::Reporter do
         expect(diff).to include(modified_function_body)
       end
     end
-    # rubocop:enable RSpec/MultipleMemoizedHelpers
 
     context "when trigger is in sync" do
       let(:db_trigger) do

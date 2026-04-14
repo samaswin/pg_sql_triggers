@@ -35,8 +35,10 @@ module PgSqlTriggers
         end
 
         # Validate using pre-captured SQL (avoids re-instantiating the migration class).
+        # Direction is intentionally not a parameter here – the captured SQL already reflects
+        # the direction that was executed to produce it.
         # Raises UnsafeOperationError if unsafe patterns are detected.
-        def validate_sql!(captured_sql, direction: :up, allow_unsafe: false) # rubocop:disable Lint/UnusedMethodArgument
+        def validate_sql!(captured_sql, allow_unsafe: false)
           return if allow_unsafe
 
           violations = detect_unsafe_patterns_from_sql(captured_sql)

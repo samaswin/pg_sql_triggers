@@ -196,39 +196,50 @@ module PgSqlTriggers
           errors
         end
 
-        def validate_deferral(name, definition, timing) # rubocop:disable Metrics/PerceivedComplexity
-          errors = []
+        def validate_deferral(name, definition, timing)
           constraint = ActiveModel::Type::Boolean.new.cast(definition["constraint_trigger"])
           deferrable_val = definition["deferrable"].presence&.to_s
           initially_val = definition["initially"].presence&.to_s
 
+          errors = []
+          errors.concat(constraint_deferral_errors(name, constraint, timing, definition))
+          errors.concat(deferral_value_errors(name, deferrable_val, initially_val))
+          errors
+        end
+
+        def constraint_deferral_errors(name, constraint, timing, definition)
+          deferrable_val = definition["deferrable"].presence&.to_s
+          initially_val = definition["initially"].presence&.to_s
+          errors = []
           if (deferrable_val.present? || initially_val.present?) && !constraint
             errors << "Trigger '#{name}': deferrable/initially require constraint_trigger (CONSTRAINT TRIGGER)"
           end
-
           if constraint && timing.to_s != "after"
             errors << "Trigger '#{name}': constraint triggers must use after timing"
           end
           if constraint && events_include_truncate?(definition)
             errors << "Trigger '#{name}': constraint triggers cannot use TRUNCATE events"
           end
+          errors
+        end
 
-          valid_deferrable = %w[deferrable not_deferrable]
-          if deferrable_val.present? && valid_deferrable.exclude?(deferrable_val)
-            errors << "Trigger '#{name}': invalid deferrable '#{deferrable_val}' (valid: #{valid_deferrable.inspect})"
+        VALID_DEFERRABLE = %w[deferrable not_deferrable].freeze
+        VALID_INITIALLY = %w[deferred immediate].freeze
+        private_constant :VALID_DEFERRABLE, :VALID_INITIALLY
+
+        def deferral_value_errors(name, deferrable_val, initially_val)
+          errors = []
+          if deferrable_val.present? && VALID_DEFERRABLE.exclude?(deferrable_val)
+            errors << "Trigger '#{name}': invalid deferrable '#{deferrable_val}' (valid: #{VALID_DEFERRABLE.inspect})"
           end
-
-          valid_initially = %w[deferred immediate]
-          if initially_val.present? && valid_initially.exclude?(initially_val)
-            errors << "Trigger '#{name}': invalid initially '#{initially_val}' (valid: #{valid_initially.inspect})"
+          if initially_val.present? && VALID_INITIALLY.exclude?(initially_val)
+            errors << "Trigger '#{name}': invalid initially '#{initially_val}' (valid: #{VALID_INITIALLY.inspect})"
           end
-
           if initially_val.present? && deferrable_val != "deferrable"
             errors << "Trigger '#{name}': initially requires deferrable to be 'deferrable'"
           end
-
           errors
-        end # rubocop:enable Metrics/PerceivedComplexity
+        end
 
         def events_include_truncate?(definition)
           Array(definition["events"]).map(&:to_s).include?("truncate")

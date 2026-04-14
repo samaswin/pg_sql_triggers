@@ -24,9 +24,9 @@ module PgSqlTriggers
       end
 
       # Intentionally not named `constraint_trigger?` — matches registry column and JSON key.
-      def constraint_trigger # rubocop:disable Naming/PredicateMethod
-        @constraint_trigger == true
-      end
+      # The setter always casts to a boolean, and the initial value is `false`, so this returns
+      # the stored value directly without coercion.
+      attr_reader :constraint_trigger
 
       def constraint_trigger=(value)
         @constraint_trigger = ActiveModel::Type::Boolean.new.cast(value)
