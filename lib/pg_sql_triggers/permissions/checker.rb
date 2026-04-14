@@ -18,7 +18,7 @@ module PgSqlTriggers
       end
 
       def self.check!(actor, action, environment: nil)
-        return if can?(actor, action, environment: environment)
+        return true if can?(actor, action, environment: environment)
 
         action_sym = action.to_sym
         required_level = Permissions::ACTIONS[action_sym] || "unknown"

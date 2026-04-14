@@ -506,15 +506,23 @@ module PgSqlTriggers
       Rails.logger.error("Failed to log audit entry: #{e.message}") if defined?(Rails.logger)
     end
 
-    # Persist the +enabled+ flag, with an in-memory fallback if the DB write fails.
-    # Returns true when the update was persisted, false when only the in-memory value changed.
+    # Persist the +enabled+ flag: +update!+, then +update_column+ if needed, then in-memory.
+    # Returns true when a DB write succeeded, false when only the in-memory value changed.
     def persist_enabled_state(value)
       update!(enabled: value)
       true
     rescue ActiveRecord::StatementInvalid, StandardError => e
-      Rails.logger.warn("Could not persist enabled=#{value} on registry: #{e.message}") if defined?(Rails.logger)
-      self.enabled = value
-      false
+      Rails.logger.warn("Could not update registry via update!: #{e.message}") if defined?(Rails.logger)
+      begin
+        # rubocop:disable Rails/SkipsModelValidations -- fallback when update! fails (callbacks/validations/locks)
+        update_column(:enabled, value)
+        # rubocop:enable Rails/SkipsModelValidations
+        true
+      rescue ActiveRecord::StatementInvalid, StandardError => e2
+        Rails.logger.warn("Could not update registry via update_column: #{e2.message}") if defined?(Rails.logger)
+        self.enabled = value
+        false
+      end
     end
   end
   # rubocop:enable Metrics/ClassLength
