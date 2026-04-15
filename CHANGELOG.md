@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 No changes yet.
 
-## [1.5.0] - 2026-04-14
+## [1.5.0] - 2026-04-15
 
 These notes follow the phased gap analysis in [`IMPLEMENTATION_PLAN.md`](IMPLEMENTATION_PLAN.md)
 (baseline **v1.4.0**). This release ships Phase 0 cleanup, Phase 1 routing-test hardening,
