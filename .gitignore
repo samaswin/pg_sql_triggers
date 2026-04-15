@@ -6,7 +6,7 @@
 /pkg/
 /spec/reports/
 /tmp/
-
+/pg-sql-triggers-example/
 # rspec failure tracking
 .rspec_status
 test.yml.bak2
